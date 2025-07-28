@@ -1,0 +1,25 @@
+.userinfo {
+    margin-top: 15px;
+    margin-left: 15px;
+    width: 100%;
+    height: 60px;
+    display: -webkit-flex; /* Safari */
+    display: flex; 
+    flex-direction: row;
+}
+
+.avatar {    
+    background: #ebf1fd;
+    border: 1px lightblue;
+    border-radius: 50%;
+    width: 48px;
+    height: 48px;
+    align-self: center;
+}
+
+.name {
+    font-size: 16px;
+    margin-left: 12px;
+    font-weight: bold;
+    align-self: center;
+}

@@ -1,0 +1,10 @@
+/* 隐藏禁用的分钟选项 */
+.ant-picker-time-panel-cell-disabled {
+    display: none !important;
+}
+
+/* 全局样式文件（如 styles.css） */
+.ant-picker-ok button {
+    width: auto!important;
+    /* 自定义宽度 */
+}

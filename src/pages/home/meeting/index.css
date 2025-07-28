@@ -1,0 +1,15 @@
+.search-container {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.reserve-button {
+  width: auto; /* 宽度自适应内容 */
+  margin-left: 16px;
+  color: white; /* 设置文字颜色为白色 */
+}
+
+.custom-row {
+  height: auto;
+}
