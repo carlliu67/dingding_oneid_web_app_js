@@ -23,7 +23,10 @@ async function handleGenerateJoinScheme(meetingCode, closePage = false) {
         openSchema(data.data, closePage);
         return;
     }).catch(function (error) {
-        console.log(`${clientConfig.generateJoinSchemePath} error:`, error)
+        console.error(`${clientConfig.generateJoinSchemePath} error`)
+        if (error.response) {
+            console.error("错误响应数据:", error.response.msg);
+        }
     }).finally(() => {
         console.log("----------[GenerateJoinScheme END]----------\n")
     });
@@ -48,7 +51,10 @@ function handleGenerateJumpUrl(base64EncodedMeetingUrl, closePage = false) {
         openSchema(data.data, closePage);
         return;
     }).catch(function (error) {
-        console.log(`${clientConfig.generateJumpUrlPath} error:`, error)
+        console.error(`${clientConfig.generateJumpUrlPath} error`)
+        if (error.response) {
+            console.error("错误响应数据:", error.response.msg);
+        }
     }).finally(() => {
         console.log("----------[GenerateJumpUrl END]----------\n")
     });
@@ -71,7 +77,10 @@ async function handleGenerateJoinUrl(meetingUrl) {
         }
         return data;
     }).catch(function (error) {
-        console.log(`${clientConfig.generateJoinUrlPath} error:`, error)
+        console.error(`${clientConfig.generateJoinUrlPath} error`)
+        if (error.response) {
+            console.error("错误响应数据:", error.response.msg);
+        }
     }).finally(() => {
         console.log("----------[GenerateJoinUrl END]----------\n")
     });
@@ -97,7 +106,10 @@ async function handleCreateMeeting(meetingParamsStr) {
             console.error("创建会议: 数据为空")
         }
     }).catch(function (error) {
-        console.log(`${clientConfig.createMeetingPath} error:`, error)
+        console.error(`${clientConfig.createMeetingPath} error`)
+        if (error.response) {
+            console.error("错误响应数据:", error.response.msg);
+        }
     }).finally(() => {
         console.log("----------[创建会议 END]----------\n")
         return response.data;
@@ -109,7 +121,10 @@ async function handleQueryUserEndedMeetingList() {
     var response = await axios.get(`${getOrigin(clientConfig.apiPort)}${clientConfig.queryUserEndedMeetingListPath}?page_size=20&page=1`,
         { withCredentials: true } // 调用时设置请求带上cookie
     ).catch(function (error) {
-        console.log(`${clientConfig.queryUserEndedMeetingListPath} error:`, error)
+        console.log(`${clientConfig.queryUserEndedMeetingListPath} error`)
+        if (error.response) {
+            console.error("错误响应数据:", error.response.msg);
+        }
     });
 
     if (!response.data) {
@@ -132,7 +147,10 @@ async function handleQueryUserMeetingList() {
     var response = await axios.get(`${getOrigin(clientConfig.apiPort)}${clientConfig.queryUserMeetingListPath}?pos=0&cursory=0`,
         { withCredentials: true } // 调用时设置请求带上cookie
     ).catch(function (error) {
-        console.log(`${clientConfig.queryUserMeetingListPath} error:`, error)
+        console.error(`${clientConfig.queryUserMeetingListPath} error`)
+        if (error.response) {
+            console.error("错误响应数据:", error.response.msg);
+        }
     });
 
     if (!response.data) {

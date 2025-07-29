@@ -15,24 +15,32 @@ export async function handleJSAPIAccess() {
     // 向接入方服务端发起请求，获取鉴权参数
     var desUrl = `${getOrigin(clientConfig.apiPort)}${clientConfig.getSignParametersPath}?url=${url}`
     console.log("desUrl: " + desUrl)
-    const res = await axios.get(desUrl,
-        { withCredentials: true }
-    )
-    if (!res.data) {
-        console.error(`${clientConfig.getSignParametersPath} fail`)
-        //complete(false)
-        return
-    }
+    try {
+        const res = await axios.get(desUrl,
+            { withCredentials: true }
+        )
+        if (!res.data) {
+            console.error(`${clientConfig.getSignParametersPath} fail`)
+            //complete(false)
+            return
+        }
 
-    const data = res.data
-    console.log("接入方前端[JSAPI鉴权处理]第② 步: 获得鉴权参数")
-    if (!data) {
-        console.error('获取参数失败')
-        //complete(false)
-        return
+        const data = res.data
+        console.log("接入方前端[JSAPI鉴权处理]第② 步: 获得鉴权参数")
+        if (!data) {
+            console.error('获取参数失败')
+            //complete(false)
+            return
+        }
+        return data
+        // configJSAPIAccess(data, complete)
+    } catch (error) {
+        console.error("JSAPI鉴权请求失败");
+        if (error.response) {
+            console.error("错误响应数据:", error.response.msg);
+        }
+        throw error; // 重新抛出错误以便调用方处理
     }
-    return data
-    // configJSAPIAccess(data, complete)
 }
 
 //config JSAPI鉴权
@@ -128,7 +136,10 @@ function requestUserAccessToken(code, complete) {
             console.log("----------[接入网页方免登处理 END]----------\n")
         }
     }).catch(function (error) {
-        console.log(`${clientConfig.getUserAccessTokenPath} error:`, error)
+        console.error(`${clientConfig.getUserAccessTokenPath} error`)
+        if (error.response) {
+            console.error("错误响应数据: ", error.response.msg)
+        }
         console.log("----------[接入网页方免登处理 END]----------\n")
         complete()
     })
