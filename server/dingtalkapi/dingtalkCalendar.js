@@ -196,8 +196,6 @@ async function createMeetingCalendar(creatorUnionId, meetingInfo, attendees) {
             }
     }
 
-    
-
     try {
         const internalRes = await axios.post(
             `https://api.dingtalk.com/v1.0/calendar/users/${creatorUnionId}/calendars/primary/events`,

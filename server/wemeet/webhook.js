@@ -133,13 +133,19 @@ async function webhookCreateMeeting(eventData) {
         return;
     }
 
+    var creatorUserid = webhookMeetingInfo.creator.userid;
+    var creatorUnionid = await getUnionIdByUserid(creatorUserid);
+    if (!creatorUnionid) {
+        logger.warn("未获取到创建者UnionId");
+        return;
+    }
+
     const result = await queryMeetingById(webhookMeetingInfo.meeting_id, webhookMeetingInfo.creator.userid);
     if (!result) {
         logger.error("未获取到会议信息");
         return;
     }
-    var creatorUserid = webhookMeetingInfo.creator.userid;
-    var creatorUnionid = await getUnionIdByUserid(creatorUserid);
+    
     const meetingInfo = result.meeting_info_list[0];
     var currentHosts = meetingInfo.current_hosts ? meetingInfo.current_hosts : [];
     var hosts = meetingInfo.hosts ? meetingInfo.hosts : [];
@@ -215,13 +221,19 @@ async function webhookUpdateMeeting(eventData) {
         return;
     }
 
+    var creatorUserid = webhookMeetingInfo.creator.userid;
+    var creatorUnionid = await getUnionIdByUserid(creatorUserid);
+    if (!creatorUnionid) {
+        logger.warn("未获取到创建者UnionId");
+        return;
+    }
+
     const result = await queryMeetingById(webhookMeetingInfo.meeting_id, webhookMeetingInfo.creator.userid);
     if (!result) {
         logger.error("未获取到会议信息");
         return;
     }
-    var creatorUserid = webhookMeetingInfo.creator.userid;
-    var creatorUnionid = await getUnionIdByUserid(creatorUserid);
+    
     const meetingInfo = result.meeting_info_list[0];
     var currentHosts = meetingInfo.current_hosts ? meetingInfo.current_hosts : [];
     var hosts = meetingInfo.hosts ? meetingInfo.hosts : [];
@@ -292,6 +304,10 @@ async function webhookCancelMeeting(eventData) {
     }
 
     var creatorUnionid = await getUnionIdByUserid(webhookMeetingInfo.creator.userid);
+    if (!creatorUnionid) {
+        logger.warn("未获取到unionid");
+        return;
+    }
 
     // 取消会议待办事项
     await deleteMeetingTodo(creatorUnionid, webhookMeetingInfo.meeting_id);
@@ -322,6 +338,10 @@ async function webhookEndMeeting(eventData) {
     }
 
     var creatorUnionid = await getUnionIdByUserid(webhookMeetingInfo.creator.userid);
+    if (!creatorUnionid) {
+        logger.warn("未获取到unionid");
+        return;
+    }
 
     // 取消会议待办事项
     await deleteMeetingTodo(creatorUnionid, webhookMeetingInfo.meeting_id);

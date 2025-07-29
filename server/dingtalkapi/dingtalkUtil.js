@@ -30,11 +30,11 @@ function formatTimeRange(startTimestamp, endTimestamp) {
     };
 
     // 格式化时间部分 (XX:XX)
-    const formatTime = date => 
+    const formatTime = date =>
         `${padZero(date.getHours())}:${padZero(date.getMinutes())}`;
 
     // 判断是否同一天
-    const isSameDay = 
+    const isSameDay =
         startDate.getFullYear() === endDate.getFullYear() &&
         startDate.getMonth() === endDate.getMonth() &&
         startDate.getDate() === endDate.getDate();
@@ -72,21 +72,54 @@ async function getInterAccessToken() {
         logger.info("access_token: ", interAccessToken)
         return interAccessToken
     }
-    const internalRes = await axios.post('https://api.dingtalk.com/v1.0/oauth2/accessToken', {
-        "appKey": serverConfig.dingtalkClientId,
-        "appSecret": serverConfig.dingtalkClientSecret,
-    }, { headers: { "Content-Type": "application/json" } })
+    try {
+        const internalRes = await axios.post('https://api.dingtalk.com/v1.0/oauth2/accessToken', {
+            "appKey": serverConfig.dingtalkClientId,
+            "appSecret": serverConfig.dingtalkClientSecret,
+        }, { headers: { "Content-Type": "application/json" } })
 
-    if (!internalRes.data.accessToken) {
-        logger.error("获取 access_token 失败")
-        return
+        if (!internalRes.data.accessToken) {
+            logger.error("获取 access_token 失败")
+            return
+        }
+
+        interAccessToken = internalRes.data.accessToken
+        interAccessTokenTime = Math.floor(Date.now() / 1000)
+        logger.info("access_token: ", interAccessToken)
+        return interAccessToken
+    } catch (error) {
+        logger.error("获取 access_token 失败", error.message, "stack:", error.stack);
     }
+}
 
-    interAccessToken = internalRes.data.accessToken
-    interAccessTokenTime = Math.floor(Date.now() / 1000)
-    logger.info("access_token: ", interAccessToken)
-    return interAccessToken
+// 应用的access token有效期为2小时，需要定时刷新
+let accessToken = null;
+let accessTokenTime = 0;
+// 获取 access_token
+async function getAccessToken() {
+    if (accessToken && accessTokenTime + 7000 > Math.floor(Date.now() / 1000)) {
+        logger.info("access_token get time: ", accessTokenTime);
+        return accessToken;
+    }
+    try {
+        const internalRes = await axios.post('https://api.dingtalk.com/v1.0/oauth2/' + serverConfig.dingtalkCorpId + '/token', {
+            "client_id": serverConfig.dingtalkClientId,
+            "client_secret": serverConfig.dingtalkClientSecret,
+            "grant_type": "client_credentials"
+        }, { headers: { "Content-Type": "application/json" } })
+        if (!internalRes.data.access_token) {
+            logger.error("获取 access_token 失败");
+            return null;
+        }
 
+        accessToken = internalRes.data.access_token;
+        accessTokenTime = Math.floor(Date.now() / 1000);
+        logger.info("access_token get time: ", accessTokenTime, "expires_in: ", internalRes.data.expires_in);
+        return accessToken;
+    } catch (error) {
+        logger.error("获取 access_token 失败", error.message, "stack:", error.stack);
+        return null;
+    }
 }
 
 // userid转换为unionid
@@ -101,18 +134,51 @@ async function getUnionIdByUserid(userid) {
         return null;
     }
 
-    const internalRes = await axios.post('https://oapi.dingtalk.com/topapi/v2/user/get?access_token=' + access_token,
-        {
-            "userid": userid
-        }, { headers: { "Content-Type": "application/json" } })
+    try {
+        const internalRes = await axios.post('https://oapi.dingtalk.com/topapi/v2/user/get?access_token=' + access_token,
+            {
+                "userid": userid
+            }, { headers: { "Content-Type": "application/json" } })
 
-    if (!internalRes.data) {
-        logger.error("queryUserDetail失败")
+        if (!internalRes.data || internalRes.data.errcode != 0) {
+            logger.warn("queryUserDetail失败，errcode", internalRes.data.errcode, "errmsg", internalRes.data.errmsg)
+            return null;
+        }
+        logger.info("queryUserDetail result: ", internalRes.data);
+        dbInsertUserinfo(userid, internalRes.data.result.unionid, internalRes.data.result.name);
+        return internalRes.data.result.unionid;
+    } catch (error) {
+        logger.error("userid转换为unionid时发生异常:", error.message, "stack:", error.stack);
         return null;
     }
-    logger.info("queryUserDetail result: ", internalRes.data);
-    dbInsertUserinfo(userid, internalRes.data.result.unionid, internalRes.data.result.name);
-    return internalRes.data.result.unionid;
+}
+
+// 根据unionid获取用户userid
+async function queryUserIdByUnionId(unionid) {
+    var access_token = await getInterAccessToken();
+    if (!access_token) {
+        return null;
+    }
+
+    try {
+        const internalRes = await axios.post('https://oapi.dingtalk.com/topapi/user/getbyunionid?access_token=' + access_token,
+            {
+                "unionid": unionid
+            }, { headers: { "Content-Type": "application/json" } })
+
+        //logger.info("internalRes: ", internalRes)
+
+        if (!internalRes.data) {
+            logger.error("根据unionid获取用户userid失败")
+            return null;
+        }
+        logger.info("queryUserIdByUnionId result: ", internalRes.data);
+        return internalRes.data.result.userid;
+    } catch (error) {
+        logger.error("根据unionid获取用户userid失败", error.message, "stack:", error.stack);
+        return null;
+    }
+
 }
 
 export {
@@ -121,5 +187,6 @@ export {
     genUrlAppLink,
     genH5AppLink,
     getInterAccessToken,
+    getAccessToken,
     getUnionIdByUserid
 };

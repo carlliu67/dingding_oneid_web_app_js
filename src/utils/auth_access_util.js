@@ -70,7 +70,7 @@ export function handleUserAuth(complete) {
         requestUserAccessToken("", complete)
     } else {
         console.log("接入方前端[免登处理]第① 步: 依据App ID调用JSAPI dd.requestAuthCode 请求免登授权码")
-        console.log("corpId: " + clientConfig.corpId, "\nclientId: " + clientConfig.clientId)
+        // console.log("corpId: " + clientConfig.corpId, "\nclientId: " + clientConfig.clientId)
         console.log("href: ", window.location.href); // 示例输出：https://example.com/path?query=1#hash
         dd.ready(function () {
             var corpId = clientConfig.corpId;
@@ -111,6 +111,7 @@ function requestUserAccessToken(code, complete) {
     ).then(function (response) {  // ignore_security_alert
         if (!response.data && !response.data.data) {
             console.error(`${clientConfig.getUserAccessTokenPath} response is null`)
+            console.error("接口调用返回信息: ", response)
             complete()
             return
         }
