@@ -89,6 +89,7 @@ async function getInterAccessToken() {
         return interAccessToken
     } catch (error) {
         logger.error("获取 access_token 失败", error.message, "stack:", error.stack);
+        return
     }
 }
 

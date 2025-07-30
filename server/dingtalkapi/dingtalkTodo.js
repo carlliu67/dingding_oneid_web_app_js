@@ -5,7 +5,7 @@ import { dbInsertTodo, dbGetTodoByMeetingid as dbGetTodoByMeetingid, dbDeleteTod
 
 
 // 创建会议待办
-async function createMeetingTodo(creatorUnionId, meetingInfo, paticipants) {
+async function createMeetingTodo(creatorUnionId, meetingInfo, executorIds) {
     // logger.info(meetingInfo);
 
     var access_token = await getInterAccessToken();
@@ -23,7 +23,7 @@ async function createMeetingTodo(creatorUnionId, meetingInfo, paticipants) {
                 "creatorId": creatorUnionId,
                 // 截止时间为会议开始时间
                 "dueTime": meetingInfo.start_time * 1000,
-                "participantIds": paticipants,
+                "executorIds": executorIds,
                 "detailUrl": {
                     "appUrl": meetingInfo.join_url,
                     "pcUrl": pcUrl
