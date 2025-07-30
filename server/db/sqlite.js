@@ -1,12 +1,13 @@
+import path from 'path';
 import sqlite3 from'sqlite3';
 const sqlite = sqlite3.verbose();
 
 import { logger } from '../util/logger.js';
 
 // 数据库配置
-const idTokenDBPath = 'idtoken_database.db';
-const userinfoDBPath = 'userinfo_database.db';
-const todoDBPath = 'todo_database.db';
+const idTokenDBPath = path.join(process.cwd(), 'data', 'idtoken_database.db');
+const userinfoDBPath = path.join(process.cwd(), 'data', 'userinfo_database.db');
+const todoDBPath = path.join(process.cwd(), 'data', 'todo_database.db');
 
 // 全局数据库连接
 let idTokenDB = null;
