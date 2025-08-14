@@ -1,1 +1,9 @@
 .DS_Store
+*.pem
+*.key
+*.csr
+*.crt
+*.log
+*config.js
+data/**
+node_modules/**
