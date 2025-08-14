@@ -6,6 +6,7 @@ import serverConfig from '../server_config.js';
 import { isLogin, getUserid } from '../dingtalkapi/dingtalkAuth.js';
 
 const USER_INFO_KEY = 'user_info';
+const WEMEET_VERSION = 'wemeet-dingtalk-js/v1.0.1'
 
 /**
  * 生成签名函数
@@ -66,6 +67,7 @@ function createRequestConfig(method, uri, body = '') {
         url: serverConfig.wemeetRestAPIServerUrl + uri,
         headers: {
             'Content-Type': 'application/json',
+            'Wemeet-Version': WEMEET_VERSION,
             'X-TC-Key': serverConfig.wemeetRestAPISecretID,
             'X-TC-Timestamp': timestamp,
             'X-TC-Nonce': nonce,
