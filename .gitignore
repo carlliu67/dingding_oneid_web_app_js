@@ -1,9 +1,7 @@
 .DS_Store
-*.pem
-*.key
-*.csr
-*.crt
-*.log
-*config.js
 data/**
 node_modules/**
+logs/**
+server/key/rsa_private_key.pem
+server/server_config.js
+src/config/client_config.js
