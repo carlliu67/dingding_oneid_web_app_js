@@ -149,56 +149,60 @@ async function webhookCreateMeeting(eventData) {
     const meetingInfo = result.meeting_info_list[0];
     var currentHosts = meetingInfo.current_hosts ? meetingInfo.current_hosts : [];
     var hosts = meetingInfo.hosts ? meetingInfo.hosts : [];
-    var participants = meetingInfo.participants ? meetingInfo.participants : [];
-    var paticipants = [];
-    var paticipantUnionId = null;
+    var originalParticipants = meetingInfo.participants ? meetingInfo.participants : [];
+    var todoParticipants = [];
+    var participantUnionId = null;
 
     // 添加会议创建者
-    paticipants.push(creatorUnionid);
+    todoParticipants.push(creatorUnionid);
     // 添加currentHosts
     if (currentHosts.length > 0) {
         for (const host of currentHosts) {
-            paticipantUnionId = await getUnionIdByUserid(host.userid);
-            if (paticipantUnionId) {
-                paticipants.push(paticipantUnionId);
+            participantUnionId = await getUnionIdByUserid(host.userid);
+            if (participantUnionId) {
+                todoParticipants.push(participantUnionId);
             }
         }
     }
     // 添加hosts
     if (hosts.length > 0) {
         for (const host of hosts) {
-            paticipantUnionId = await getUnionIdByUserid(host.userid);
-            if (paticipantUnionId) {
-                paticipants.push(paticipantUnionId);
+            participantUnionId = await getUnionIdByUserid(host.userid);
+            if (participantUnionId) {
+                todoParticipants.push(participantUnionId);
             }
         }
     }
-    // 添加participants
-    if (participants.length > 0) {
-        for (const paticipant of participants) {
-            paticipantUnionId = await getUnionIdByUserid(paticipant.userid);
-            if (paticipantUnionId) {
-                paticipants.push(paticipantUnionId);
+    // 添加originalParticipants
+    if (originalParticipants.length > 0) {
+        for (const participant of originalParticipants) {
+            participantUnionId = await getUnionIdByUserid(participant.userid);
+            if (participantUnionId) {
+                todoParticipants.push(participantUnionId);
             }
         }
     }
-    // 按id属性去重
-    paticipants = [...new Set(paticipants)];
+    // 去重
+    todoParticipants = [...new Set(todoParticipants)];
 
     logger.info("currentHosts: ", currentHosts);
     logger.info("hosts: ", hosts);
-    logger.info("paticipants: ", participants);
-    logger.info("todoPaticipants: ", paticipants);
+    logger.info("originalParticipants: ", originalParticipants);
+    logger.info("todoParticipants: ", todoParticipants);
 
     // 会议类型(0:一次性会议，1:周期性会议，2:微信专属会议，4:rooms 投屏会议，5:个人会议号会议， 6:网络研讨会)
     if (webhookMeetingInfo.meeting_type === 0 || webhookMeetingInfo.meeting_type === 2 || webhookMeetingInfo.meeting_type === 5 || webhookMeetingInfo.meeting_type === 6) {
         // 非周期会议通过待办通知
-        await createMeetingTodo(creatorUnionid, meetingInfo, paticipants);
+        if (todoParticipants.length > 0) {
+            await createMeetingTodo(creatorUnionid, meetingInfo, todoParticipants);
+        } else {
+            logger.warn("待办通知跳过：没有有效的参会者UnionId");
+        }
     } else if (webhookMeetingInfo.meeting_type === 1) {
         // 周期会议暂不处理
         return;
         // 周期会议通过日程通知
-        await createMeetingCalendar(creatorUnionid, meetingInfo, paticipants);
+        // await createMeetingCalendar(creatorUnionid, meetingInfo, todoParticipants);
     }
 
 }

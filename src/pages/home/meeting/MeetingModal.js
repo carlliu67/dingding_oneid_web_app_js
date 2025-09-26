@@ -1,10 +1,14 @@
-import { useState, useRef } from 'react';
-import { Modal, Form, Input, DatePicker, TimePicker, InputNumber, Button } from 'antd';
+import React, { useState, useRef } from 'react';
+import { Modal, Form, Input, DatePicker, TimePicker, InputNumber, Button, message } from 'antd';
 import dayjs from 'dayjs';
+import * as dd from 'dingtalk-jsapi';
 import './MeetingModal.css'
+import clientConfig from '../../../config/client_config.js';
 
 const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
   const [startTime, setStartTime] = useState(null);
+  const [selectedHosts, setSelectedHosts] = useState([]); // 存储选中的主持人列表，每项包含 {id, name}
+  const [selectedInvitees, setSelectedInvitees] = useState([]); // 存储选中的邀请人列表，每项包含 {id, name}
   const formRef = useRef(null);
   let currentDate;
   let currentTime;
@@ -17,15 +21,141 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
   };
 
   const handleCancel = () => {
+    // 先调用父组件传入的onCancel关闭Modal
     onCancel();
+    // 再清空组件内部的主持人和邀请人状态数据，确保下一次打开Modal时不会显示之前的数据
+    setSelectedHosts([]); // 清空主持人数据
+    setSelectedInvitees([]); // 清空邀请人数据
+  };
+
+  // 处理删除主持人
+  const handleRemoveHost = (index) => {
+    // 创建新的主持人列表副本，避免直接修改状态
+    const newSelectedHosts = [...selectedHosts];
+    
+    // 移除指定索引的主持人
+    newSelectedHosts.splice(index, 1);
+    
+    // 更新状态
+    setSelectedHosts(newSelectedHosts);
+  };
+
+  // 处理删除邀请人
+  const handleRemoveInvitee = (index) => {
+    // 创建新的邀请人列表副本，避免直接修改状态
+    const newSelectedInvitees = [...selectedInvitees];
+    
+    // 移除指定索引的邀请人
+    newSelectedInvitees.splice(index, 1);
+    
+    // 更新状态
+    setSelectedInvitees(newSelectedInvitees);
+  };
+
+  // 处理选择主持人
+  const handleChooseHost = async () => {
+    dd.ready(() => {
+      dd.complexChoose({
+        // appId: '3588138805',
+        title: '选择主持人',
+        corpId: clientConfig.corpId,
+        // deptId: '0987',
+        maxUsers: 50,
+        multiple: true,
+        // rootPage: `rootPage示例值`,
+        limitTips: '选择人数不能超过50个',
+        pickedUsers: selectedHosts.map(host => host.id),
+        // disabledUsers: ['userId0', 'userId2'],
+        // requiredUsers: [userInfo.userid],
+        // showLabelPick: true,
+        responseUserOnly: true,
+        // pickedDepartments: ['deptId0', 'deptId1'],
+        // showOrgEcological: false,
+        // disabledDepartments: ['deptId0', 'deptId1'],
+        // filterOrgEcological: false,
+        // requiredDepartments: ['deptId0', 'deptId1'],
+        // startWithDepartmentId: '0332',
+        success: (res) => {
+          console.log('选择人员结果:', res); // 打印返回结果以帮助调试
+
+          if (res && Array.isArray(res.users) && res.users.length > 0) {
+              // 确认返回的是一个用户对象数组 [{ name, avatar, emplId }, ...]
+              const hosts = res.users.map((user) => ({
+                id: user.emplId,
+                name: user.name
+              }));
+
+              console.log('解析到人员数据:', hosts); // 打印解析后的人员数据
+              setSelectedHosts(hosts); // 设置选中的人员数据
+
+          } else {
+            // 如果返回的不是预期的数组结构或数组为空
+            setSelectedHosts([]); // 清空数据
+          }
+        },
+        fail: () => { },
+        complete: () => { },
+      }).catch((err) => {
+        console.error('选择主持人失败:', err);
+      });
+    });
+  };
+
+  // 处理选择邀请人
+  const handleChooseInvitee = async () => {
+    dd.ready(() => {
+      dd.complexChoose({
+        // appId: '3588138805',
+        title: '选择邀请成员',
+        corpId: clientConfig.corpId,
+        // deptId: '0987',
+        maxUsers: 300,
+        multiple: true,
+        // rootPage: `rootPage示例值`,
+        limitTips: '选择人数不能超过300个',
+        pickedUsers: selectedInvitees.map(invitee => invitee.id),
+        // disabledUsers: ['userId0', 'userId2'],
+        // requiredUsers: [userInfo.userid],
+        // showLabelPick: true,
+        responseUserOnly: true,
+        // pickedDepartments: ['deptId0', 'deptId1'],
+        // showOrgEcological: false,
+        // disabledDepartments: ['deptId0', 'deptId1'],
+        // filterOrgEcological: false,
+        // requiredDepartments: ['deptId0', 'deptId1'],
+        // startWithDepartmentId: '0332',
+        success: (res) => {
+          console.log('选择邀请成员结果:', res); // 打印返回结果以帮助调试
+
+          if (res && Array.isArray(res.users) && res.users.length > 0) {
+              // 确认返回的是一个用户对象数组 [{ name, avatar, emplId }, ...]
+              const invitees = res.users.map((user) => ({
+                id: user.emplId,
+                name: user.name
+              }));
+
+              console.log('解析到邀请成员数据:', invitees); // 打印解析后的人员数据
+              setSelectedInvitees(invitees); // 设置选中的人员数据
+
+          } else {
+            // 如果返回的不是预期的数组结构或数组为空
+            setSelectedInvitees([]); // 清空数据
+          }
+        },
+        fail: () => { },
+        complete: () => { },
+      }).catch((err) => {
+        console.error('选择邀请成员失败:', err);
+      });
+    });
   };
 
   const handleCreateMeetingSubmit = async (values) => {
     var meetingParams = {};
     meetingParams.instanceid = 1;
     meetingParams.subject = values.topic;
-    meetingParams.host = values.host;
-    meetingParams.invitees = values.invitees;
+    meetingParams.hosts = selectedHosts.map(host => host.id); // 从合并后的状态中提取hosts数组
+    meetingParams.invitees = selectedInvitees.map(invitee => invitee.id); // 从合并后的状态中提取invitees数组
     meetingParams.type = 0;
     // console.log("startTime: ", values.start_time);
     const startDateTime = dayjs(values.start_date).hour(dayjs(values.start_time).hour()).minute(dayjs(values.start_time).minute());
@@ -35,6 +165,9 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
     var meetingParamsStr = JSON.stringify(meetingParams);
     console.log("meetingParamsStr: ", meetingParamsStr);
     onCreate(meetingParamsStr);
+    // 清空组件内部的主持人和邀请人状态数据，确保下一次打开Modal时不会显示之前的数据
+    setSelectedHosts([]); // 清空主持人数据
+    setSelectedInvitees([]); // 清空邀请人数据
   };
 
   const disabledTime = () => {
@@ -110,16 +243,94 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
         <Form.Item
           name="host"
           label="指定主持人"
-          rules={[{ message: '请输入成员名称' }]}
+          rules={[{ message: '请选择成员' }]}
         >
-          <Input />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <Button type="primary" onClick={() => handleChooseHost()}>选择主持人</Button>
+            </div>
+            {/* 主持人展示框 */}
+            <div style={{
+              padding: '12px',
+              // border: '1px solid #d9d9d9',
+              borderRadius: '4px',
+              // backgroundColor: '#fafafa',
+              wordBreak: 'break-all'
+            }}>
+              {selectedHosts && selectedHosts.length > 0 ? (
+                <div>
+                  <span style={{ color: '#666', marginRight: '8px' }}>已选择主持人:</span>
+                  <span>
+                    {selectedHosts.map((item, index) => (
+                      <React.Fragment key={index}>
+                        {index > 0 && '; '}
+                        <span style={{ marginRight: '5px' }}>{item.name}</span>
+                        <span
+                          style={{
+                            color: '#1890ff',
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                            marginRight: '5px'
+                          }}
+                          onClick={() => handleRemoveHost(index)}
+                        >
+                          [删除]
+                        </span>
+                      </React.Fragment>
+                    ))}
+                  </span>
+                </div>
+              ) : (
+                <span style={{ color: '#999' }}>暂未选择主持人</span>
+              )}
+            </div>
+          </div>
         </Form.Item>
         <Form.Item
           name="invitees"
           label="邀请成员"
-          rules={[{ message: '请输入成员名称' }]}
+          rules={[{ message: '请选择成员' }]}
         >
-          <Input />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <Button type="primary" onClick={() => handleChooseInvitee()}>选择邀请成员</Button>
+            </div>
+            {/* 邀请成员展示框 */}
+            <div style={{
+              padding: '12px',
+              // border: '1px solid #d9d9d9',
+              borderRadius: '4px',
+              // backgroundColor: '#fafafa',
+              wordBreak: 'break-all'
+            }}>
+              {selectedInvitees && selectedInvitees.length > 0 ? (
+                <div>
+                  <span style={{ color: '#666', marginRight: '8px' }}>已选择邀请成员:</span>
+                  <span>
+                    {selectedInvitees.map((item, index) => (
+                      <React.Fragment key={index}>
+                        {index > 0 && '; '}
+                        <span style={{ marginRight: '5px' }}>{item.name}</span>
+                        <span
+                          style={{
+                            color: '#1890ff',
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                            marginRight: '5px'
+                          }}
+                          onClick={() => handleRemoveInvitee(index)}
+                        >
+                          [删除]
+                        </span>
+                      </React.Fragment>
+                    ))}
+                  </span>
+                </div>
+              ) : (
+                <span style={{ color: '#999' }}>暂未选择邀请成员</span>
+              )}
+            </div>
+          </div>
         </Form.Item>
       </Form>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, alignItems: 'center' }}>

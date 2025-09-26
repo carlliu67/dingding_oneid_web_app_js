@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Tabs, Button, Table, Space } from 'antd';
 import './index.css';
 import { handleCreateMeeting, handleQueryUserEndedMeetingList, handleQueryUserMeetingList, handleGenerateJoinScheme } from '../../../components/wemeetapi/wemeetApi.js';
 import MeetingModal from './MeetingModal.js';
+import clientConfig from '../../../config/client_config.js';
 
 function formatTimestamp(timestamp) {
   // 将秒级时间戳转换为毫秒级时间戳
@@ -167,7 +168,7 @@ function MeetingList(props) {
       };
     }
     setLoading(false);
-  }, [activeTab, searchText, ongoingMeetings, upcomingMeetings, endedMeetings, userInfo.userId]);
+  }, [activeTab, searchText, ongoingMeetings, upcomingMeetings, endedMeetings, userInfo.userid]);
 
   const handleSearch = searchText => {
     setSearchText(searchText);
@@ -210,7 +211,7 @@ function MeetingList(props) {
 
   useEffect(() => {
     getMeetingInfoList();
-  }, [activeTab, searchText, userInfo.userId]);
+  }, [activeTab, searchText, userInfo.userid]);
 
   const columns = [
     {
@@ -229,23 +230,7 @@ function MeetingList(props) {
       dataIndex: 'meeting_code',
       width: 150
     },
-    {
-      title: '操作',
-      width: 350,
-      render: (_, record) => {
-        const buttons = [];
-        if (activeTab === 'ongoing') {
-          buttons.unshift(<Button onClick={() => handleJoinMeeting(record.meeting_code)} style={{ width: 'auto' }}>加入会议</Button>);
-        } else if (activeTab === 'ended') {
-          buttons.unshift(<Button danger onClick={() => handleDelete(record.meeting_id)} style={{ width: 'auto' }}>删除</Button>);
-          buttons.unshift(<Button onClick={() => handleExportMembers(record.meeting_id)} style={{ width: 'auto' }}>导出参会成员</Button>);
-          buttons.unshift(<Button onClick={() => handleExportCheckin(record.meeting_id)} style={{ width: 'auto' }}>导出签到记录</Button>);
-        } else if (activeTab === 'upcoming'){
-          buttons.unshift(<Button onClick={() => handleJoinMeeting(record.meeting_code)} style={{ width: 'auto' }}>加入会议</Button>);
-        }
-        return <Space>{buttons}</Space>;
-      }
-    }
+    { title: '操作', width: 350, render: (_, record) => { const buttons = []; if (activeTab === 'ongoing') { buttons.unshift(<Button key="join" onClick={() => handleJoinMeeting(record.meeting_code)} style={{ width: 'auto' }}>加入会议</Button>); } else if (activeTab === 'ended') { buttons.unshift(<Button key="delete" danger onClick={() => handleDelete(record.meeting_id)} style={{ width: 'auto' }}>删除</Button>); buttons.unshift(<Button key="export-members" onClick={() => handleExportMembers(record.meeting_id)} style={{ width: 'auto' }}>导出参会成员</Button>); buttons.unshift(<Button key="export-checkin" onClick={() => handleExportCheckin(record.meeting_id)} style={{ width: 'auto' }}>导出签到记录</Button>); } else if (activeTab === 'upcoming') { buttons.unshift(<Button key="join" onClick={() => handleJoinMeeting(record.meeting_code)} style={{ width: 'auto' }}>加入会议</Button>); } return <Space>{buttons}</Space>; } }
   ];
 
   // 新增加入会议的处理函数
@@ -304,33 +289,60 @@ function MeetingList(props) {
     // }
   ];
 
-  return (
-    <div style={{ padding: 24, background: '#fff' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
-        <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
-        {/*<div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <Button type="primary" className="reserve-button" onClick={showModal}>预定会议</Button>
-        </div>*/}
+  if (clientConfig.mode === 'schedule') {
+    return (
+      <div style={{ padding: 24, background: '#fff' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+          <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
+          {<div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <Button type="primary" className="reserve-button" onClick={showModal}>预定会议</Button>
+          </div>}
+        </div>
+
+        <Table
+          columns={columns}
+          dataSource={meetings}
+          loading={loading}
+          rowKey="meeting_id"
+          pagination={false}
+          // 添加 rowClassName 属性
+          rowClassName="custom-row"
+        />
+
+        <MeetingModal
+          visible={isModalVisible}
+          onCancel={handleCancel}
+          onCreate={handleCreateMeetingSubmit}
+          userInfo={userInfo}
+        />
       </div>
+    );
+  } else {
+    return (
+      <div style={{ padding: 24, background: '#fff' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+          <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
+        </div>
 
-      <Table
-        columns={columns}
-        dataSource={meetings}
-        loading={loading}
-        rowKey="id"
-        pagination={false}
-        // 添加 rowClassName 属性
-        rowClassName="custom-row"
-      />
+        <Table
+          columns={columns}
+          dataSource={meetings}
+          loading={loading}
+          rowKey="meeting_id"
+          pagination={false}
+          // 添加 rowClassName 属性
+          rowClassName="custom-row"
+        />
 
-      <MeetingModal
-        visible={isModalVisible}
-        onCancel={handleCancel}
-        onCreate={handleCreateMeetingSubmit}
-        userInfo={userInfo}
-      />
-    </div>
-  );
+        <MeetingModal
+          visible={isModalVisible}
+          onCancel={handleCancel}
+          onCreate={handleCreateMeetingSubmit}
+          userInfo={userInfo}
+        />
+      </div>
+    );
+  }
 }
 
 export default MeetingList;

@@ -2,6 +2,7 @@ import axios from 'axios';
 import clientConfig from '../config/client_config.js';
 import Cookies from 'js-cookie';
 import * as dd from 'dingtalk-jsapi'; // 此方式为整体加载，也可按需进行加载
+import { message } from 'antd';
 
 const USER_INFO_KEY = 'user_info'
 
@@ -48,21 +49,19 @@ export function configJSAPIAccess(data) {
     //配置要使用的jsapi列表
     let jsApiList = [
         "openLink",
+        "complexChoose",
+        "chooseStaffForPC"
     ]
     console.log("接入方前端[JSAPI鉴权处理]第③ 步: 通过dd.config进行鉴权")
     dd.config({
         agentId: data.agentId, // 必填，微应用ID
         corpId: data.corpId,//必填，企业ID
         timeStamp: data.timeStamp, // 必填，生成签名的时间戳
-        nonceStr: data.noncestr, // 必填，自定义固定字符串。
+        nonceStr: data.nonceStr, // 必填，自定义固定字符串。修正参数名，与服务端保持一致
         signature: data.signature, // 必填，签名
         type:0,   //选填。0表示微应用的jsapi,1表示服务窗的jsapi；不填默认为0。该参数从dingtalk.js的0.8.3版本开始支持
         jsApiList :  jsApiList// 必填，需要使用的jsapi列表，注意：不要带dd。
     });
-    
-    dd.error(function (err) {
-        alert('dd error: ' + JSON.stringify(err));
-    })//该方法必须带上，用来捕获鉴权出现的异常信息，否则不方便排查出现的问题
 
     console.log('handleJSAPIAccess OK: ', true);
 }
@@ -82,7 +81,7 @@ export function handleUserAuth(complete) {
         console.log("href: ", window.location.href); // 示例输出：https://example.com/path?query=1#hash
         dd.ready(function () {
             var corpId = clientConfig.corpId;
-            var clientId = clientConfig.clientId;
+            // var clientId = clientConfig.clientId;
             //console.log("dd.ready");
             //console.log("href: ", window.location.href); // 示例输出：https://example.com/path?query=1#hash
             // dd.ready参数为回调函数，在 环境准备就绪时触发，jsapi的调用需要保证在该回调函数触发后调用，否则无效。
@@ -117,8 +116,14 @@ function requestUserAccessToken(code, complete) {
     axios.get(desUrl,
         { withCredentials: true }   //调用时设置 请求带上cookie
     ).then(function (response) {  // ignore_security_alert
-        if (!response.data && !response.data.data) {
-            console.error(`${clientConfig.getUserAccessTokenPath} response is null`)
+        if (!response.data) {
+            console.error(`${clientConfig.getUserAccessTokenPath} response.data is null`)
+            console.error("接口调用返回信息: ", response)
+            complete()
+            return
+        }
+        if (!response.data.data) {
+            console.error(`${clientConfig.getUserAccessTokenPath} response.data.data is null`)
             console.error("接口调用返回信息: ", response)
             complete()
             return

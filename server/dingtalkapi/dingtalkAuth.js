@@ -1,5 +1,5 @@
-import CryptoJS from 'crypto-js';
 import axios from 'axios';
+import crypto from 'crypto';
 
 import { logger } from '../util/logger.js';
 import serverConfig from '../server_config.js'; // 根据实际路径调整
@@ -108,14 +108,14 @@ async function getSignParameters(ctx) {
     }
 
     logger.info(`接入服务方第③ 步: 获得颁发的自建应用授权凭证access_token`)
-    const accessToken = getInterAccessToken();
-    if (!accessToken) {
-        ctx.body = failResponse(`app access_token request error: ${error.message}`)
-        logger.error(`access_token request error: ${error.message}`)
-        return
-    }
-
     try {
+        const accessToken = await getInterAccessToken();
+        if (!accessToken) {
+            ctx.body = failResponse(`app access_token request error`)
+            logger.error(`access_token request error`)
+            return
+        }
+
         logger.info(`接入服务方第③ 步: 请求JSAPI临时授权凭证`)
         //【请求】jsapi_ticket：https://api.dingtalk.com/v1.0/oauth2/jsapiTickets
         const ticketRes = await axios.post("https://api.dingtalk.com/v1.0/oauth2/jsapiTickets", {}, {
@@ -147,15 +147,18 @@ async function getSignParameters(ctx) {
         ctx.body = okResponse(signParam)
     } catch (error) {
         logger.error("获取jsapi_ticket失败", error.message, "stack:", error.stack);
+        ctx.body = failResponse('get jssdk ticket request error')
     }
     logger.info("-------------------[接入方服务端鉴权处理 END]-----------------------------\n")
 }
 
 //计算JSAPI鉴权参数
 function calculateSignParam(jsticket, url) {
+    // logger.info("calculateSignParam, jsticket: ", jsticket, "url: ", url, "decode url: ", decodeUrl(url));
     try {
-        const timestamp = (new Date()).getTime()
-        const plain = `jsapi_ticket=${jsticket}&noncestr=${serverConfig.noncestr}&timestamp=${timestamp}&url=${decodeUrl(url)}`;
+        const timeStamp = Math.floor(Date.now()).toString(); // 转换为字符串类型
+        const plain = `jsapi_ticket=${jsticket}&noncestr=${serverConfig.wemeetAPPID}&timestamp=${timeStamp}&url=${decodeUrl(url)}`;
+        // logger.info("plain: ", plain);
         const sha1 = crypto.createHash('sha256');
         sha1.update(plain, 'utf8');
         let signature = byteToHex(sha1.digest());
@@ -163,8 +166,8 @@ function calculateSignParam(jsticket, url) {
             "corpId": serverConfig.dingtalkCorpId,
             "agentId": serverConfig.dingtalkAgentId,
             "signature": signature,
-            "noncestr": serverConfig.noncestr,
-            "timestamp": timestamp,
+            "nonceStr": serverConfig.wemeetAPPID,
+            "timeStamp": timeStamp,
         }
         return signParam
     } catch (error) {
@@ -188,7 +191,8 @@ function byteToHex(buffer) {
 function decodeUrl(urlString) {
     try {
         const parsedUrl = new URL(urlString);
-        let urlBuffer = `${parsedUrl.protocol}:`;
+        // let urlBuffer = `${parsedUrl.protocol}:`;
+        let urlBuffer = `${parsedUrl.protocol}`;
         if (parsedUrl.host) {
             urlBuffer += `//${parsedUrl.host}`;
         }

@@ -6,7 +6,8 @@ import { dbInsertTodo, dbGetTodoByMeetingid as dbGetTodoByMeetingid, dbDeleteTod
 
 // 创建会议待办
 async function createMeetingTodo(creatorUnionId, meetingInfo, executorIds) {
-    // logger.info(meetingInfo);
+    // logger.info("meetingInfo:", meetingInfo);
+    // logger.info("executorIds:", executorIds);
 
     var access_token = await getInterAccessToken();
     if (!access_token) {
@@ -16,40 +17,65 @@ async function createMeetingTodo(creatorUnionId, meetingInfo, executorIds) {
 
     var pcUrl = genH5AppLink("?meetingCode=" + meetingInfo.meeting_code);
     try {
-        const internalRes = await axios.post('https://api.dingtalk.com/v1.0/todo/users/' + creatorUnionId + '/tasks?operatorId=' + creatorUnionId,
-            {
-                "sourceId": meetingInfo.meeting_id + "_todo",
-                "subject": "腾讯会议：" + meetingInfo.subject + " - 会议号：" + meetingInfo.meeting_code + " - 时间：" + formatTimeRange(meetingInfo.start_time, meetingInfo.end_time),
-                "creatorId": creatorUnionId,
-                // 截止时间为会议开始时间
-                "dueTime": meetingInfo.start_time * 1000,
-                "executorIds": executorIds,
-                "detailUrl": {
-                    "appUrl": meetingInfo.join_url,
-                    "pcUrl": pcUrl
-                },
-                "notifyConfigs": {
-                    "dingNotify": "1"
-                },
-                // 提醒时间为会议开始时间
-                reminderTimeStamp: meetingInfo.start_time * 1000,
-                "remindNotifyConfigs": {
-                    "dingNotify": "1"
-                }
-            }, { headers: { "Content-Type": "application/json", "x-acs-dingtalk-access-token": access_token } })
+        const requestBody = {
+            "sourceId": meetingInfo.meeting_id + "_todo",
+            "subject": "腾讯会议：" + meetingInfo.subject + " - 会议号：" + meetingInfo.meeting_code + " - 时间：" + formatTimeRange(meetingInfo.start_time, meetingInfo.end_time),
+            "creatorId": creatorUnionId,
+            // 截止时间为会议开始时间
+            "dueTime": meetingInfo.start_time * 1000,
+            "executorIds": executorIds,
+            "detailUrl": {
+                "appUrl": meetingInfo.join_url,
+                "pcUrl": pcUrl
+            },
+            "notifyConfigs": {
+                "dingNotify": "1"
+            },
+            // 提醒时间为会议开始时间（注意：属性名使用驼峰命名）
+            "reminderTimeStamp": meetingInfo.start_time * 1000,
+            "remindNotifyConfigs": {
+                "dingNotify": "1"
+            }
+        };
 
-        if (!internalRes.data) {
-            logger.error("创建待办失败")
-            return
+        // 确保executorIds是一个数组并且不为空
+        if (!Array.isArray(executorIds) || executorIds.length === 0) {
+            logger.error("创建待办失败：执行人为空或格式错误");
+            return;
         }
-        logger.info("createTodo result: ", internalRes.data);
-        // 插入待办数据库
-        await dbInsertTodo(meetingInfo.meeting_id, internalRes.data.id, creatorUnionId, meetingInfo.start_time);
-        logger.info("创建会议待办成功，meetingid:", meetingInfo.meeting_id);
-    } catch (error) {
-        logger.error("创建待办时发生异常:", error.message, "stack:", error.stack);
-    }
 
+        logger.info("待办请求参数：", JSON.stringify(requestBody));
+        
+        const internalRes = await axios.post(
+            `https://api.dingtalk.com/v1.0/todo/users/${creatorUnionId}/tasks?operatorId=${creatorUnionId}`,
+            requestBody,
+            { 
+                headers: { 
+                    "Content-Type": "application/json", 
+                    "x-acs-dingtalk-access-token": access_token 
+                },
+                validateStatus: function (status) {
+                    // 不抛出4xx错误，由我们自己处理
+                    return true;
+                }
+            }
+        );
+
+        if (internalRes.status === 200 && internalRes.data) {
+            logger.info("createTodo result: ", internalRes.data);
+            // 插入待办数据库
+            await dbInsertTodo(meetingInfo.meeting_id, internalRes.data.id, creatorUnionId, meetingInfo.start_time);
+            logger.info("创建会议待办成功，meetingid:", meetingInfo.meeting_id);
+        } else {
+            logger.error(`创建待办失败：状态码=${internalRes.status}, 错误信息=${JSON.stringify(internalRes.data)}`);
+        }
+    } catch (error) {
+        logger.error("创建待办时发生异常:", error.message);
+        if (error.response) {
+            logger.error("错误响应数据:", JSON.stringify(error.response.data));
+        }
+        logger.error("错误堆栈:", error.stack);
+    }
 }
 
 // 更新会议待办

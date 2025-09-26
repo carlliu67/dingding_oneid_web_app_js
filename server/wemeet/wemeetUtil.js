@@ -157,10 +157,6 @@ async function handleGenerateJoinScheme(ctx) {
     }
 
     let meetingCode = ctx.query["meetingCode"] || "";
-    if (meetingCode.length === 0) {
-        ctx.body = failResponse("meetingCode is empty, please retry!!!");
-        return;
-    }
 
     const cookieJar = new CookieJar();
     const userid = getUserid(ctx);
@@ -203,7 +199,12 @@ async function handleGenerateJoinScheme(ctx) {
     }
     if (userCode) {
         const launchId = uuidv4().replace(/-/g, '').substring(0, 16);
-        schemeUrl = `wemeet://page/inmeeting?meeting_code=${meetingCode.replace(/-/g, '')}&token=&launch_id=${launchId}&user_code=${userCode}`;
+        if (meetingCode.length === 0) {
+            schemeUrl = `wemeet://auth/sso?sso_auth_code=${userCode}`;
+        } else {
+            schemeUrl = `wemeet://page/inmeeting?meeting_code=${meetingCode.replace(/-/g, '')}&token=&launch_id=${launchId}&user_code=${userCode}`;
+        }
+        
         ctx.body = okResponse(schemeUrl);
         logger.info("schemeUrl: " + schemeUrl);
         logger.info("-------------------[获取scheme免登url END]-----------------------------\n");

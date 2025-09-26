@@ -13,10 +13,10 @@ function openSchema(url, closePage = false) {
         // pc端关闭页面
         dd.biz.navigation.quit({
             message: "quit message",//退出信息，传递给openModal或者openSlidePanel的onSuccess函数的result参数
-            onSuccess : function(result) {
+            onSuccess: function (result) {
                 /**/
             },
-            onFail : function() {}
+            onFail: function () { }
         })
         // setTimeout(() => {
         //     // pc端关闭页面
