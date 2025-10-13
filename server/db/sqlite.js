@@ -8,11 +8,13 @@ import { logger } from '../util/logger.js';
 const idTokenDBPath = path.join(process.cwd(), 'data', 'idtoken_database.db');
 const userinfoDBPath = path.join(process.cwd(), 'data', 'userinfo_database.db');
 const todoDBPath = path.join(process.cwd(), 'data', 'todo_database.db');
+const calendarDBPath = path.join(process.cwd(), 'data', 'calendar_database.db');
 
 // 全局数据库连接
 let idTokenDB = null;
 let userinfoDB = null;
 let todoDB = null;
+let calendarDB = null;
 
 // 打开或初始化 todo 数据库
 function openTodoDatabase() {
@@ -23,7 +25,7 @@ function openTodoDatabase() {
                 return;
             } else {
                 logger.info('Connected to the todo database.');
-                // 创建 users 表（如果不存在）
+                // 创建 todo 表（如果不存在）
                 todoDB.serialize(() => {
                     todoDB.run(`CREATE TABLE IF NOT EXISTS todo (
                         meetingid TEXT PRIMARY KEY,
@@ -34,7 +36,7 @@ function openTodoDatabase() {
                         if (err) {
                             logger.error('Error creating table:', err.message);
                         } else {
-                            logger.info('Table "users" created successfully.');
+                            logger.info('Table "todo" created successfully.');
                         }
                     });
                 });
@@ -102,6 +104,141 @@ function dbDeleteTodoByMeetingid(meetingid) {
                 logger.info('Data deleted meetingid: ', meetingid);
                 resolve('Data deleted successfully');
             }
+        });
+    });
+}
+
+// 打开或初始化 calendar 数据库
+let calendarDBInitialized = false;
+let calendarDBPromise = null;
+
+function openCalendarDatabase() {
+    // 如果已经有初始化中的Promise，直接返回它
+    if (calendarDBPromise) {
+        return calendarDBPromise;
+    }
+    
+    // 创建一个新的Promise来处理异步初始化
+    calendarDBPromise = new Promise((resolve, reject) => {
+        // 如果数据库已经初始化完成，直接返回
+        if (calendarDBInitialized && calendarDB) {
+            resolve(calendarDB);
+            return;
+        }
+        
+        if (!calendarDB) {
+            calendarDB = new sqlite.Database(calendarDBPath, (err) => {
+                if (err) {
+                    logger.error('Error opening calendar database:', err.message); 
+                    calendarDBPromise = null; // 重置Promise以便下次尝试
+                    reject(err);
+                    return;
+                } else {
+                    logger.info('Connected to the calendar database.');
+                    // 创建 calendar 表（如果不存在）
+                    calendarDB.serialize(() => {
+                        calendarDB.run(`CREATE TABLE IF NOT EXISTS calendar (
+                            meetingid TEXT PRIMARY KEY,
+                            scheduleId TEXT NOT NULL,
+                            unionid TEXT NOT NULL,
+                            createtimestamp INTEGER NOT NULL
+                        )`, (err) => {
+                            if (err) {
+                                logger.error('Error creating table:', err.message);
+                                calendarDBPromise = null;
+                                reject(err);
+                            } else {
+                                logger.info('Table "calendar" created successfully.');
+                                calendarDBInitialized = true;
+                                resolve(calendarDB);
+                            }
+                        });
+                    });
+                }
+            });
+        } else {
+            // 数据库已创建但可能未完全初始化，等待初始化完成
+            // 这里简单处理，实际项目中可能需要更复杂的状态管理
+            resolve(calendarDB);
+        }
+    });
+    
+    return calendarDBPromise;
+}
+
+// 插入 calendar 数据
+function dbInsertCalendar(meetingid, scheduleId, unionid, createtimestamp) {
+    return new Promise((resolve, reject) => {
+        openCalendarDatabase().then(db => {
+            // 执行插入
+            const insert = db.prepare('INSERT INTO calendar (meetingid, scheduleId, unionid, createtimestamp) VALUES (?,?,?,?)');
+            insert.run(meetingid, scheduleId, unionid, createtimestamp, (err) => {
+                insert.finalize();
+                // 避免每次操作都关闭数据库连接
+                if (err) {
+                    // 返回实际的错误对象
+                    reject(err); 
+                    logger.error('dbInsertCalendar failed:', err.message);
+                } else {
+                    logger.info('dbInsertCalendar scheduleId: ' + scheduleId + ', unionid: ' + unionid + ', meetingid: ' + meetingid + ', createtimestamp: ' + createtimestamp + ' inserted successfully');
+                    resolve('dbInsertCalendar inserted successfully');
+                }
+            });
+        }).catch(err => {
+            logger.error('dbInsertCalendar database error:', err.message);
+            reject(err);
+        });
+    });
+}
+
+// 根据meetingid查询日历数据
+function dbGetCalendarByMeetingid(meetingid) {
+    if (!meetingid) {
+        return Promise.reject(new Error('Error: meetingid is required'));
+    }
+    return new Promise((resolve, reject) => {
+        openCalendarDatabase().then(db => {
+            const query = 'SELECT meetingid, scheduleId, unionid, createtimestamp FROM calendar WHERE meetingid = ?';
+            const values = [meetingid];
+
+            db.get(query, values, (err, row) => {
+                if (err) {
+                    logger.error('查询日历信息失败:', err.message);
+                    reject(err);
+                } else if (row) {
+                    logger.info('查询日历信息成功:', meetingid);
+                    resolve(row);
+                } else {
+                    logger.info('未找到日历信息:', meetingid);
+                    resolve(null); 
+                }
+            });
+        }).catch(err => {
+            logger.error('dbGetCalendarByMeetingid database error:', err.message);
+            reject(err);
+        });
+    });
+}
+
+// 删除日历数据
+function dbDeleteCalendarByMeetingid(meetingid) {
+    if (!meetingid) {
+        return Promise.reject(new Error('Error: meetingid is required'));
+    }
+    return new Promise((resolve, reject) => {
+        openCalendarDatabase().then(db => {
+            db.run('DELETE FROM calendar WHERE meetingid = ?', meetingid, (err) => {
+                if (err) {
+                    // 返回实际的错误对象
+                    reject(err); 
+                } else {
+                    logger.info('Calendar data deleted meetingid: ', meetingid);
+                    resolve('Calendar data deleted successfully');
+                }
+            });
+        }).catch(err => {
+            logger.error('dbDeleteCalendarByMeetingid database error:', err.message);
+            reject(err);
         });
     });
 }
@@ -312,5 +449,9 @@ export {
     openTodoDatabase,
     dbInsertTodo,
     dbGetTodoByMeetingid,
-    dbDeleteTodoByMeetingid
+    dbDeleteTodoByMeetingid,
+    openCalendarDatabase,
+    dbInsertCalendar,
+    dbGetCalendarByMeetingid,
+    dbDeleteCalendarByMeetingid
 };

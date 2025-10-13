@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { logger } from '../util/logger.js';
 import { convertSecondsToISO, genH5AppLink, getInterAccessToken } from './dingtalkUtil.js';
+import { dbInsertCalendar, dbDeleteCalendarByMeetingid, dbGetCalendarByMeetingid } from '../db/sqlite.js';
 
 /*
  * 腾讯会议RecurringRule → 钉钉日程recurrence转换
@@ -208,21 +209,157 @@ async function createMeetingCalendar(creatorUnionId, meetingInfo, attendees) {
             }
         );
 
-        // 判断返回的数据是否有效，一般看是否有errcode或者直接看业务字段
-        if (!internalRes.data) {
-            logger.error("创建日程失败：返回数据为空");
-            return;
+        if (internalRes.status === 200 && internalRes.data) {
+            logger.info("createTodo result: ", internalRes.data);
+            // 插入日程数据库
+            await dbInsertCalendar(meetingInfo.meeting_id, internalRes.data.id, creatorUnionId, meetingInfo.start_time);
+            logger.info("创建会议日程成功，meetingid:", meetingInfo.meeting_id);
+        } else {
+            logger.error(`创建日程失败：状态码=${internalRes.status}, 错误信息=${JSON.stringify(internalRes.data)}`);
         }
-
-        // 可选：根据钉钉API实际返回结构判断是否真正成功，比如有的接口会返回 errcode: 0 表示成功
-        logger.info("创建日程成功：", internalRes.data);
 
     } catch (error) {
         logger.error("创建日程请求失败：", error.response ? error.response.data : error.message);
     }
 }
 
+// 更新日程
+async function updateMeetingCalendar(creatorUnionId, meetingInfo, attendees) {
+    // logger.info(meetingInfo);
+    // 从数据库查询日程信息
+    const calendarInfo = await dbGetCalendarByMeetingid(meetingInfo.meeting_id);
+    if (!calendarInfo) {
+        logger.error("更新日程失败，日程不存在")
+        return
+    }
+    const access_token = await getInterAccessToken();
+    if (!access_token) {
+        logger.error("获取access_token失败");
+        return;
+    }
+    var body = null;
+    const url = genH5AppLink("?meetingCode=" + meetingInfo.meeting_code);
+    logger.info("url: ", url);
+
+    const calendarAttendees = attendees.map(attendee => ({
+        id: attendee,
+        isOptional: false
+    }));
+
+    // 周期会议要转换重复规则，
+    // 会议类型:   
+    // 0：一次性会议
+    // 1：周期性会议
+    // 2：微信专属会议
+    // 4：Rooms 投屏会议
+    // 5：个人会议号会议
+    // 6：网络研讨会
+    if (meetingInfo.meeting_type === 1) {
+        var dingRecurrence = convertRecurrence(meetingInfo.recurring_rule);
+        body = {
+                summary: meetingInfo.subject,
+                id: calendarInfo.scheduleId,
+                start: {
+                    dateTime: convertSecondsToISO(meetingInfo.start_time),
+                    timeZone: "Asia/Shanghai"
+                },
+                end: {
+                    dateTime: convertSecondsToISO(meetingInfo.end_time),
+                    timeZone: "Asia/Shanghai"
+                },
+                recurrence: dingRecurrence,
+                attendees: calendarAttendees,
+                richTextDescription: {
+                    text: `<a href="${url}" target="_blank">加入会议</a>`
+                }
+            }
+    } else {
+        body = {
+                summary: meetingInfo.subject,
+                id: calendarInfo.scheduleId,
+                start: {
+                    dateTime: convertSecondsToISO(meetingInfo.start_time),
+                    timeZone: "Asia/Shanghai"
+                },
+                end: {
+                    dateTime: convertSecondsToISO(meetingInfo.end_time),
+                    timeZone: "Asia/Shanghai"
+                },
+                attendees: calendarAttendees,
+                richTextDescription: {
+                    text: `<a href="${url}" target="_blank">加入会议</a>`
+                }
+            }
+    }
+
+    try {
+        const internalRes = await axios.put(
+            `https://api.dingtalk.com/v1.0/calendar/users/${creatorUnionId}/calendars/primary/events/${calendarInfo.scheduleId}`,
+            body,
+            {
+                headers: {
+                    "Content-Type": "application/json",
+                    "x-acs-dingtalk-access-token": access_token
+                }
+            }
+        );
+
+        // 判断返回的数据是否有效，一般看是否有errcode或者直接看业务字段
+        if (!internalRes.data) {
+            logger.error("更新日程失败：返回数据为空");
+            return;
+        }
+
+        // 可选：根据钉钉API实际返回结构判断是否真正成功，比如有的接口会返回 errcode: 0 表示成功
+        logger.info("更新日程成功：", internalRes.data);
+
+    } catch (error) {
+        logger.error("更新日程请求失败：", error.response ? error.response.data : error.message);
+    }
+}
+
+// 删除日程
+async function deleteMeetingCalendar(creatorUnionId, meetingid) {
+    // logger.info(meetingInfo);
+    // 从数据库查询日程信息
+    const calendarInfo = await dbGetCalendarByMeetingid(meetingid);
+    if (!calendarInfo) {
+        logger.error("删除日程失败，日程不存在")
+        return
+    }
+    const access_token = await getInterAccessToken();
+    if (!access_token) {
+        logger.error("获取access_token失败");
+        return;
+    }
+
+    try {
+        const internalRes = await axios.delete(
+            `https://api.dingtalk.com/v1.0/calendar/users/${creatorUnionId}/calendars/primary/events/${calendarInfo.scheduleId}`,
+            {
+                headers: {
+                    "Content-Type": "application/json",
+                    "x-acs-dingtalk-access-token": access_token
+                }
+            }
+        );
+
+        if (internalRes.status === 200 && internalRes.data) {
+            logger.info("deleteMeetingCalendar result: ", internalRes.data);
+            // 从数据库删除日程信息
+            await dbDeleteCalendarByMeetingid(meetingid);
+            logger.info("删除会议日程成功，meetingid:", meetingid);
+        } else {
+            logger.error(`删除日程失败：状态码=${internalRes.status}, 错误信息=${JSON.stringify(internalRes.data)}`);
+        }
+
+    } catch (error) {
+        logger.error("删除日程请求失败：", error.response ? error.response.data : error.message);
+    }
+}
 
 export {
-    createMeetingCalendar
+    createMeetingCalendar,
+    updateMeetingCalendar,
+    deleteMeetingCalendar
 };

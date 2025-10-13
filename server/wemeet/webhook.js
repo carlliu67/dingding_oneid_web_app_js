@@ -4,7 +4,7 @@ import { Buffer } from 'buffer';
 import serverConfig from '../server_config.js';
 import { logger } from '../util/logger.js';
 import { getUnionIdByUserid } from '../dingtalkapi/dingtalkUtil.js';
-import { createMeetingCalendar } from '../dingtalkapi/dingtalkCalendar.js';
+import { createMeetingCalendar, updateMeetingCalendar, deleteMeetingCalendar } from '../dingtalkapi/dingtalkCalendar.js';
 import { createMeetingTodo, updateMeetingTodo, deleteMeetingTodo } from '../dingtalkapi/dingtalkTodo.js';
 import { sendRecordViewAddressCardMessage } from '../dingtalkapi/dingtalkRobot.js';
 import { queryMeetingById, queryMeetingRecordList, queryMeetingRecordAddress, queryMeetingParticipants } from './wemeetApi.js';
@@ -145,7 +145,7 @@ async function webhookCreateMeeting(eventData) {
         logger.error("未获取到会议信息");
         return;
     }
-    
+
     const meetingInfo = result.meeting_info_list[0];
     var currentHosts = meetingInfo.current_hosts ? meetingInfo.current_hosts : [];
     var hosts = meetingInfo.hosts ? meetingInfo.hosts : [];
@@ -199,10 +199,8 @@ async function webhookCreateMeeting(eventData) {
             logger.warn("待办通知跳过：没有有效的参会者UnionId");
         }
     } else if (webhookMeetingInfo.meeting_type === 1) {
-        // 周期会议暂不处理
-        return;
         // 周期会议通过日程通知
-        // await createMeetingCalendar(creatorUnionid, meetingInfo, todoParticipants);
+        await createMeetingCalendar(creatorUnionid, meetingInfo, todoParticipants);
     }
 
 }
@@ -220,10 +218,6 @@ async function webhookUpdateMeeting(eventData) {
     if (webhookMeetingInfo.meeting_create_mode === 1) {
         return;
     }
-    if (webhookMeetingInfo.meeting_type === 1) {
-        // 周期会议暂不处理
-        return;
-    }
 
     var creatorUserid = webhookMeetingInfo.creator.userid;
     var creatorUnionid = await getUnionIdByUserid(creatorUserid);
@@ -237,7 +231,7 @@ async function webhookUpdateMeeting(eventData) {
         logger.error("未获取到会议信息");
         return;
     }
-    
+
     const meetingInfo = result.meeting_info_list[0];
     var currentHosts = meetingInfo.current_hosts ? meetingInfo.current_hosts : [];
     var hosts = meetingInfo.hosts ? meetingInfo.hosts : [];
@@ -282,10 +276,22 @@ async function webhookUpdateMeeting(eventData) {
     logger.info("paticipants: ", participants);
     logger.info("todoPaticipants: ", paticipants);
 
-    // 更新会议日程
-    // await createMeetingCalendar(creatorUnionid, meetingInfo, paticipants);
-    // 更新会议待办事项
-    await updateMeetingTodo(creatorUnionid, meetingInfo, paticipants);
+    // 会议类型(0:一次性会议，1:周期性会议，2:微信专属会议，4:rooms 投屏会议，5:个人会议号会议， 6:网络研讨会)
+    if (webhookMeetingInfo.meeting_type === 0 || webhookMeetingInfo.meeting_type === 2 || webhookMeetingInfo.meeting_type === 5 || webhookMeetingInfo.meeting_type === 6) {
+        // 非周期会议通过待办通知
+        if (paticipants.length > 0) {
+            // 更新会议待办事项
+            await updateMeetingTodo(creatorUnionid, meetingInfo, paticipants);
+        } else {
+            logger.warn("待办通知跳过：没有有效的参会者UnionId");
+        }
+    } else if (webhookMeetingInfo.meeting_type === 1) {
+        // 周期会议通过日程通知
+        // sub_meeting_id存在的话代表只更新某一场子会议，钉钉日程不支持修改单次日程，此时不更新日程
+        if (!webhookMeetingInfo.sub_meeting_id) {
+            await updateMeetingCalendar(creatorUnionid, meetingInfo, paticipants);
+        }
+    }
 }
 
 /**
@@ -302,19 +308,23 @@ async function webhookCancelMeeting(eventData) {
         return;
     }
 
-    if (webhookMeetingInfo.meeting_type === 1) {
-        // 周期会议暂不处理
-        return;
-    }
-
     var creatorUnionid = await getUnionIdByUserid(webhookMeetingInfo.creator.userid);
     if (!creatorUnionid) {
         logger.warn("未获取到unionid");
         return;
     }
 
-    // 取消会议待办事项
-    await deleteMeetingTodo(creatorUnionid, webhookMeetingInfo.meeting_id);
+    // 会议类型(0:一次性会议，1:周期性会议，2:微信专属会议，4:rooms 投屏会议，5:个人会议号会议， 6:网络研讨会)
+    if (webhookMeetingInfo.meeting_type === 0 || webhookMeetingInfo.meeting_type === 2 || webhookMeetingInfo.meeting_type === 5 || webhookMeetingInfo.meeting_type === 6) {
+        // 非周期会议通过待办通知
+        await deleteMeetingTodo(creatorUnionid, webhookMeetingInfo.meeting_id);
+    } else if (webhookMeetingInfo.meeting_type === 1) {
+        // 周期会议通过日程通知
+        // sub_meeting_id存在的话代表只取消某一场子会议，钉钉日程不支持取消单次日程，此时不更新日程
+        if (!webhookMeetingInfo.sub_meeting_id) {
+            await deleteMeetingCalendar(creatorUnionid, webhookMeetingInfo.meeting_id);
+        }
+    }
 }
 
 /**
@@ -332,7 +342,7 @@ async function webhookEndMeeting(eventData) {
     }
 
     if (webhookMeetingInfo.meeting_type === 1) {
-        // 周期会议暂不处理
+        // 周期会议不更新
         return;
     }
 
