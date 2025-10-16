@@ -1,36 +1,39 @@
 import axios from 'axios';
 import { logger } from '../util/logger.js';
-import { genH5AppLink, getInterAccessToken } from './dingtalkUtil.js';
+import { genH5AppLink, getInterAccessToken, formatTimeRange } from './dingtalkUtil.js';
 import serverConfig from '../server_config.js';
 
 // 发送云录制卡片消息
-async function sendRecordViewAddressCardMessage(receive_id, createrName, webhookMeetingInfo, recordViewAddress) {
+// 支持接收单个userid或userid数组，一次最多发送20个
+async function sendRecordViewAddressCardMessage(receive_ids, createrName, webhookMeetingInfo, recordViewAddress) {
     var access_token = await getInterAccessToken();
     if (!access_token) {
         return
     }
-    //腾讯会议侧userid与钉钉unionid一致时需要转换，如果同步的是钉钉的userid不需要转换
-    // var userid = await queryUserIdByUnionId(receive_id);
-    var userid = receive_id;
-    if (!userid) {
-        logger.error("根据unionid获取用户userid失败")
+    
+    // 标准化为数组格式处理
+    const userIds = Array.isArray(receive_ids) ? receive_ids : [receive_ids];
+    
+    // 过滤掉无效的userid
+    const validUserIds = userIds.filter(id => id && typeof id === 'string');
+    
+    if (validUserIds.length === 0) {
+        logger.error("没有有效的用户ID")
         return
     }
     const base64EncodedTargetUrl = Buffer.from(recordViewAddress).toString('base64')
     var singleURL = genH5AppLink("?targetUrl=" + base64EncodedTargetUrl)
     logger.info("singleURL: ", singleURL);
-    var startTime = webhookMeetingInfo.start_time;
-    var endTime = webhookMeetingInfo.end_time;
     var msgParams = {
         "title": "【录制文件已生成】" + webhookMeetingInfo.subject,
-        "text": "会议时间：2025年XX月XX日 10:00 - 11:00" + "\n\n云录制地址：\n" + recordViewAddress + "\n\n#腾讯会议：" + webhookMeetingInfo.meeting_code + "\n\n发起人 " + createrName,
+        "text": "会议主题：" + webhookMeetingInfo.subject + "\n\n会议时间：" + formatTimeRange(webhookMeetingInfo.start_time, webhookMeetingInfo.end_time) + "\n\n云录制地址：" + recordViewAddress + "\n\n#腾讯会议：" + webhookMeetingInfo.meeting_code + "\n\n发起人：" + createrName,
         "singleTitle": "点击查看云录制",
         "singleURL": singleURL
     };
     var msg = {
         "msgParam": JSON.stringify(msgParams),
         "msgKey": "sampleActionCard",
-        "userIds": [userid],
+        "userIds": validUserIds,
         "robotCode": serverConfig.dingtalkRobotCode,
     }
 

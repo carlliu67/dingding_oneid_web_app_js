@@ -393,12 +393,22 @@ async function webhookRecordingCompleted(eventData) {
     const participants = participantsResult.participants;
     // 按id属性去重
     var attendees = [...new Map(participants.map(item => [item.userid, item])).values()];
-    // 发送会议录制卡片消息
-    for (const participant of attendees) {
-        logger.info("participant: ", participant);
-        if (participant.userid) {
-            sendRecordViewAddressCardMessage(participant.userid, webhookMeetingInfo.creator.user_name, webhookMeetingInfo, recordViewAddress);
-        }
+    
+    // 收集有效的userid
+    const validUserIds = attendees
+        .filter(participant => participant && participant.userid)
+        .map(participant => participant.userid);
+    
+    logger.info("Total valid userIds count:", validUserIds.length);
+    
+    // 批量发送消息，每次最多20个
+    const batchSize = 20;
+    for (let i = 0; i < validUserIds.length; i += batchSize) {
+        const batchUserIds = validUserIds.slice(i, i + batchSize);
+        logger.info(`Sending batch ${Math.floor(i / batchSize) + 1}:`, batchUserIds);
+        
+        // 调用发送消息函数，传入userid数组
+        sendRecordViewAddressCardMessage(batchUserIds, webhookMeetingInfo.creator.user_name, webhookMeetingInfo, recordViewAddress);
     }
 
 }
