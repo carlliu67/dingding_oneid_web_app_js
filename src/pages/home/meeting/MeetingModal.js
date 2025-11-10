@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Modal, Form, Input, DatePicker, TimePicker, InputNumber, Button, message } from 'antd';
 import dayjs from 'dayjs';
 import * as dd from 'dingtalk-jsapi';
@@ -6,18 +6,81 @@ import './MeetingModal.css'
 import clientConfig from '../../../config/client_config.js';
 
 const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
-  const [startTime, setStartTime] = useState(null);
   const [selectedHosts, setSelectedHosts] = useState([]); // 存储选中的主持人列表，每项包含 {id, name}
   const [selectedInvitees, setSelectedInvitees] = useState([]); // 存储选中的邀请人列表，每项包含 {id, name}
+  const [currentDate, setCurrentDate] = useState(dayjs().startOf('day')); // 使用状态变量存储日期
+  const [currentTime, setCurrentTime] = useState(() => { // 使用状态变量存储时间，初始计算未来最近的15分钟间隔
+    const now = dayjs();
+    const currentMinutes = now.minute();
+    const remainder = currentMinutes % 15;
+    const minutesToAdd = remainder > 0 ? 15 - remainder : 0;
+    return now.add(minutesToAdd, 'minute');
+  });
   const formRef = useRef(null);
-  let currentDate;
-  let currentTime;
+  const [startTime, setStartTime] = useState(() => { // 使用状态变量存储开始时间，初始计算未来最近的15分钟间隔
+    const now = dayjs();
+    const currentMinutes = now.minute();
+    const remainder = currentMinutes % 15;
+    const minutesToAdd = remainder > 0 ? 15 - remainder : 0;
+    return now.add(minutesToAdd, 'minute').toDate();
+  });
+  
+  // 使用useEffect监听visible属性变化，确保每次Modal显示时都更新时间
+  useEffect(() => {
+    if (visible) {
+      // 计算未来最近的15分钟间隔时间
+      const now = dayjs();
+      const currentMinutes = now.minute();
+      const remainder = currentMinutes % 15;
+      const minutesToAdd = remainder > 0 ? 15 - remainder : 0;
+      const adjustedTime = now.add(minutesToAdd, 'minute');
+      
+      console.log('Modal visible, updating time to:', adjustedTime.format('HH:mm'));
+      
+      // 更新状态变量
+      setCurrentDate(now.startOf('day'));
+      setCurrentTime(adjustedTime);
+      setStartTime(adjustedTime.toDate());
+      
+      // 延迟执行以确保formRef已初始化
+      setTimeout(() => {
+        if (formRef.current) {
+          formRef.current.resetFields(['start_time']);
+          formRef.current.setFieldsValue({
+            start_time: adjustedTime
+          });
+        }
+      }, 0);
+    }
+  }, [visible]);
 
   const showModal = () => {
-    const now = dayjs();
-    currentDate = now.startOf('day');
-    currentTime = now;
-    setStartTime(now.toDate());
+    // 使用新的变量名避免混淆
+    const newNow = dayjs();
+    const newDate = newNow.startOf('day');
+    
+    // 计算未来最近的15分钟间隔时间
+    const currentMinutes = newNow.minute();
+    const remainder = currentMinutes % 15;
+    const minutesToAdd = remainder > 0 ? 15 - remainder : 0;
+    const adjustedTime = newNow.add(minutesToAdd, 'minute');
+    
+    console.log('showModal called, current time:', newNow.format('HH:mm'), 'adjusted to:', adjustedTime.format('HH:mm'));
+    
+    // 更新状态变量，触发组件重新渲染
+    setCurrentDate(newDate);
+    setCurrentTime(adjustedTime);
+    setStartTime(adjustedTime.toDate());
+    
+    // 强制更新表单值
+    if (formRef.current) {
+      // 先重置表单，确保清除之前的值
+      formRef.current.resetFields(['start_time']);
+      // 然后设置新的值
+      formRef.current.setFieldsValue({
+        start_time: adjustedTime
+      });
+    }
   };
 
   const handleCancel = () => {
