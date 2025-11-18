@@ -6,7 +6,7 @@ import serverConfig from '../server_config.js';
 import { isLogin, getUserid } from '../dingtalkapi/dingtalkAuth.js';
 
 const USER_INFO_KEY = 'user_info';
-const WEMEET_VERSION = 'wemeet-dingtalk-js/v1.0.1'
+const WEMEET_VERSION = 'wemeet-dingtalk-js/v1.0.2'
 
 /**
  * 生成签名函数
