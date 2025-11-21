@@ -13,9 +13,9 @@ const USER_INFO_KEY = 'user_info'
 function isLogin(ctx) {
     const userInfo = ctx.session.userInfo
     const lkUserInfo = ctx.cookies.get(USER_INFO_KEY) || ''
-    logger.info(`userInfo: ${JSON.stringify(userInfo)}`)
-    logger.info(`lkUserInfo: ${JSON.stringify(lkUserInfo)}`)
     if (userInfo && lkUserInfo && userInfo.userid == lkUserInfo) {
+        logger.info(`userInfo: ${JSON.stringify(userInfo)}`)
+        logger.info(`lkUserInfo: ${JSON.stringify(lkUserInfo)}`)
         return true
     }
     return false

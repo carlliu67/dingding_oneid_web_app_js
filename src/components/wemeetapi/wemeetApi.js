@@ -7,7 +7,16 @@ import { openSchema } from '../dingtalkapi/dingtalkApi.js'
 async function handleGenerateJoinScheme(meetingCode, closePage = false) {
     console.log("\n----------[GenerateJoinScheme BEGIN]----------")
     try {
-        const response = await axios.get(`${getOrigin(clientConfig.apiPort)}${clientConfig.generateJoinSchemePath}?meetingCode=${meetingCode}`,
+        // 添加对meetingCode参数的验证
+        if (!meetingCode || meetingCode.trim() === '') {
+            console.error("会议码不能为空");
+            alert("请输入有效的会议码");
+            return;
+        }
+        
+        console.log("请求参数 - meetingCode:", meetingCode);
+        
+        const response = await axios.get(`${getOrigin(clientConfig.apiPort)}${clientConfig.generateJoinSchemePath}?meetingCode=${encodeURIComponent(meetingCode)}`,
             { withCredentials: true } // 调用时设置请求带上cookie
         );
 
@@ -16,17 +25,41 @@ async function handleGenerateJoinScheme(meetingCode, closePage = false) {
             return;
         }
         const data = response.data;
-        if (data) {
-            console.log("GenerateJoinScheme: 成功")
-        } else {
-            console.error("GenerateJoinScheme: 数据为空")
+        
+        // 检查响应数据结构和状态
+        if (data.code !== 0) {
+            console.error(`GenerateJoinScheme 失败: ${data.msg || '未知错误'}`);
+            alert(`生成会议链接失败: ${data.msg || '未知错误'}`);
+            return;
         }
+        
+        console.log("GenerateJoinScheme: 成功", data.data);
         console.log("\n----------[GenerateJoinScheme]----------")
-        openSchema(data.data, closePage);
+        
+        // 确保data.data存在且为字符串
+        if (data.data && typeof data.data === 'string') {
+            openSchema(data.data, closePage);
+        } else {
+            console.error("Invalid scheme URL format", data.data);
+            alert("生成的会议链接格式无效");
+        }
     } catch (error) {
         console.error(`${clientConfig.generateJoinSchemePath} error`, error)
         if (error.response) {
-            console.error("错误响应数据:", error.response.msg || error.response.data);
+            // 处理服务器返回的错误
+            console.error("错误响应数据:", error.response.data);
+            const errorMsg = error.response.data?.msg || error.response.data?.errorMessage || "服务器错误";
+            const errorCode = error.response.data?.errorCode || "未知错误码";
+            console.error(`错误代码: ${errorCode}, 错误信息: ${errorMsg}`);
+            alert(`请求失败: ${errorMsg} (错误代码: ${errorCode})`);
+        } else if (error.request) {
+            // 处理请求发送失败的情况
+            console.error("未收到响应:", error.request);
+            alert("网络请求失败，请检查网络连接");
+        } else {
+            // 处理其他错误
+            console.error("请求设置错误:", error.message);
+            alert(`请求错误: ${error.message}`);
         }
     } finally {
         console.log("----------[GenerateJoinScheme END]----------\n")

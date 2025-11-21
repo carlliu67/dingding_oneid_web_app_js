@@ -379,17 +379,15 @@ function openIdTokenDatabase() {
 function dbInsertIdToken(userid, idToken, expired) {
     return new Promise((resolve, reject) => {
         const db = openIdTokenDatabase();
-        const insert = db.prepare('INSERT INTO users (userid, idToken, expired) VALUES (?,?,?)');
+        // 使用INSERT OR REPLACE避免唯一约束冲突
+        const insert = db.prepare('INSERT OR REPLACE INTO users (userid, idToken, expired) VALUES (?,?,?)');
         insert.run(userid, idToken, expired, (err) => {
             insert.finalize();
-            // 修复：避免每次操作都关闭数据库连接
-            // db.close(); 
             if (err) {
-                // 修复：返回实际的错误对象
                 reject(err); 
             } else {
-                logger.info('dbInsertIdToken inserted userid: ' + userid + ', expired: ' + expired + ' successfully');
-                resolve('dbInsertIdToken inserted successfully');
+                logger.info('dbInsertIdToken inserted/replaced userid: ' + userid + ', expired: ' + expired + ' successfully');
+                resolve('dbInsertIdToken inserted/replaced successfully');
             }
         });
     });

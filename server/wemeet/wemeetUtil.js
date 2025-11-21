@@ -172,13 +172,19 @@ async function handleGenerateJoinScheme(ctx) {
 
         var redirectUrl = response.headers.get('location');
         logger.info("redirectUrl: " + redirectUrl);
+        // 如果redirectUrl为null，说明没有更多重定向，退出循环
+        if (!redirectUrl) {
+            logger.warn("No redirect URL found, exiting loop");
+            break;
+        }
+        // 添加对redirectUrl为null的检查
         if (redirectUrl.includes('user_code')) {
             const urlParams = new URLSearchParams(redirectUrl.split('?')[1]);
             userCode = urlParams.get('user_code');
             logger.info("user_code: " + userCode);
             break;
         }
-
+        
         // 更新 Cookie
         const setCookieHeaders = response.headers.getSetCookie();
         if (setCookieHeaders) {
@@ -186,7 +192,7 @@ async function handleGenerateJoinScheme(ctx) {
                 await cookieJar.setCookie(cookieHeader, initialUrl);
             }
         }
-
+        
         // 处理重定向
         if ([302, 303].includes(response.status)) {
             redirectUrl = response.headers.get('location');
