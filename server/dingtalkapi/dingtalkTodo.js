@@ -9,8 +9,8 @@ const { dbInsertTodo, dbGetTodoByMeetingid, dbDeleteTodoByMeetingid } = dbAdapte
 
 // 创建会议待办
 async function createMeetingTodo(creatorUnionId, meetingInfo, executorIds) {
-    // logger.info("meetingInfo:", meetingInfo);
-    // logger.info("executorIds:", executorIds);
+    // logger.debug("meetingInfo:", meetingInfo);
+    // logger.debug("executorIds:", executorIds);
 
     var access_token = await getInterAccessToken();
     if (!access_token) {
@@ -47,7 +47,7 @@ async function createMeetingTodo(creatorUnionId, meetingInfo, executorIds) {
             return;
         }
 
-        logger.info("待办请求参数：", JSON.stringify(requestBody));
+        logger.debug("待办请求参数：", JSON.stringify(requestBody));
         
         const internalRes = await axios.post(
             `https://api.dingtalk.com/v1.0/todo/users/${creatorUnionId}/tasks?operatorId=${creatorUnionId}`,
@@ -65,10 +65,10 @@ async function createMeetingTodo(creatorUnionId, meetingInfo, executorIds) {
         );
 
         if (internalRes.status === 200 && internalRes.data) {
-            logger.info("createTodo result: ", internalRes.data);
+            logger.debug("createTodo result: ", internalRes.data);
             // 插入待办数据库
             await dbInsertTodo(meetingInfo.meeting_id, internalRes.data.id, creatorUnionId, meetingInfo.start_time);
-            logger.info("创建会议待办成功，meetingid:", meetingInfo.meeting_id);
+            logger.debug("创建会议待办成功，meetingid:", meetingInfo.meeting_id);
         } else {
             logger.error(`创建待办失败：状态码=${internalRes.status}, 错误信息=${JSON.stringify(internalRes.data)}`);
         }
@@ -83,7 +83,7 @@ async function createMeetingTodo(creatorUnionId, meetingInfo, executorIds) {
 
 // 更新会议待办
 async function updateMeetingTodo(creatorUnionId, meetingInfo, paticipants) {
-    // logger.info(meetingInfo);
+    // logger.debug(meetingInfo);
     // 从数据库查询待办信息
     const todoInfo = await dbGetTodoByMeetingid(meetingInfo.meeting_id);
     if (!todoInfo) {
@@ -126,7 +126,7 @@ async function deleteMeetingTodo(creatorUnionId, meetingid) {
         }
 
         await dbDeleteTodoByMeetingid(meetingid);
-        logger.info("删除会议待办成功，meetingid:", meetingid);
+        logger.debug("删除会议待办成功，meetingid:", meetingid);
     } catch (error) {
         logger.error("删除待办时发生异常:", error.message, "stack:", error.stack);
     }

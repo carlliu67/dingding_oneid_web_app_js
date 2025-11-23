@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { CookieJar } from 'tough-cookie';
 import { logger } from '../util/logger.js';
-import serverConfig from '../server_config.js';
+import serverConfig from '../config/server_config.js';
 import { configAccessControl, okResponse, failResponse } from '../server_util.js';
 import { dbGetIdToken, dbDeleteIdToken, dbInsertIdToken } from '../db/sqlite.js';
 import jwt from 'jsonwebtoken';
@@ -19,7 +19,7 @@ async function generateIDToken(userid) {
     if (data) {
         if (data.expired > currentTime + 30) {
             idToken = data.idToken;
-            logger.info("idToken: ", idToken);
+            logger.debug("idToken: ", idToken);
             return idToken;
         } else {
             dbDeleteIdToken(userid);
@@ -27,7 +27,7 @@ async function generateIDToken(userid) {
     }
     var expired = currentTime + 300 // 过期时间为300秒;
     // 拼接 key 目录下的 rsa_private_key.pem 文件的完整路径
-    const privateKeyPath = path.join(process.cwd(), 'server', 'key', 'rsa_private_key.pem');
+    const privateKeyPath = path.join(process.cwd(), 'server', 'config', 'rsa_private_key.pem');
     // 读取私钥文件
     const privateKey = fs.readFileSync(privateKeyPath, 'utf8');
     // 定义 JWT 负载
@@ -48,15 +48,15 @@ async function generateIDToken(userid) {
     // 生成 JWT 串
     idToken = jwt.sign(payload, privateKey, { algorithm: 'RS256', header: header });
     dbInsertIdToken(userid, idToken, expired);
-    logger.info("idToken: ", idToken);
+    logger.debug("idToken: ", idToken);
     return idToken;
 }
 
 // 提取公共部分
 async function generateUrl(urlString, userid, action) {
     const idToken = await generateIDToken(userid);
-    // logger.info(`idToken: ${idToken}`);
-    logger.info(`urlString: ${urlString}`);
+    // logger.debug(`idToken: ${idToken}`);
+    logger.debug(`urlString: ${urlString}`);
 
     // 免登前缀（固定字符串）
     const SdkUrl = serverConfig.wemeetSSOURL;
@@ -75,7 +75,7 @@ async function generateUrl(urlString, userid, action) {
 
     // 拼接免登链接（模板字符串优化可读性）
     const joinUrl = `${SdkUrl}?action=${meetingBase64}&id_token=${idToken}`;
-    logger.info(`免登入会链接 ${joinUrl}`);
+    logger.debug(`免登入会链接 ${joinUrl}`);
 
     return joinUrl;
 }
@@ -85,8 +85,8 @@ async function generateJumpUrl(base64EncodedMeetingUrl, userid) {
     const urlString = Buffer.from(base64EncodedMeetingUrl, 'base64').toString('utf-8');
     // return await generateUrl(urlString, userid, 'jump');
     const idToken = await generateIDToken(userid);
-    // logger.info(`idToken: ${idToken}`);
-    logger.info(`urlString: ${urlString}`);
+    // logger.debug(`idToken: ${idToken}`);
+    logger.debug(`urlString: ${urlString}`);
 
     // 免登前缀（固定字符串）
     const SdkUrl = serverConfig.wemeetSSOURL;
@@ -108,7 +108,7 @@ async function generateJumpUrl(base64EncodedMeetingUrl, userid) {
 
     // 拼接免登链接（模板字符串优化可读性）
     const joinUrl = `${SdkUrl}?id_token=${idToken}&action=${encoded}`;
-    logger.info(`免登入会链接 ${joinUrl}`);
+    logger.debug(`免登入会链接 ${joinUrl}`);
 
     return joinUrl;
 }
@@ -117,8 +117,8 @@ async function generateJumpUrl(base64EncodedMeetingUrl, userid) {
 async function generateJoinUrl(urlString, userid) {
     //return await generateUrl(urlString, userid, 'join');
     const idToken = await generateIDToken(userid);
-    // logger.info(`idToken: ${idToken}`);
-    logger.info(`urlString: ${urlString}`);
+    // logger.debug(`idToken: ${idToken}`);
+    logger.debug(`urlString: ${urlString}`);
 
     // 免登前缀（固定字符串）
     const SdkUrl = serverConfig.wemeetSSOURL;
@@ -140,19 +140,19 @@ async function generateJoinUrl(urlString, userid) {
 
     // 拼接免登链接（模板字符串优化可读性）
     const joinUrl = `${SdkUrl}?id_token=${idToken}&action=${encoded}`;
-    logger.info(`免登入会链接 ${joinUrl}`);
+    logger.debug(`免登入会链接 ${joinUrl}`);
 
     return joinUrl;
 }
 
 //处理生成scheme免登url请求
 async function handleGenerateJoinScheme(ctx) {
-    logger.info("\n-------------------[获取scheme免登url BEGIN]-----------------------------");
+    logger.debug("\n-------------------[获取scheme免登url BEGIN]-----------------------------");
     configAccessControl(ctx);
 
     if (isLogin(ctx) === false) {
         ctx.body = failResponse("用户未登录，请先登录");
-        logger.info("-------------------[获取scheme免登url 用户未登录 END]-----------------------------\n");
+        logger.debug("-------------------[获取scheme免登url 用户未登录 END]-----------------------------\n");
         return;
     }
 
@@ -171,7 +171,7 @@ async function handleGenerateJoinScheme(ctx) {
         });
 
         var redirectUrl = response.headers.get('location');
-        logger.info("redirectUrl: " + redirectUrl);
+        logger.debug("redirectUrl: " + redirectUrl);
         // 如果redirectUrl为null，说明没有更多重定向，退出循环
         if (!redirectUrl) {
             logger.warn("No redirect URL found, exiting loop");
@@ -181,7 +181,7 @@ async function handleGenerateJoinScheme(ctx) {
         if (redirectUrl.includes('user_code')) {
             const urlParams = new URLSearchParams(redirectUrl.split('?')[1]);
             userCode = urlParams.get('user_code');
-            logger.info("user_code: " + userCode);
+            logger.debug("user_code: " + userCode);
             break;
         }
         
@@ -196,7 +196,7 @@ async function handleGenerateJoinScheme(ctx) {
         // 处理重定向
         if ([302, 303].includes(response.status)) {
             redirectUrl = response.headers.get('location');
-            logger.info(`Redirecting to: ${redirectUrl}`);
+            logger.debug(`Redirecting to: ${redirectUrl}`);
             initialUrl = redirectUrl;
             continue;
         } else {
@@ -212,8 +212,8 @@ async function handleGenerateJoinScheme(ctx) {
         }
         
         ctx.body = okResponse(schemeUrl);
-        logger.info("schemeUrl: " + schemeUrl);
-        logger.info("-------------------[获取scheme免登url END]-----------------------------\n");
+        logger.debug("schemeUrl: " + schemeUrl);
+        logger.debug("-------------------[获取scheme免登url END]-----------------------------\n");
     } else {
         ctx.body = failResponse("generate scheme url fail");
         logger.error("-------------------[获取scheme免登url END]-----------------------------\n");
@@ -222,12 +222,12 @@ async function handleGenerateJoinScheme(ctx) {
 
 //处理生成免登跳转链接请求
 async function handleGenerateJumpUrl(ctx) {
-    logger.info("\n-------------------[获取免登url BEGIN]-----------------------------");
+    logger.debug("\n-------------------[获取免登url BEGIN]-----------------------------");
     configAccessControl(ctx);
 
     if (isLogin(ctx) === false) {
         ctx.body = failResponse("用户未登录，请先登录");
-        logger.info("-------------------[获取免登url 用户未登录 END]-----------------------------\n");
+        logger.debug("-------------------[获取免登url 用户未登录 END]-----------------------------\n");
         return;
     }
     let originUrl = ctx.query["meetingUrl"] || "";
@@ -249,11 +249,11 @@ async function handleGenerateJumpUrl(ctx) {
         });
 
         var redirectUrl = response.headers.get('location');
-        logger.info("redirectUrl: " + redirectUrl);
+        logger.debug("redirectUrl: " + redirectUrl);
         if (redirectUrl.includes('sso_auth_code')) {
             const urlParams = new URLSearchParams(redirectUrl.split('?')[1]);
             ssoAuthCode = urlParams.get('sso_auth_code');
-            logger.info("sso_auth_code: " + ssoAuthCode);
+            logger.debug("sso_auth_code: " + ssoAuthCode);
             jumpUrl = redirectUrl;
             break;
         }
@@ -269,7 +269,7 @@ async function handleGenerateJumpUrl(ctx) {
         // 处理重定向
         if ([302, 303].includes(response.status)) {
             redirectUrl = response.headers.get('location');
-            logger.info(`Redirecting to: ${redirectUrl}`);
+            logger.debug(`Redirecting to: ${redirectUrl}`);
             initialUrl = redirectUrl;
             continue;
         } else {
@@ -278,8 +278,8 @@ async function handleGenerateJumpUrl(ctx) {
     }
     if (jumpUrl) {
         ctx.body = okResponse(jumpUrl);
-        logger.info("jumpUrl: " + jumpUrl);
-        logger.info("-------------------[获取免登url END]-----------------------------\n");
+        logger.debug("jumpUrl: " + jumpUrl);
+        logger.debug("-------------------[获取免登url END]-----------------------------\n");
     } else {
         ctx.body = failResponse("generate jump url fail");
         logger.error("-------------------[获取免登url END]-----------------------------\n");
@@ -288,12 +288,12 @@ async function handleGenerateJumpUrl(ctx) {
 
 //处理生成scheme免登url请求
 async function handleGenerateJoinUrl(ctx) {
-    logger.info("\n-------------------[获取免登入会url BEGIN]-----------------------------");
+    logger.debug("\n-------------------[获取免登入会url BEGIN]-----------------------------");
     configAccessControl(ctx);
 
     if (isLogin(ctx) === false) {
         ctx.body = failResponse("用户未登录，请先登录");
-        logger.info("-------------------[获取免登入会url 用户未登录 END]-----------------------------\n");
+        logger.debug("-------------------[获取免登入会url 用户未登录 END]-----------------------------\n");
         return;
     }
     let originUrl = ctx.query["meetingUrl"] || "";
@@ -305,8 +305,8 @@ async function handleGenerateJoinUrl(ctx) {
     const userid = getUserid(ctx);
     const joinUrl = await generateJoinUrl(originUrl, userid);
     ctx.body = okResponse(joinUrl);
-    logger.info("joinUrl: " + joinUrl);
-    logger.info("-------------------[获取免登url END]-----------------------------\n");
+    logger.debug("joinUrl: " + joinUrl);
+    logger.debug("-------------------[获取免登url END]-----------------------------\n");
     return;
 }
 

@@ -141,7 +141,7 @@ function parseWeekDays(daysValue) {
 
 // 创建日程
 async function createMeetingCalendar(creatorUnionId, meetingInfo, attendees) {
-    // logger.info(meetingInfo);
+    // logger.debug(meetingInfo);
     const access_token = await getInterAccessToken();
     if (!access_token) {
         logger.error("获取access_token失败");
@@ -149,7 +149,7 @@ async function createMeetingCalendar(creatorUnionId, meetingInfo, attendees) {
     }
     var body = null;
     const url = genH5AppLink("?meetingCode=" + meetingInfo.meeting_code);
-    logger.info("url: ", url);
+    logger.debug("url: ", url);
 
     const calendarAttendees = attendees.map(attendee => ({
         id: attendee,
@@ -213,10 +213,10 @@ async function createMeetingCalendar(creatorUnionId, meetingInfo, attendees) {
         );
 
         if (internalRes.status === 200 && internalRes.data) {
-            logger.info("createTodo result: ", internalRes.data);
+            logger.debug("createTodo result: ", internalRes.data);
             // 插入日程数据库
             await dbInsertCalendar(meetingInfo.meeting_id, internalRes.data.id, creatorUnionId, meetingInfo.start_time);
-            logger.info("创建会议日程成功，meetingid:", meetingInfo.meeting_id);
+            logger.debug("创建会议日程成功，meetingid:", meetingInfo.meeting_id);
         } else {
             logger.error(`创建日程失败：状态码=${internalRes.status}, 错误信息=${JSON.stringify(internalRes.data)}`);
         }
@@ -228,7 +228,7 @@ async function createMeetingCalendar(creatorUnionId, meetingInfo, attendees) {
 
 // 更新日程
 async function updateMeetingCalendar(creatorUnionId, meetingInfo, attendees) {
-    // logger.info(meetingInfo);
+    // logger.debug(meetingInfo);
     // 从数据库查询日程信息
     const calendarInfo = await dbGetCalendarByMeetingid(meetingInfo.meeting_id);
     if (!calendarInfo) {
@@ -242,7 +242,7 @@ async function updateMeetingCalendar(creatorUnionId, meetingInfo, attendees) {
     }
     var body = null;
     const url = genH5AppLink("?meetingCode=" + meetingInfo.meeting_code);
-    logger.info("url: ", url);
+    logger.debug("url: ", url);
 
     const calendarAttendees = attendees.map(attendee => ({
         id: attendee,
@@ -314,7 +314,7 @@ async function updateMeetingCalendar(creatorUnionId, meetingInfo, attendees) {
         }
 
         // 可选：根据钉钉API实际返回结构判断是否真正成功，比如有的接口会返回 errcode: 0 表示成功
-        logger.info("更新日程成功：", internalRes.data);
+        logger.debug("更新日程成功：", internalRes.data);
 
     } catch (error) {
         logger.error("更新日程请求失败：", error.response ? error.response.data : error.message);
@@ -323,7 +323,7 @@ async function updateMeetingCalendar(creatorUnionId, meetingInfo, attendees) {
 
 // 删除日程
 async function deleteMeetingCalendar(creatorUnionId, meetingid) {
-    // logger.info(meetingInfo);
+    // logger.debug(meetingInfo);
     // 从数据库查询日程信息
     const calendarInfo = await dbGetCalendarByMeetingid(meetingid);
     if (!calendarInfo) {
@@ -348,10 +348,10 @@ async function deleteMeetingCalendar(creatorUnionId, meetingid) {
         );
 
         if (internalRes.status === 200 && internalRes.data) {
-            logger.info("deleteMeetingCalendar result: ", internalRes.data);
+            logger.debug("deleteMeetingCalendar result: ", internalRes.data);
             // 从数据库删除日程信息
             await dbDeleteCalendarByMeetingid(meetingid);
-            logger.info("删除会议日程成功，meetingid:", meetingid);
+            logger.debug("删除会议日程成功，meetingid:", meetingid);
         } else {
             logger.error(`删除日程失败：状态码=${internalRes.status}, 错误信息=${JSON.stringify(internalRes.data)}`);
         }

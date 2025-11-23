@@ -1,7 +1,7 @@
 import Koa from 'koa';
 import Router from 'koa-router';
 import session from 'koa-session';
-import serverConfig from './server_config.js';
+import serverConfig from './config/server_config.js';
 import bodyParser from 'koa-bodyparser';
 import { logger } from './util/logger.js';
 import { handleVerification, handleEvent } from './wemeet/webhook.js';

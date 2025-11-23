@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { logger } from '../util/logger.js';
 import { genH5AppLink, getInterAccessToken, formatTimeRange } from './dingtalkUtil.js';
-import serverConfig from '../server_config.js';
+import serverConfig from '../config/server_config.js';
 
 // 发送云录制卡片消息
 // 支持接收单个userid或userid数组，一次最多发送20个
@@ -23,7 +23,7 @@ async function sendRecordViewAddressCardMessage(receive_ids, createrName, webhoo
     }
     const base64EncodedTargetUrl = Buffer.from(recordViewAddress).toString('base64')
     var singleURL = genH5AppLink("?targetUrl=" + base64EncodedTargetUrl)
-    logger.info("singleURL: ", singleURL);
+    logger.debug("singleURL: ", singleURL);
     var msgParams = {
         "title": "【录制文件已生成】" + webhookMeetingInfo.subject,
         "text": "会议主题：" + webhookMeetingInfo.subject + "\n\n会议时间：" + formatTimeRange(webhookMeetingInfo.start_time, webhookMeetingInfo.end_time) + "\n\n云录制地址：" + recordViewAddress + "\n\n#腾讯会议：" + webhookMeetingInfo.meeting_code + "\n\n发起人：" + createrName,
@@ -37,7 +37,7 @@ async function sendRecordViewAddressCardMessage(receive_ids, createrName, webhoo
         "robotCode": serverConfig.dingtalkRobotCode,
     }
 
-    logger.info("sendRecordViewAddressCardMessage: ", JSON.stringify(msg));
+    logger.debug("sendRecordViewAddressCardMessage: ", JSON.stringify(msg));
 
     try {
         const internalRes = await axios.post('https://api.dingtalk.com/v1.0/robot/oToMessages/batchSend',
@@ -48,7 +48,7 @@ async function sendRecordViewAddressCardMessage(receive_ids, createrName, webhoo
             logger.error("创建待办失败")
             return
         }
-        logger.info("sendRecordViewAddressCardMessage result: ", internalRes.data);
+        logger.debug("sendRecordViewAddressCardMessage result: ", internalRes.data);
     } catch (error) {
         logger.error("发送云录制卡片消息失败", error.message, "stack:", error.stack);
     }

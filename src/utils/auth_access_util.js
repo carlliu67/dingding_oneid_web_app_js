@@ -2,7 +2,6 @@ import axios from 'axios';
 import clientConfig from '../config/client_config.js';
 import Cookies from 'js-cookie';
 import * as dd from 'dingtalk-jsapi'; // 此方式为整体加载，也可按需进行加载
-import { message } from 'antd';
 
 const USER_INFO_KEY = 'user_info'
 

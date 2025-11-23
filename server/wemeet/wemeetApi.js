@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import axios from 'axios';
 import { logger } from '../util/logger.js';
 import { configAccessControl, okResponse, failResponse } from '../server_util.js';
-import serverConfig from '../server_config.js';
+import serverConfig from '../config/server_config.js';
 import { isLogin, getUserid } from '../dingtalkapi/dingtalkAuth.js';
 
 const USER_INFO_KEY = 'user_info';
@@ -106,13 +106,14 @@ async function queryMeetingById(meetingId, userid) {
     
     try {
         const requestConfig = createRequestConfig('GET', uri);
-        logger.info("查询会议请求配置: ", requestConfig);
-        
+        logger.debug("查询会议请求配置: ", requestConfig);
+
         const response = await axios(requestConfig);
-        logger.info("查询会议结果: ", response.data);
+        logger.debug("查询会议结果: ", response.data);
         return response.data;
     } catch (error) {
         handleApiError(error, '查询会议');
+        logger.warn("查询会议请求失败: ", requestConfig);
         throw error;
     }
 }
@@ -129,13 +130,14 @@ async function queryMeetingRecordList(webhookMeetingInfo) {
 
     try {
         const requestConfig = createRequestConfig('GET', uri);
-        logger.info("查询会议录制列表请求配置: ", requestConfig);
+        logger.debug("查询会议录制列表请求配置: ", requestConfig);
         
         const response = await axios(requestConfig);
-        logger.info("查询会议录制列表结果: ", response.data);
+        logger.debug("查询会议录制列表结果: ", response.data);
         return response.data;
     } catch (error) {
         handleApiError(error, '查询会议录制列表');
+        logger.warn("查询会议录制列表请求失败: ", requestConfig);
         throw error;
     }
 }
@@ -152,13 +154,14 @@ async function queryMeetingRecordAddress(meeting_record_id, userid) {
 
     try {
         const requestConfig = createRequestConfig('GET', uri);
-        logger.info("查询会议录制地址请求配置: ", requestConfig);
+        logger.debug("查询会议录制地址请求配置: ", requestConfig);
         
         const response = await axios(requestConfig);
-        logger.info("查询会议录制地址结果: ", response.data);
+        logger.debug("查询会议录制地址结果: ", response.data);
         return response.data;
     } catch (error) {
         handleApiError(error, '查询会议录制地址');
+        logger.warn("查询会议录制地址请求失败: ", requestConfig);
         throw error;
     }
 }
@@ -174,13 +177,14 @@ async function queryMeetingParticipants(meeting_id, userid) {
 
     try {
         const requestConfig = createRequestConfig('GET', uri);
-        logger.info("获取参会成员明细请求配置: ", requestConfig);
+        logger.debug("获取参会成员明细请求配置: ", requestConfig);
         
         const response = await axios(requestConfig);
-        logger.info("获取参会成员明细结果: ", response.data);
+        logger.debug("获取参会成员明细结果: ", response.data);
         return response.data;
     } catch (error) {
         handleApiError(error, '获取参会成员明细');
+        logger.warn("获取参会成员明细请求失败: ", requestConfig);
         throw error;
     }
 }
@@ -190,12 +194,12 @@ async function queryMeetingParticipants(meeting_id, userid) {
  * @param {Object} ctx - Koa上下文
  */
 async function handleCreateMeeting(ctx) {
-    logger.info("\n-------------------[创建会议 BEGIN]-----------------------------");
+    logger.debug("\n-------------------[创建会议 BEGIN]-----------------------------");
     configAccessControl(ctx);
     
     if (isLogin(ctx) === false) {
         ctx.body = failResponse("用户未登录，请先登录");
-        logger.info("-------------------[创建会议 用户未登录 END]-----------------------------\n");
+        logger.debug("-------------------[创建会议 用户未登录 END]-----------------------------\n");
         return;
     }
 
@@ -204,14 +208,16 @@ async function handleCreateMeeting(ctx) {
         const meetingParams = JSON.parse(ctx.request.body.data);
         meetingParams.userid = getUserid(ctx);
         
-        logger.info("发起创建会议请求，参数: ", meetingParams);
+        logger.debug("发起创建会议请求，参数: ", meetingParams);
         
         const requestConfig = createRequestConfig('POST', uri, meetingParams);
-        logger.info("创建会议请求配置: ", requestConfig);
+        logger.debug("创建会议请求配置: ", requestConfig);
         
         const response = await axios(requestConfig);
         ctx.body = okResponse(response.data);
     } catch (error) {
+        logger.warn("创建会议请求配置: ", requestConfig);
+        logger.warn("发起创建会议请求，参数: ", meetingParams);
         if (error instanceof SyntaxError) {
             logger.error("解析请求body数据时出错: ", error);
             ctx.body = failResponse("请求数据格式错误");
@@ -222,7 +228,7 @@ async function handleCreateMeeting(ctx) {
         }
     }
     
-    logger.info("-------------------[创建会议 END]-----------------------------\n");
+    logger.debug("-------------------[创建会议 END]-----------------------------\n");
 }
 
 /**
@@ -230,12 +236,12 @@ async function handleCreateMeeting(ctx) {
  * @param {Object} ctx - Koa上下文
  */
 async function handleQueryUserEndedMeetingList(ctx) {
-    logger.info("\n-------------------[查询用户已结束会议列表 BEGIN]-----------------------------");
+    logger.debug("\n-------------------[查询用户已结束会议列表 BEGIN]-----------------------------");
     configAccessControl(ctx);
     
     if (isLogin(ctx) === false) {
         ctx.body = failResponse("用户未登录，请先登录");
-        logger.info("-------------------[查询用户已结束会议列表 用户未登录 END]-----------------------------\n");
+        logger.debug("-------------------[查询用户已结束会议列表 用户未登录 END]-----------------------------\n");
         return;
     }
 
@@ -255,15 +261,16 @@ async function handleQueryUserEndedMeetingList(ctx) {
 
     try {
         const requestConfig = createRequestConfig('GET', uri);
-        logger.info("查询用户已结束会议列表请求配置: ", requestConfig);
+        logger.debug("查询用户已结束会议列表请求配置: ", requestConfig);
         
         const response = await axios(requestConfig);
-        logger.info("查询用户已结束会议列表结果: ", response.data);
-        logger.info("-------------------[查询用户已结束会议列表 END]-----------------------------\n");
+        logger.debug("查询用户已结束会议列表结果: ", response.data);
+        logger.debug("-------------------[查询用户已结束会议列表 END]-----------------------------\n");
         ctx.body = okResponse(response.data);
         return;
     } catch (error) {
         handleApiError(error, '查询用户已结束会议列表');
+        logger.warn("查询用户已结束会议列表请求配置: ", requestConfig);
         throw error;
     }
 }
@@ -273,12 +280,12 @@ async function handleQueryUserEndedMeetingList(ctx) {
  * @param {Object} ctx - Koa上下文
  */
 async function handleQueryUserMeetingList(ctx) {
-    logger.info("\n-------------------[查询用户会议列表 BEGIN]-----------------------------");
+    logger.debug("\n-------------------[查询用户会议列表 BEGIN]-----------------------------");
     configAccessControl(ctx);
     
     if (isLogin(ctx) === false) {
         ctx.body = failResponse("用户未登录，请先登录");
-        logger.info("-------------------[查询用户会议列表 用户未登录 END]-----------------------------\n");
+        logger.debug("-------------------[查询用户会议列表 用户未登录 END]-----------------------------\n");
         return;
     }
 
@@ -298,15 +305,16 @@ async function handleQueryUserMeetingList(ctx) {
 
     try {
         const requestConfig = createRequestConfig('GET', uri);
-        logger.info("查询用户会议列表请求配置: ", requestConfig);
+        logger.debug("查询用户会议列表请求配置: ", requestConfig);
         
         const response = await axios(requestConfig);
-        logger.info("查询用户会议列表结果: ", response.data);
-        logger.info("-------------------[查询用户会议列表 END]-----------------------------\n");
+        logger.debug("查询用户会议列表结果: ", response.data);
+        logger.debug("-------------------[查询用户会议列表 END]-----------------------------\n");
         ctx.body = okResponse(response.data);
         return;
     } catch (error) {
         handleApiError(error, '查询用户会议列表');
+        logger.warn("查询用户会议列表请求配置: ", requestConfig);
         throw error;
     }
 }

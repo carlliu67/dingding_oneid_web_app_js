@@ -1,5 +1,5 @@
 import { logger } from '../util/logger.js';
-import serverConfig from '../server_config.js';
+import serverConfig from '../config/server_config.js';
 
 // 根据配置选择数据库类型
 const dbType = serverConfig.dbType || 'sqlite'; // 默认使用sqlite

@@ -5,7 +5,7 @@ import utc from 'dayjs/plugin/utc.js';
 import timezone from 'dayjs/plugin/timezone.js';
 import util from 'util';
 import DailyRotateFile from 'winston-daily-rotate-file';
-import serverConfig from '../server_config.js';
+import serverConfig from '../config/server_config.js';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);

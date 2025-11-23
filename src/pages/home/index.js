@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import UserInfo from "../../components/userinfo/index.js";
 import MeetingList from './meeting/index.js';
 import { handleJSAPIAccess, handleUserAuth, configJSAPIAccess } from '../../utils/auth_access_util.js';
 import { handleGenerateJoinScheme, handleGenerateJumpUrl } from '../../components/wemeetapi/wemeetApi.js';
@@ -9,7 +8,6 @@ import clientConfig from '../../config/client_config.js';
 export default function Home() {
     const [userInfo, setUserInfo] = useState({});
     const [isLoaded, setIsLoaded] = useState(false);
-    const [uriParams, setUriParams] = useState({});
 
     useEffect(() => {
         // 获取 URL 中的查询参数
@@ -18,7 +16,6 @@ export default function Home() {
         for (const [key, value] of searchParams.entries()) {
             params[key] = value;
         }
-        setUriParams(params);
 
         // 免登处理
         handleUserAuth((userInfo) => {

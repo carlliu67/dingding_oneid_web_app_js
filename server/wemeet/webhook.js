@@ -1,13 +1,24 @@
 import crypto from 'crypto';
 import querystring from 'querystring';
 import { Buffer } from 'buffer';
-import serverConfig from '../server_config.js';
+import serverConfig from '../config/server_config.js';
 import { logger } from '../util/logger.js';
 import { getUnionIdByUserid } from '../dingtalkapi/dingtalkUtil.js';
 import { createMeetingCalendar, updateMeetingCalendar, deleteMeetingCalendar } from '../dingtalkapi/dingtalkCalendar.js';
 import { createMeetingTodo, updateMeetingTodo, deleteMeetingTodo } from '../dingtalkapi/dingtalkTodo.js';
 import { sendRecordViewAddressCardMessage } from '../dingtalkapi/dingtalkRobot.js';
 import { queryMeetingById, queryMeetingRecordList, queryMeetingRecordAddress, queryMeetingParticipants } from './wemeetApi.js';
+import RateLimiter from './rate_limiter.js';
+import TaskQueue from './task_queue.js';
+
+// 创建webhook请求限流器
+const webhookRateLimiter = new RateLimiter({
+    rate: serverConfig.webhookRateLimit || 1000, // 每秒处理的请求数
+    capacity: serverConfig.webhookCapacity || 5000 // 最大并发请求数
+});
+
+// 创建全局任务队列实例，最大并发数可以根据服务器性能调整
+const webhookTaskQueue = new TaskQueue(serverConfig.webhookMaxConcurrent || 5);
 
 /**
  * 验证签名
@@ -23,13 +34,13 @@ function verifySignature(timestamp, nonce, data, signature) {
 
     // 2. 将排序后的字符串拼接成一个字符串
     const str = arr.join('');
-    // logger.info('str:', str);
+    // logger.debug('str:', str);
 
     // 3. 使用sha1算法加密
     const sha1 = crypto.createHash('sha1');
     sha1.update(str);
     const computedSignature = sha1.digest('hex');
-    // logger.info('computedSignature:', computedSignature);
+    // logger.debug('computedSignature:', computedSignature);
 
     // 4. 比较计算出的签名与传入的签名
     return computedSignature === signature;
@@ -132,6 +143,7 @@ async function webhookCreateMeeting(eventData) {
     if (webhookMeetingInfo.meeting_create_mode === 1) {
         return;
     }
+    logger.debug(`处理会议创建事件: ${webhookMeetingInfo.meeting_id}`);
 
     var creatorUserid = webhookMeetingInfo.creator.userid;
     var creatorUnionid = await getUnionIdByUserid(creatorUserid);
@@ -185,10 +197,8 @@ async function webhookCreateMeeting(eventData) {
     // 去重
     todoParticipants = [...new Set(todoParticipants)];
 
-    logger.info("currentHosts: ", currentHosts);
-    logger.info("hosts: ", hosts);
-    logger.info("originalParticipants: ", originalParticipants);
-    logger.info("todoParticipants: ", todoParticipants);
+    logger.debug(`会议参与者信息: currentHosts=${currentHosts.length}, hosts=${hosts.length}, participants=${originalParticipants.length}`);
+    logger.debug(`去重后的参与者数量: ${todoParticipants.length}`);
 
     // 会议类型(0:一次性会议，1:周期性会议，2:微信专属会议，4:rooms 投屏会议，5:个人会议号会议， 6:网络研讨会)
     if (webhookMeetingInfo.meeting_type === 0 || webhookMeetingInfo.meeting_type === 2 || webhookMeetingInfo.meeting_type === 5 || webhookMeetingInfo.meeting_type === 6) {
@@ -218,6 +228,7 @@ async function webhookUpdateMeeting(eventData) {
     if (webhookMeetingInfo.meeting_create_mode === 1) {
         return;
     }
+    logger.debug(`处理会议更新事件: ${webhookMeetingInfo.meeting_id}`);
 
     var creatorUserid = webhookMeetingInfo.creator.userid;
     var creatorUnionid = await getUnionIdByUserid(creatorUserid);
@@ -271,10 +282,8 @@ async function webhookUpdateMeeting(eventData) {
     // 按id属性去重
     paticipants = [...new Set(paticipants)];
 
-    logger.info("currentHosts: ", currentHosts);
-    logger.info("hosts: ", hosts);
-    logger.info("paticipants: ", participants);
-    logger.info("todoPaticipants: ", paticipants);
+    logger.debug(`会议参与者信息: currentHosts=${currentHosts.length}, hosts=${hosts.length}, participants=${participants.length}`);
+    logger.debug(`去重后的参与者数量: ${paticipants.length}`);
 
     // 会议类型(0:一次性会议，1:周期性会议，2:微信专属会议，4:rooms 投屏会议，5:个人会议号会议， 6:网络研讨会)
     if (webhookMeetingInfo.meeting_type === 0 || webhookMeetingInfo.meeting_type === 2 || webhookMeetingInfo.meeting_type === 5 || webhookMeetingInfo.meeting_type === 6) {
@@ -307,6 +316,7 @@ async function webhookCancelMeeting(eventData) {
     if (webhookMeetingInfo.meeting_create_mode === 1) {
         return;
     }
+    logger.debug(`处理会议取消事件: ${webhookMeetingInfo.meeting_id}`);
 
     var creatorUnionid = await getUnionIdByUserid(webhookMeetingInfo.creator.userid);
     if (!creatorUnionid) {
@@ -340,6 +350,7 @@ async function webhookEndMeeting(eventData) {
     if (webhookMeetingInfo.meeting_create_mode === 1) {
         return;
     }
+    logger.debug(`处理会议结束事件: ${webhookMeetingInfo.meeting_id}`);
 
     if (webhookMeetingInfo.meeting_type === 1) {
         // 周期会议不更新
@@ -370,6 +381,7 @@ async function webhookRecordingCompleted(eventData) {
         logger.error("未获取到会议信息");
         return;
     }
+    logger.debug(`处理录制完成事件: ${webhookMeetingInfo.meeting_id}`);
     const recordListResult = await queryMeetingRecordList(webhookMeetingInfo);
     if (!recordListResult) {
         logger.error("未获取到录制信息");
@@ -383,7 +395,7 @@ async function webhookRecordingCompleted(eventData) {
         return;
     }
     const recordViewAddress = recordAddressResult.record_files[0].view_address;
-    logger.info("recordViewAddress: ", recordViewAddress);
+    logger.debug("recordViewAddress: ", recordViewAddress);
 
     const participantsResult = await queryMeetingParticipants(webhookMeetingInfo.meeting_id, webhookMeetingInfo.creator.userid);
     if (!participantsResult) {
@@ -391,55 +403,107 @@ async function webhookRecordingCompleted(eventData) {
         return;
     }
     const participants = participantsResult.participants;
-    // 按id属性去重
-    var attendees = [...new Map(participants.map(item => [item.userid, item])).values()];
-    
-    // 收集有效的userid
-    const validUserIds = attendees
-        .filter(participant => participant && participant.userid)
-        .map(participant => participant.userid);
-    
-    logger.info("Total valid userIds count:", validUserIds.length);
-    
+
+    // 收集有效的userid并去重
+    const validUserIds = [...new Set(
+        participants
+            .filter(participant => participant && participant.userid)
+            .map(participant => participant.userid)
+    )];
+
+    logger.debug(`录制分享 - 有效用户数: ${validUserIds.length}`);
+
     // 批量发送消息，每次最多20个
     const batchSize = 20;
     for (let i = 0; i < validUserIds.length; i += batchSize) {
         const batchUserIds = validUserIds.slice(i, i + batchSize);
-        logger.info(`Sending batch ${Math.floor(i / batchSize) + 1}:`, batchUserIds);
-        
-        // 调用发送消息函数，传入userid数组
-        sendRecordViewAddressCardMessage(batchUserIds, webhookMeetingInfo.creator.user_name, webhookMeetingInfo, recordViewAddress);
+        logger.debug(`录制分享 - 发送批次 ${Math.floor(i / batchSize) + 1}, 大小: ${batchUserIds.length}`);
+        sendRecordViewAddressCardMessage(
+            batchUserIds,
+            webhookMeetingInfo.creator.user_name,
+            webhookMeetingInfo,
+            recordViewAddress
+        )
     }
+}
 
+/**
+ * 异步处理webhook事件的函数
+ * @param {Object} eventData 解析后的事件数据
+ */
+async function processWebhookEvent(eventData) {
+    try {
+        logger.debug(`处理webhook事件: ${eventData.event}`);
+        // 处理事件
+        switch (eventData.event) {
+            // 会议创建事件
+            case 'meeting.created':
+                logger.info('会议创建:', eventData);
+                await webhookCreateMeeting(eventData);
+                break;
+            // 会议更新事件
+            case 'meeting.updated':
+                logger.info('会议更新:', eventData);
+                await webhookUpdateMeeting(eventData);
+                break;
+            // 会议取消事件
+            case 'meeting.canceled':
+                logger.info('会议取消:', eventData);
+                await webhookCancelMeeting(eventData);
+                break;
+            // 会议结束事件
+            case 'meeting.end':
+                logger.info('会议结束:', eventData);
+                await webhookEndMeeting(eventData);
+                break;
+            // 云录制完成事件
+            case 'recording.completed':
+                logger.info('云录制完成:', eventData);
+                await webhookRecordingCompleted(eventData);
+                break;
+            default:
+                logger.warn(`不支持的事件类型: ${eventData.event}`);
+        }
+    } catch (error) {
+        logger.error(`处理webhook事件失败 - ${eventData.event || 'Unknown'}`, error);
+    }
 }
 
 /**
  * 处理POST事件回调
+ * 快速返回响应，实际处理逻辑放入任务队列异步执行
  */
 async function handleEvent(ctx) {
     try {
+        // 首先进行限流检查
+        if (!webhookRateLimiter.tryAcquire()) {
+            logger.warn(`请求被限流，返回429状态码`);
+            ctx.status = 429;
+            ctx.body = { error: '请求过于频繁，请稍后再试', status: 'limited' };
+            return;
+        }
+
         const { data } = ctx.request.body;
         const { timestamp, nonce, signature } = ctx.headers;
         var result = '';
 
         if (!timestamp || !nonce || !signature) {
+            logger.warn('缺少必要的请求头');
             ctx.throw(400, 'Missing required headers');
-            logger.error('Missing required headers');
             return;
         }
 
         // 验证签名
         const isValid = verifySignature(timestamp, nonce, data, signature);
         if (!isValid) {
+            logger.warn('签名验证失败');
             ctx.throw(403, 'Invalid signature');
-            logger.error('Invalid signature');
             return;
         }
 
         // 解密check_str
         if (serverConfig.wemeetWebhookAESKey.length > 1) {
             result = decryptAES(data);
-            // console.log('解密后的字符串:', decryptedStr);
         } else {
             // base64解码
             result = Buffer.from(data, 'base64').toString('utf8');
@@ -447,43 +511,24 @@ async function handleEvent(ctx) {
 
         // 解析JSON数据
         const eventData = JSON.parse(result);
+        const eventType = eventData.event;
 
-        // 返回成功响应
+        // 立即返回成功响应，不再等待后续处理完成
         ctx.status = 200;
         ctx.body = 'successfully received callback';
 
-        // 处理事件
-        switch (eventData.event) {
-            // 会议创建事件
-            case 'meeting.created':
-                logger.info('会议创建:', eventData);
-                webhookCreateMeeting(eventData);
-                break;
-            // 会议更新事件
-            case 'meeting.updated':
-                logger.info('会议更新:', eventData);
-                webhookUpdateMeeting(eventData);
-                break;
-            // 会议取消事件
-            case 'meeting.canceled':
-                logger.info('会议取消:', eventData);
-                webhookCancelMeeting(eventData);
-                break;
-            // 会议结束事件
-            case 'meeting.end':
-                logger.info('会议结束:', eventData);
-                webhookEndMeeting(eventData);
-                break;
-            // 云录制完成事件
-            case 'recording.completed':
-                logger.info('云录制完成:', eventData);
-                webhookRecordingCompleted(eventData);
-                break;
-            default:
-                logger.info('收到未知事件:', eventData);
-        }
+        // 将事件处理放入任务队列异步执行
+        webhookTaskQueue.addTask(
+            () => processWebhookEvent(eventData),
+            { eventType, timestamp }
+        ).catch(error => {
+            // 任务队列添加失败时记录错误
+            logger.error(`将webhook事件添加到任务队列失败 - ${eventType}`, error);
+        });
     } catch (error) {
-        ctx.throw(500, `Event processing failed: ${error.message}`);
+        logger.error('Webhook请求处理失败', error);
+        ctx.status = 500;
+        ctx.body = `Event processing failed: ${error.message}`;
     }
 }
 

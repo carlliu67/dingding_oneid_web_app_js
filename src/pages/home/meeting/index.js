@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Tabs, Button, Table, Space } from 'antd';
 import './index.css';
 import { handleCreateMeeting, handleQueryUserEndedMeetingList, handleQueryUserMeetingList, handleGenerateJoinScheme } from '../../../components/wemeetapi/wemeetApi.js';
@@ -45,10 +45,8 @@ function MeetingList(props) {
   const [endedMeetings, setEndedMeetings] = useState([]);
   const [endedMeetingsTimestamp, setEndedMeetingsTimeStamp] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [searchText, setSearchText] = useState('');
   const [activeTab, setActiveTab] = useState('upcoming');
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const formRef = useRef(null);
   let userInfo = props.userInfo;
   console.log('userInfo:', userInfo);
   if (!userInfo) {
@@ -73,7 +71,7 @@ function MeetingList(props) {
           setLoading(false);
           return;
         }
-        for (var meetingInfo of meetingListsResult.meeting_info_list) {
+        for (let meetingInfo of meetingListsResult.meeting_info_list) {
           let formattedStartTime = formatTimestamp(meetingInfo.start_time);
           if (meetingInfo.status === 'MEETING_STATE_STARTED') {
             ongoingMeetingList.push({
@@ -110,7 +108,7 @@ function MeetingList(props) {
           setLoading(false);
           return;
         }
-        for (var meetingInfo of meetingListsResult.meeting_info_list) {
+        for (let meetingInfo of meetingListsResult.meeting_info_list) {
           let formattedStartTime = formatTimestamp(meetingInfo.start_time);
           if (meetingInfo.status === 'MEETING_STATE_STARTED') {
             ongoingMeetingList.push({
@@ -147,10 +145,7 @@ function MeetingList(props) {
           return;
         }
         console.log('endedMeetingListsResult:', meetingListsResult);
-        var totalCount = meetingListsResult.total_count || 0;
-        var totalPage = meetingListsResult.total_page || 0;
-        var currentPage = meetingListsResult.current_page || 0;
-        for (var meetingInfo of meetingListsResult.meeting_info_list) {
+        for (let meetingInfo of meetingListsResult.meeting_info_list) {
           let formattedStartTime = formatTimestamp(meetingInfo.start_time);
           endedMeetingList.push({
             formatted_start_time: formattedStartTime,
@@ -168,50 +163,12 @@ function MeetingList(props) {
       };
     }
     setLoading(false);
-  }, [activeTab, searchText, ongoingMeetings, upcomingMeetings, endedMeetings, userInfo.userid]);
+  }, [activeTab, ongoingMeetings, upcomingMeetings, endedMeetings, MeetingListTimestamp, endedMeetingsTimestamp]);
 
-  const handleSearch = searchText => {
-    setSearchText(searchText);
-  };
-
-  const handleSearchChange = searchText => {
-    handleSearch(searchText);
-  };
-
-  const handleSearchClear = () => {
-    handleSearch('');
-  };
-
-  const handleSearchSubmit = () => {
-    getMeetingInfoList();
-  };
-
-  const handleSearchReset = () => {
-    handleSearchClear();
-    handleSearchSubmit();
-  };
-
-  const handleSearchEnter = e => {
-    if (e.key === 'Enter') {
-      handleSearchSubmit();
-    }
-  };
-
-  const handleSearchIconClick = () => {
-    handleSearchSubmit();
-  };
-
-  const handleSearchDropdownVisibleChange = visible => {
-    if (visible) {
-      setTimeout(() => {
-        formRef.current.setFieldsValue({ searchText: '' });
-      }, 100);
-    }
-  };
 
   useEffect(() => {
     getMeetingInfoList();
-  }, [activeTab, searchText, userInfo.userid]);
+  }, [activeTab, userInfo.userid, getMeetingInfoList]);
 
   const columns = [
     {

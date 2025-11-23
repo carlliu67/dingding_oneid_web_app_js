@@ -1,0 +1,3 @@
+将服务端的配置文件和私钥文件放在本目录下
+服务端配置文件命名为server_config.js
+私钥文件命名为rsa_private_key.pem

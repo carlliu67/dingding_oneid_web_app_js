@@ -1,5 +1,5 @@
 import axios from 'axios';
-import serverConfig from '../server_config.js';
+import serverConfig from '../config/server_config.js';
 import { logger } from '../util/logger.js';
 import { dbInsertUserinfo, dbGetUserinfoByUserid } from '../db/sqlite.js';
 
@@ -69,7 +69,7 @@ let interAccessTokenTime = 0;
 // 获取 access_token
 async function getInterAccessToken() {
     if (interAccessToken && interAccessTokenTime + 7000 > Math.floor(Date.now() / 1000)) {
-        logger.info("access_token: ", interAccessToken)
+        logger.debug("access_token: ", interAccessToken)
         return interAccessToken
     }
     try {
@@ -85,7 +85,7 @@ async function getInterAccessToken() {
 
         interAccessToken = internalRes.data.accessToken
         interAccessTokenTime = Math.floor(Date.now() / 1000)
-        logger.info("access_token: ", interAccessToken)
+        logger.debug("access_token: ", interAccessToken)
         return interAccessToken
     } catch (error) {
         logger.error("获取 access_token 失败", error.message, "stack:", error.stack);
@@ -99,7 +99,7 @@ let accessTokenTime = 0;
 // 获取 access_token
 async function getAccessToken() {
     if (accessToken && accessTokenTime + 7000 > Math.floor(Date.now() / 1000)) {
-        logger.info("access_token get time: ", accessTokenTime);
+        logger.debug("access_token get time: ", accessTokenTime);
         return accessToken;
     }
     try {
@@ -115,7 +115,7 @@ async function getAccessToken() {
 
         accessToken = internalRes.data.access_token;
         accessTokenTime = Math.floor(Date.now() / 1000);
-        logger.info("access_token get time: ", accessTokenTime, "expires_in: ", internalRes.data.expires_in);
+        logger.debug("access_token get time: ", accessTokenTime, "expires_in: ", internalRes.data.expires_in);
         return accessToken;
     } catch (error) {
         logger.error("获取 access_token 失败", error.message, "stack:", error.stack);
@@ -145,7 +145,7 @@ async function getUnionIdByUserid(userid) {
             logger.warn("queryUserDetail失败，errcode", internalRes.data.errcode, "errmsg", internalRes.data.errmsg)
             return null;
         }
-        logger.info("queryUserDetail result: ", internalRes.data);
+        logger.debug("queryUserDetail result: ", internalRes.data);
         dbInsertUserinfo(userid, internalRes.data.result.unionid, internalRes.data.result.name);
         return internalRes.data.result.unionid;
     } catch (error) {
@@ -167,13 +167,13 @@ async function queryUserIdByUnionId(unionid) {
                 "unionid": unionid
             }, { headers: { "Content-Type": "application/json" } })
 
-        //logger.info("internalRes: ", internalRes)
+        //logger.debug("internalRes: ", internalRes)
 
         if (!internalRes.data) {
             logger.error("根据unionid获取用户userid失败")
             return null;
         }
-        logger.info("queryUserIdByUnionId result: ", internalRes.data);
+        logger.debug("queryUserIdByUnionId result: ", internalRes.data);
         return internalRes.data.result.userid;
     } catch (error) {
         logger.error("根据unionid获取用户userid失败", error.message, "stack:", error.stack);

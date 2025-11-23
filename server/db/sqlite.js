@@ -60,7 +60,7 @@ function dbInsertTodo(meetingid, taskid, unionid, createtimestamp) {
                 reject(err); 
                 logger.error('dbInsertTodo failed:', err.message);
             } else {
-                logger.info('dbInsertTodo taskid: ' + taskid + ', unionid: ' + unionid + ', meetingid: ' + meetingid + ', createtimestamp: ' + createtimestamp + ' inserted successfully');
+                logger.debug('dbInsertTodo taskid: ' + taskid + ', unionid: ' + unionid + ', meetingid: ' + meetingid + ', createtimestamp: ' + createtimestamp + ' inserted successfully');
                 resolve('dbInsertTodo inserted successfully');
             }
         });
@@ -82,10 +82,10 @@ function dbGetTodoByMeetingid(meetingid) {
                 logger.error('查询待办信息失败:', err.message);
                 reject(err);
             } else if (row) {
-                logger.info('查询待办信息成功:', meetingid);
+                logger.debug('查询待办信息成功:', meetingid);
                 resolve(row);
             } else {
-                logger.info('未找到待办信息:', meetingid);
+                logger.debug('未找到待办信息:', meetingid);
                 resolve(null); 
             }
         });
@@ -101,7 +101,7 @@ function dbDeleteTodoByMeetingid(meetingid) {
                 // 修复：返回实际的错误对象
                 reject(err); 
             } else {
-                logger.info('Data deleted meetingid: ', meetingid);
+                logger.debug('Data deleted meetingid: ', meetingid);
                 resolve('Data deleted successfully');
             }
         });
@@ -180,7 +180,7 @@ function dbInsertCalendar(meetingid, scheduleId, unionid, createtimestamp) {
                     reject(err); 
                     logger.error('dbInsertCalendar failed:', err.message);
                 } else {
-                    logger.info('dbInsertCalendar scheduleId: ' + scheduleId + ', unionid: ' + unionid + ', meetingid: ' + meetingid + ', createtimestamp: ' + createtimestamp + ' inserted successfully');
+                    logger.debug('dbInsertCalendar scheduleId: ' + scheduleId + ', unionid: ' + unionid + ', meetingid: ' + meetingid + ', createtimestamp: ' + createtimestamp + ' inserted successfully');
                     resolve('dbInsertCalendar inserted successfully');
                 }
             });
@@ -206,10 +206,10 @@ function dbGetCalendarByMeetingid(meetingid) {
                     logger.error('查询日历信息失败:', err.message);
                     reject(err);
                 } else if (row) {
-                    logger.info('查询日历信息成功:', meetingid);
+                    logger.debug('查询日历信息成功:', meetingid);
                     resolve(row);
                 } else {
-                    logger.info('未找到日历信息:', meetingid);
+                    logger.debug('未找到日历信息:', meetingid);
                     resolve(null); 
                 }
             });
@@ -232,7 +232,7 @@ function dbDeleteCalendarByMeetingid(meetingid) {
                     // 返回实际的错误对象
                     reject(err); 
                 } else {
-                    logger.info('Calendar data deleted meetingid: ', meetingid);
+                    logger.debug('Calendar data deleted meetingid: ', meetingid);
                     resolve('Calendar data deleted successfully');
                 }
             });
@@ -286,7 +286,7 @@ function dbInsertUserinfo(userid, unionid, name) {
                 reject(err); 
                 logger.error('dbInsertUserinfo failed:', err.message);
             } else {
-                logger.info('dbInsertUserinfo userid: ' + userid + ', unionid: ' + unionid + ', name: ' + name + ' inserted successfully');
+                logger.debug('dbInsertUserinfo userid: ' + userid + ', unionid: ' + unionid + ', name: ' + name + ' inserted successfully');
                 resolve('dbInsertUserinfo inserted successfully');
             }
         });
@@ -308,10 +308,10 @@ function dbGetUserinfoByUserid(userid) {
                 logger.error('查询用户信息失败:', err.message);
                 reject(err);
             } else if (row) {
-                logger.info('查询用户信息成功:', userid);
+                logger.debug('查询用户信息成功:', userid);
                 resolve(row);
             } else {
-                logger.info('未找到用户:', userid);
+                logger.debug('未找到用户:', userid);
                 resolve(null); // 或者 reject(new Error('用户不存在'))
             }
         });
@@ -337,10 +337,10 @@ function dbGetUserinfoByUnionid(unionid) {
                 reject(err); // 出错时 reject
             } else if (!row) {
                 // 可选：如果没查到数据，也可以选择 reject 或 resolve(null)
-                logger.info('dbGetUserinfoByUnionid 未找到 unionid 对应的用户:', unionid);
+                logger.debug('dbGetUserinfoByUnionid 未找到 unionid 对应的用户:', unionid);
                 resolve(null); // 或者 reject(new Error('User not found'));
             } else {
-                logger.info("dbGetUserinfoByUnionid: ", unionid, " ", JSON.stringify(row));
+                logger.debug("dbGetUserinfoByUnionid: ", unionid, " ", JSON.stringify(row));
                 resolve(row); // 成功找到，返回查询结果
             }
         });
@@ -386,7 +386,7 @@ function dbInsertIdToken(userid, idToken, expired) {
             if (err) {
                 reject(err); 
             } else {
-                logger.info('dbInsertIdToken inserted/replaced userid: ' + userid + ', expired: ' + expired + ' successfully');
+                logger.debug('dbInsertIdToken inserted/replaced userid: ' + userid + ', expired: ' + expired + ' successfully');
                 resolve('dbInsertIdToken inserted/replaced successfully');
             }
         });
@@ -402,7 +402,7 @@ function dbDeleteIdToken(userid) {
                 // 修复：返回实际的错误对象
                 reject(err); 
             } else {
-                logger.info('Data deleted userid: ', userid);
+                logger.debug('Data deleted userid: ', userid);
                 resolve('Data deleted successfully');
             }
         });
@@ -425,7 +425,7 @@ function dbGetIdToken(userid) {
                 reject(err); // 发生错误，拒绝 Promise
             } else if (row) {
                 // 找到了对应的记录
-                logger.info('dbGetIdToken: ', userid);
+                logger.debug('dbGetIdToken: ', userid);
                 resolve(row);
             } else {
                 // 没有找到记录，可以返回 null 或者自定义一个 '未找到' 的错误

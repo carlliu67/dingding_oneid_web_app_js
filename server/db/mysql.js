@@ -106,7 +106,7 @@ async function dbInsertIdToken(userid, idToken, expired) {
       'INSERT INTO idtoken_users (userid, idToken, expired) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE idToken = VALUES(idToken), expired = VALUES(expired)',
       [userid, idToken, expired]
     );
-    logger.info(`dbInsertIdToken inserted/replaced userid: ${userid}, expired: ${expired} successfully`);
+    logger.debug(`dbInsertIdToken inserted/replaced userid: ${userid}, expired: ${expired} successfully`);
     return 'dbInsertIdToken inserted/replaced successfully';
   } catch (err) {
     logger.error('dbInsertIdToken failed:', err.message);
@@ -124,7 +124,7 @@ async function dbDeleteIdToken(userid) {
       'DELETE FROM idtoken_users WHERE userid = ?',
       [userid]
     );
-    logger.info(`Data deleted userid: ${userid}`);
+    logger.debug(`Data deleted userid: ${userid}`);
     return 'Data deleted successfully';
   } catch (err) {
     logger.error('dbDeleteIdToken failed:', err.message);
@@ -147,10 +147,10 @@ async function dbGetIdToken(userid) {
     );
     
     if (rows.length > 0) {
-      logger.info(`dbGetIdToken: ${userid}`);
+      logger.debug(`dbGetIdToken: ${userid}`);
       return rows[0];
     } else {
-      logger.info(`dbGetIdToken: User not found for userid: ${userid}`);
+      logger.debug(`dbGetIdToken: User not found for userid: ${userid}`);
       return null;
     }
   } catch (err) {
@@ -171,7 +171,7 @@ async function dbInsertUserinfo(userid, unionid, name) {
       'INSERT INTO users (userid, unionid, name) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE unionid = VALUES(unionid), name = VALUES(name)',
       [userid, unionid, name]
     );
-    logger.info(`dbInsertUserinfo userid: ${userid}, unionid: ${unionid}, name: ${name} inserted successfully`);
+    logger.debug(`dbInsertUserinfo userid: ${userid}, unionid: ${unionid}, name: ${name} inserted successfully`);
     return 'dbInsertUserinfo inserted successfully';
   } catch (err) {
     logger.error('dbInsertUserinfo failed:', err.message);
@@ -194,10 +194,10 @@ async function dbGetUserinfoByUserid(userid) {
     );
     
     if (rows.length > 0) {
-      logger.info(`查询用户信息成功: ${userid}`);
+      logger.debug(`查询用户信息成功: ${userid}`);
       return rows[0];
     } else {
-      logger.info(`未找到用户: ${userid}`);
+      logger.debug(`未找到用户: ${userid}`);
       return null;
     }
   } catch (err) {
@@ -221,10 +221,10 @@ async function dbGetUserinfoByUnionid(unionid) {
     );
     
     if (rows.length > 0) {
-      logger.info(`dbGetUserinfoByUnionid: ${unionid} ${JSON.stringify(rows[0])}`);
+      logger.debug(`dbGetUserinfoByUnionid: ${unionid} ${JSON.stringify(rows[0])}`);
       return rows[0];
     } else {
-      logger.info(`dbGetUserinfoByUnionid 未找到 unionid 对应的用户: ${unionid}`);
+      logger.debug(`dbGetUserinfoByUnionid 未找到 unionid 对应的用户: ${unionid}`);
       return null;
     }
   } catch (err) {
@@ -245,7 +245,7 @@ async function dbInsertTodo(meetingid, taskid, unionid, createtimestamp) {
       'INSERT INTO todo (meetingid, taskid, unionid, createtimestamp) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE taskid = VALUES(taskid), unionid = VALUES(unionid), createtimestamp = VALUES(createtimestamp)',
       [meetingid, taskid, unionid, createtimestamp]
     );
-    logger.info(`dbInsertTodo taskid: ${taskid}, unionid: ${unionid}, meetingid: ${meetingid}, createtimestamp: ${createtimestamp} inserted successfully`);
+    logger.debug(`dbInsertTodo taskid: ${taskid}, unionid: ${unionid}, meetingid: ${meetingid}, createtimestamp: ${createtimestamp} inserted successfully`);
     return 'dbInsertTodo inserted successfully';
   } catch (err) {
     logger.error('dbInsertTodo failed:', err.message);
@@ -268,10 +268,10 @@ async function dbGetTodoByMeetingid(meetingid) {
     );
     
     if (rows.length > 0) {
-      logger.info(`查询待办信息成功: ${meetingid}`);
+      logger.debug(`查询待办信息成功: ${meetingid}`);
       return rows[0];
     } else {
-      logger.info(`未找到待办信息: ${meetingid}`);
+      logger.debug(`未找到待办信息: ${meetingid}`);
       return null;
     }
   } catch (err) {
@@ -293,7 +293,7 @@ async function dbDeleteTodoByMeetingid(meetingid) {
       'DELETE FROM todo WHERE meetingid = ?',
       [meetingid]
     );
-    logger.info(`Data deleted meetingid: ${meetingid}`);
+    logger.debug(`Data deleted meetingid: ${meetingid}`);
     return 'Data deleted successfully';
   } catch (err) {
     logger.error('dbDeleteTodoByMeetingid failed:', err.message);
@@ -313,7 +313,7 @@ async function dbInsertCalendar(meetingid, scheduleId, unionid, createtimestamp)
       'INSERT INTO calendar (meetingid, scheduleId, unionid, createtimestamp) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE scheduleId = VALUES(scheduleId), unionid = VALUES(unionid), createtimestamp = VALUES(createtimestamp)',
       [meetingid, scheduleId, unionid, createtimestamp]
     );
-    logger.info(`dbInsertCalendar scheduleId: ${scheduleId}, unionid: ${unionid}, meetingid: ${meetingid}, createtimestamp: ${createtimestamp} inserted successfully`);
+    logger.debug(`dbInsertCalendar scheduleId: ${scheduleId}, unionid: ${unionid}, meetingid: ${meetingid}, createtimestamp: ${createtimestamp} inserted successfully`);
     return 'dbInsertCalendar inserted successfully';
   } catch (err) {
     logger.error('dbInsertCalendar failed:', err.message);
@@ -336,10 +336,10 @@ async function dbGetCalendarByMeetingid(meetingid) {
     );
     
     if (rows.length > 0) {
-      logger.info(`查询日历信息成功: ${meetingid}`);
+      logger.debug(`查询日历信息成功: ${meetingid}`);
       return rows[0];
     } else {
-      logger.info(`未找到日历信息: ${meetingid}`);
+      logger.debug(`未找到日历信息: ${meetingid}`);
       return null;
     }
   } catch (err) {
@@ -361,7 +361,7 @@ async function dbDeleteCalendarByMeetingid(meetingid) {
       'DELETE FROM calendar WHERE meetingid = ?',
       [meetingid]
     );
-    logger.info(`Calendar data deleted meetingid: ${meetingid}`);
+    logger.debug(`Calendar data deleted meetingid: ${meetingid}`);
     return 'Calendar data deleted successfully';
   } catch (err) {
     logger.error('dbDeleteCalendarByMeetingid failed:', err.message);

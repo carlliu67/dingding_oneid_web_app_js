@@ -16,7 +16,7 @@ function okResponse(data) {
         "msg": "ok",
         "data": data
     };
-    logger.info('Success response:', response);
+    logger.debug('Success response:', response);
     return JSON.stringify(response);
 }
 
@@ -52,7 +52,7 @@ function setCookie(ctx, name, value) {
                 overwrite: false  // 是否允许重写
             }
         );
-        logger.info(`Cookie ${name}: ${value} set successfully.`);
+        logger.debug(`Cookie ${name}: ${value} set successfully.`);
     } catch (error) {
         logger.error(`Failed to set cookie ${name}:`, error);
     }
