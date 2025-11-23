@@ -13,7 +13,7 @@ const clientConfig = {
     queryUserEndedMeetingListPath:  "/api/query_user_ended_meeting_list", //获取用户已结束会议列表的api path
     queryUserMeetingListPath:  "/api/query_user_meeting_list", //获取用户会议列表的api path
     debugSwitch: false, //是否开启调试模式
-    mode: 'app', // 工作台应用打开模式，可选值：'app'（免登跳转腾讯会议客户端）、'upcoming'（展示待参加会议页面）、‘schedule’（支持创建会议）
+    mode: 'upcoming', // 工作台应用打开模式，可选值：'app'（免登跳转腾讯会议客户端）、'upcoming'（展示待参加会议页面）、‘schedule’（支持创建会议）
 }
     
 export default clientConfig;
