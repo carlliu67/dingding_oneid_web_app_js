@@ -1,7 +1,10 @@
 import axios from 'axios';
 import { logger } from '../util/logger.js';
 import { formatTimeRange, genH5AppLink, getInterAccessToken } from './dingtalkUtil.js';
-import { dbInsertTodo, dbGetTodoByMeetingid as dbGetTodoByMeetingid, dbDeleteTodoByMeetingid } from '../db/sqlite.js';
+import dbAdapter from '../db/db_adapter.js';
+
+// 从适配器获取数据库方法
+const { dbInsertTodo, dbGetTodoByMeetingid, dbDeleteTodoByMeetingid } = dbAdapter;
 
 
 // 创建会议待办

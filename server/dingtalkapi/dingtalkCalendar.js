@@ -1,7 +1,10 @@
 import axios from 'axios';
 import { logger } from '../util/logger.js';
 import { convertSecondsToISO, genH5AppLink, getInterAccessToken } from './dingtalkUtil.js';
-import { dbInsertCalendar, dbDeleteCalendarByMeetingid, dbGetCalendarByMeetingid } from '../db/sqlite.js';
+import dbAdapter from '../db/db_adapter.js';
+
+// 从适配器获取数据库方法
+const { dbInsertCalendar, dbDeleteCalendarByMeetingid, dbGetCalendarByMeetingid } = dbAdapter;
 
 /*
  * 腾讯会议RecurringRule → 钉钉日程recurrence转换

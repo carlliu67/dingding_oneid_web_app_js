@@ -23,6 +23,7 @@ const config = {
     generateJumpUrlPath:  "/api/generateJumpUrl", //获取免登跳转url的api path
     generateJoinUrlPath:  "/api/generateJoinUrl", //获取免登入会url的api path
     webhookPath:  "/api/webhook", //webhook回调的api path
+    dbType: "sqlite", // 数据库类型："sqlite" 或 "mysql"
     logLevel: "info", // 日志级别，可选值：debug, info, warn, error
 };
 

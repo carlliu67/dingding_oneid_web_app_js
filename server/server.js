@@ -8,13 +8,10 @@ import { handleVerification, handleEvent } from './wemeet/webhook.js';
 import { handleCreateMeeting, handleQueryUserEndedMeetingList, handleQueryUserMeetingList } from './wemeet/wemeetApi.js';
 import { handleGenerateJoinScheme, handleGenerateJumpUrl, handleGenerateJoinUrl } from './wemeet/wemeetUtil.js';
 import { getUserAccessToken, getSignParameters } from './dingtalkapi/dingtalkAuth.js';
-import { openUserinfoDatabase , openIdTokenDatabase, openTodoDatabase, openCalendarDatabase } from './db/sqlite.js';
+import dbAdapter from './db/db_adapter.js';
 
 // 初始化数据库
-openUserinfoDatabase();
-openIdTokenDatabase();
-openTodoDatabase();
-openCalendarDatabase();
+dbAdapter.initDatabase();
 
 // Start Server
 const app = new Koa()
