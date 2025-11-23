@@ -27,7 +27,7 @@ const config = {
     webhookCapacity: 5000, // 最大并发请求数
     webhookMaxConcurrent: 5, // 最大并发处理数
     dbType: "sqlite", // 数据库类型："sqlite" 或 "mysql"
-    logLevel: "error", // 日志级别，可选值：debug, info, warn, error
+    logLevel: "info", // 日志级别，可选值：debug, info, warn, error
 };
 
 export default config;
