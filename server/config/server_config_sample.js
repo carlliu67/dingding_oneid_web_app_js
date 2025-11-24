@@ -27,6 +27,11 @@ const config = {
     webhookCapacity: 5000, // 最大并发请求数
     webhookMaxConcurrent: 5, // 最大并发处理数
     dbType: "sqlite", // 数据库类型："sqlite" 或 "mysql"
+    dbHost: "", // MySQL 数据库主机
+    dbPort: 3306, // MySQL 数据库端口
+    dbUser: "", // MySQL 数据库用户名
+    dbPassword: "", // MySQL 数据库密码
+    dbDatabase: "", // MySQL 数据库名称
     logLevel: "info", // 日志级别，可选值：debug, info, warn, error
 };
 

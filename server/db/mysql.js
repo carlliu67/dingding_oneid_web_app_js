@@ -1,12 +1,13 @@
 import mysql from 'mysql2/promise';
 import { logger } from '../util/logger.js';
+import config from '../config/server_config.js';
 
 // MySQL连接配置
 const dbConfig = {
-  host: process.env.MYSQL_HOST || 'localhost',
-  user: process.env.MYSQL_USER || 'root',
-  password: process.env.MYSQL_PASSWORD || '',
-  database: process.env.MYSQL_DATABASE || 'dingding_oneid',
+  host: process.env.MYSQL_HOST || config.dbHost,
+  user: process.env.MYSQL_USER || config.dbUser,
+  password: process.env.MYSQL_PASSWORD || config.dbPassword,
+  database: process.env.MYSQL_DATABASE || config.dbDatabase,
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
@@ -102,11 +103,15 @@ async function getConnection() {
 async function dbInsertIdToken(userid, idToken, expired) {
   const connection = await getConnection();
   try {
+    // 将时间戳转换为MySQL日期时间格式
+    const expiredDate = typeof expired === 'number' ? new Date(expired * 1000) : expired;
+    const mysqlDateTime = expiredDate.toISOString().slice(0, 19).replace('T', ' ');
+    
     const [result] = await connection.execute(
       'INSERT INTO idtoken_users (userid, idToken, expired) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE idToken = VALUES(idToken), expired = VALUES(expired)',
-      [userid, idToken, expired]
+      [userid, idToken, mysqlDateTime]
     );
-    logger.debug(`dbInsertIdToken inserted/replaced userid: ${userid}, expired: ${expired} successfully`);
+    logger.debug(`dbInsertIdToken inserted/replaced userid: ${userid}, expired: ${mysqlDateTime} successfully`);
     return 'dbInsertIdToken inserted/replaced successfully';
   } catch (err) {
     logger.error('dbInsertIdToken failed:', err.message);
@@ -147,8 +152,13 @@ async function dbGetIdToken(userid) {
     );
     
     if (rows.length > 0) {
+      // 将MySQL日期时间格式转换回时间戳，保持接口一致性
+      const result = {...rows[0]};
+      if (result.expired) {
+        result.expired = Math.floor(new Date(result.expired).getTime() / 1000);
+      }
       logger.debug(`dbGetIdToken: ${userid}`);
-      return rows[0];
+      return result;
     } else {
       logger.debug(`dbGetIdToken: User not found for userid: ${userid}`);
       return null;
@@ -241,11 +251,14 @@ async function dbGetUserinfoByUnionid(unionid) {
 async function dbInsertTodo(meetingid, taskid, unionid, createtimestamp) {
   const connection = await getConnection();
   try {
+    // 确保createtimestamp是数字类型
+    const timestamp = typeof createtimestamp === 'number' ? createtimestamp : parseInt(createtimestamp);
+    
     const [result] = await connection.execute(
       'INSERT INTO todo (meetingid, taskid, unionid, createtimestamp) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE taskid = VALUES(taskid), unionid = VALUES(unionid), createtimestamp = VALUES(createtimestamp)',
-      [meetingid, taskid, unionid, createtimestamp]
+      [meetingid, taskid, unionid, timestamp]
     );
-    logger.debug(`dbInsertTodo taskid: ${taskid}, unionid: ${unionid}, meetingid: ${meetingid}, createtimestamp: ${createtimestamp} inserted successfully`);
+    logger.debug(`dbInsertTodo taskid: ${taskid}, unionid: ${unionid}, meetingid: ${meetingid}, createtimestamp: ${timestamp} inserted successfully`);
     return 'dbInsertTodo inserted successfully';
   } catch (err) {
     logger.error('dbInsertTodo failed:', err.message);
@@ -268,8 +281,13 @@ async function dbGetTodoByMeetingid(meetingid) {
     );
     
     if (rows.length > 0) {
+      // 确保createtimestamp是数字类型，保持接口一致性
+      const result = {...rows[0]};
+      if (result.createtimestamp !== undefined) {
+        result.createtimestamp = Number(result.createtimestamp);
+      }
       logger.debug(`查询待办信息成功: ${meetingid}`);
-      return rows[0];
+      return result;
     } else {
       logger.debug(`未找到待办信息: ${meetingid}`);
       return null;
@@ -309,11 +327,14 @@ async function dbDeleteTodoByMeetingid(meetingid) {
 async function dbInsertCalendar(meetingid, scheduleId, unionid, createtimestamp) {
   const connection = await getConnection();
   try {
+    // 确保createtimestamp是数字类型
+    const timestamp = typeof createtimestamp === 'number' ? createtimestamp : parseInt(createtimestamp);
+    
     const [result] = await connection.execute(
       'INSERT INTO calendar (meetingid, scheduleId, unionid, createtimestamp) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE scheduleId = VALUES(scheduleId), unionid = VALUES(unionid), createtimestamp = VALUES(createtimestamp)',
-      [meetingid, scheduleId, unionid, createtimestamp]
+      [meetingid, scheduleId, unionid, timestamp]
     );
-    logger.debug(`dbInsertCalendar scheduleId: ${scheduleId}, unionid: ${unionid}, meetingid: ${meetingid}, createtimestamp: ${createtimestamp} inserted successfully`);
+    logger.debug(`dbInsertCalendar scheduleId: ${scheduleId}, unionid: ${unionid}, meetingid: ${meetingid}, createtimestamp: ${timestamp} inserted successfully`);
     return 'dbInsertCalendar inserted successfully';
   } catch (err) {
     logger.error('dbInsertCalendar failed:', err.message);
@@ -336,8 +357,13 @@ async function dbGetCalendarByMeetingid(meetingid) {
     );
     
     if (rows.length > 0) {
+      // 确保createtimestamp是数字类型，保持接口一致性
+      const result = {...rows[0]};
+      if (result.createtimestamp !== undefined) {
+        result.createtimestamp = Number(result.createtimestamp);
+      }
       logger.debug(`查询日历信息成功: ${meetingid}`);
-      return rows[0];
+      return result;
     } else {
       logger.debug(`未找到日历信息: ${meetingid}`);
       return null;

@@ -1,7 +1,8 @@
 import axios from 'axios';
 import serverConfig from '../config/server_config.js';
 import { logger } from '../util/logger.js';
-import { dbInsertUserinfo, dbGetUserinfoByUserid } from '../db/sqlite.js';
+import dbAdapter from '../db/db_adapter.js';
+const { dbInsertUserinfo, dbGetUserinfoByUserid } = dbAdapter;
 
 // 定义一个函数用于将秒级时间戳转换为 ISO - 8601 格式
 function convertSecondsToISO(seconds) {
