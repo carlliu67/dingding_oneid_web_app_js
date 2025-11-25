@@ -29,7 +29,7 @@ async function generateIDTokenIDaaS(userid) {
     }
     var expired = currentTime + (30 * 24 * 60 * 60) // 过期时间为30天;
     // 拼接 key 目录下的 rsa_private_key.pem 文件的完整路径
-    const privateKeyPath = path.join(process.cwd(), 'server', 'key', 'rsa_private_key.pem');
+    const privateKeyPath = path.join(process.cwd(), 'server', 'config', 'rsa_private_key.pem');
     // 读取私钥文件
     const privateKey = fs.readFileSync(privateKeyPath, 'utf8');
     // 定义 JWT 负载
