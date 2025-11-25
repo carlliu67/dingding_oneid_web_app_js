@@ -12,6 +12,13 @@ async function createMeetingTodo(creatorUnionId, meetingInfo, executorIds) {
     // logger.debug("meetingInfo:", meetingInfo);
     // logger.debug("executorIds:", executorIds);
 
+    // 先查询数据库看待办是否已经存在
+    const existingTodo = await dbGetTodoByMeetingid(meetingInfo.meeting_id);
+    if (existingTodo) {
+        logger.warn("待办已存在，无需重复创建，meetingid:", meetingInfo.meeting_id);
+        return;
+    }
+
     var access_token = await getInterAccessToken();
     if (!access_token) {
         logger.error("获取钉钉access_token失败");
@@ -20,6 +27,12 @@ async function createMeetingTodo(creatorUnionId, meetingInfo, executorIds) {
 
     var pcUrl = genH5AppLink("?meetingCode=" + meetingInfo.meeting_code);
     try {
+        // 确保executorIds是一个数组并且不为空
+        if (!Array.isArray(executorIds) || executorIds.length === 0) {
+            logger.error("创建待办失败：执行人为空或格式错误");
+            return;
+        }
+
         const requestBody = {
             "sourceId": meetingInfo.meeting_id + "_todo",
             "subject": "腾讯会议：" + meetingInfo.subject + " - 会议号：" + meetingInfo.meeting_code + " - 时间：" + formatTimeRange(meetingInfo.start_time, meetingInfo.end_time),
@@ -40,12 +53,6 @@ async function createMeetingTodo(creatorUnionId, meetingInfo, executorIds) {
                 "dingNotify": "1"
             }
         };
-
-        // 确保executorIds是一个数组并且不为空
-        if (!Array.isArray(executorIds) || executorIds.length === 0) {
-            logger.error("创建待办失败：执行人为空或格式错误");
-            return;
-        }
 
         logger.debug("待办请求参数：", JSON.stringify(requestBody));
         
