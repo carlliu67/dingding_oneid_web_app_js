@@ -12,8 +12,49 @@ import { isLogin, getUserid } from '../dingtalkapi/dingtalkAuth.js';
 
 const USER_INFO_KEY = 'user_info'
 
-// 生成IDToken
-async function generateIDToken(userid) {
+// 生成IDToken for IDaaS
+async function generateIDTokenIDaaS(userid) {
+    var idToken
+    var currentTime = Math.floor(Date.now() / 1000);
+    var data = await dbGetIdToken(userid);
+
+    if (data.length > 0) {
+        if (data[0].expired > currentTime + 24 * 60 * 60) {
+            idToken = data[0].idToken;
+            logger.debug("idToken: ", idToken);
+            return idToken;
+        } else {
+            dbDeleteIdToken(userid);
+        }
+    }
+    var expired = currentTime + (30 * 24 * 60 * 60) // 过期时间为30天;
+    // 拼接 key 目录下的 rsa_private_key.pem 文件的完整路径
+    const privateKeyPath = path.join(process.cwd(), 'server', 'key', 'rsa_private_key.pem');
+    // 读取私钥文件
+    const privateKey = fs.readFileSync(privateKeyPath, 'utf8');
+    // 定义 JWT 负载
+    const payload = {
+        aud: 'TencentMeeting',
+        sub: userid,
+        iss: 'meeting',
+        iat: Math.floor(Date.now() / 1000), // 生成时间
+        exp: expired
+    };
+    // 定义 JWT 头部
+    const header = {
+        kid: 'meeting###',
+        typ: 'JWT',
+        alg: 'RS256'
+    };
+    // 生成 JWT 串
+    idToken = jwt.sign(payload, privateKey, { algorithm: 'RS256', header: header });
+    dbInsertIdToken(userid, idToken, expired);
+    logger.debug("idToken: ", idToken);
+    return idToken;
+}
+
+// 生成IDToken for Oneid
+async function generateIDTokenOneid(userid) {
     var idToken
     var currentTime = Math.floor(Date.now() / 1000);
     var data = await dbGetIdToken(userid);
@@ -53,6 +94,28 @@ async function generateIDToken(userid) {
     return idToken;
 }
 
+// 根据wemeetSSOURL决定调用哪个IDToken生成函数
+async function generateIDToken(userid) {
+    // 检查serverConfig.wemeetSSOURL是否包含id.meeting.qq.com字符串
+    if (serverConfig.wemeetSSOURL && serverConfig.wemeetSSOURL.includes('id.meeting.qq.com')) {
+        logger.debug('使用generateIDTokenIDaaS生成IDToken');
+        return await generateIDTokenIDaaS(userid);
+    } else {
+        logger.debug('使用generateIDTokenOneid生成IDToken');
+        return await generateIDTokenOneid(userid);
+    }
+}
+
+// 根据wemeetSSOURL决定如何处理action参数
+function processActionParam(actionParam) {
+    // 检查serverConfig.wemeetSSOURL是否包含id.meeting.qq.com字符串
+    if (serverConfig.wemeetSSOURL && serverConfig.wemeetSSOURL.includes('id.meeting.qq.com')) {
+        return Buffer.from(actionParam).toString('base64');
+    } else {
+        return encodeURIComponent(actionParam); ;
+    }
+}
+
 // 提取公共部分
 async function generateUrl(urlString, userid, action) {
     const idToken = await generateIDToken(userid);
@@ -71,11 +134,10 @@ async function generateUrl(urlString, userid, action) {
         }
     });
 
-    // Base64编码（JS内置方法）
-    const meetingBase64 = Buffer.from(meetingSource).toString('base64');
+    const encoded = processActionParam(meetingSource);
 
     // 拼接免登链接（模板字符串优化可读性）
-    const joinUrl = `${SdkUrl}?action=${meetingBase64}&id_token=${idToken}`;
+    const joinUrl = `${SdkUrl}?action=${encoded}&id_token=${idToken}`;
     logger.debug(`免登入会链接 ${joinUrl}`);
 
     return joinUrl;
@@ -101,11 +163,7 @@ async function generateJumpUrl(base64EncodedMeetingUrl, userid) {
         }
     });
 
-    // Base64编码（JS内置方法）
-    // const meetingBase64 = Buffer.from(meetingSource).toString('base64');
-
-    // URL encode
-    const encoded = encodeURIComponent(meetingSource); 
+    const encoded = processActionParam(meetingSource); 
 
     // 拼接免登链接（模板字符串优化可读性）
     const joinUrl = `${SdkUrl}?id_token=${idToken}&action=${encoded}`;
@@ -133,11 +191,7 @@ async function generateJoinUrl(urlString, userid) {
         }
     });
 
-    // Base64编码（JS内置方法）
-    // const meetingBase64 = Buffer.from(meetingSource).toString('base64');
-
-    // URL encode
-    const encoded = encodeURIComponent(meetingSource); 
+    const encoded = processActionParam(meetingSource); 
 
     // 拼接免登链接（模板字符串优化可读性）
     const joinUrl = `${SdkUrl}?id_token=${idToken}&action=${encoded}`;

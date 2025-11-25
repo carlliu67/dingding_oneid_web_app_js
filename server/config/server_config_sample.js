@@ -13,7 +13,7 @@ const config = {
     wemeetRestAPIServerUrl: "https://api.meeting.qq.com",   //腾讯会议API应用服务地址
     wemmetWebhookToken: "UgvPiqEVxxxxxkBVl89",   //腾讯会议webhook回调token
     wemeetWebhookAESKey: "Tks9gchzv1yFxxxxxxxoTvdOMd2zCtksiI",   //腾讯会议webhook回调AES密钥
-    wemeetSSOURL: "https://xxx-idp.id.meeting.qq.com/cidp/custom/ai-d5310676xxxxae74bfda38008bec/ai-0bccd361711f497xxxxdbb2e4a4da6",   //腾讯会议IDaaS免登链接前缀地址
+    wemeetSSOURL: "https://xxx-idp.id.meeting.qq.com/cidp/custom/ai-d5310676xxxxae74bfda38008bec/ai-0bccd361711f497xxxxdbb2e4a4da6",   //腾讯会议IDaaS/Oneid免登链接前缀地址
     getUserAccessTokenPath:  "/api/get_user_access_token", //免登-获取user_access_token的api path
     getSignParametersPath:  "/api/get_sign_parameters", //鉴权-获取鉴权参数的api path
     createMeetingPath:  "/api/create_meeting", //创建会议的api path
