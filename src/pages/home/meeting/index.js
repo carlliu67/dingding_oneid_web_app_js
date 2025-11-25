@@ -219,10 +219,18 @@ function MeetingList(props) {
 
   const handleCreateMeetingSubmit = async (meetingParamsStr) => {
     try {
+      // 创建会议
       await handleCreateMeeting(meetingParamsStr);
+      // 关闭模态框
       setIsModalVisible(false);
+      // 确保显示即将召开的会议列表
       setActiveTab('upcoming');
-      await getMeetingInfoList();
+      
+      // 增加短暂延时，确保服务器已处理完会议创建
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // 重置MeetingListTimestamp为0，触发useEffect重新执行getMeetingInfoList
+      setMeetingListTimestamp(0);
     } catch (error) {
       console.error('创建会议失败-----:', error);
     }

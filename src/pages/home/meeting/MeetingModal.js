@@ -13,18 +13,11 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
     const now = dayjs();
     const currentMinutes = now.minute();
     const remainder = currentMinutes % 15;
-    const minutesToAdd = remainder > 0 ? 15 - remainder : 0;
+    const minutesToAdd = 30 - remainder;
     return now.add(minutesToAdd, 'minute');
   });
   const formRef = useRef(null);
-  const [startTime, setStartTime] = useState(() => { // 使用状态变量存储开始时间，初始计算未来最近的15分钟间隔
-    const now = dayjs();
-    const currentMinutes = now.minute();
-    const remainder = currentMinutes % 15;
-    const minutesToAdd = remainder > 0 ? 15 - remainder : 0;
-    return now.add(minutesToAdd, 'minute').toDate();
-  });
-  
+
   // 使用useEffect监听visible属性变化，确保每次Modal显示时都更新时间
   useEffect(() => {
     if (visible) {
@@ -32,7 +25,7 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
       const now = dayjs();
       const currentMinutes = now.minute();
       const remainder = currentMinutes % 15;
-      const minutesToAdd = remainder > 0 ? 15 - remainder : 0;
+      const minutesToAdd = 30 - remainder;
       const adjustedTime = now.add(minutesToAdd, 'minute');
       
       console.log('Modal visible, updating time to:', adjustedTime.format('HH:mm'));
@@ -40,7 +33,6 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
       // 更新状态变量
       setCurrentDate(now.startOf('day'));
       setCurrentTime(adjustedTime);
-      setStartTime(adjustedTime.toDate());
       
       // 延迟执行以确保formRef已初始化
       setTimeout(() => {
@@ -70,7 +62,6 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
     // 更新状态变量，触发组件重新渲染
     setCurrentDate(newDate);
     setCurrentTime(adjustedTime);
-    setStartTime(adjustedTime.toDate());
     
     // 强制更新表单值
     if (formRef.current) {

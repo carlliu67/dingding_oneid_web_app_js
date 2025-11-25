@@ -59,7 +59,8 @@ async function generateIDTokenOneid(userid) {
     var currentTime = Math.floor(Date.now() / 1000);
     var data = await dbGetIdToken(userid);
     if (data) {
-        if (data.expired > currentTime + 30) {
+        // oneid idToken过期时间为300秒，超过这个有效期说明不是有效的idToken
+        if (data.expired > currentTime + 30 && data.expired <= currentTime + 300) {
             idToken = data.idToken;
             logger.debug("idToken: ", idToken);
             return idToken;
