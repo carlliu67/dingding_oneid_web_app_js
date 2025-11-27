@@ -202,9 +202,14 @@ async function webhookCreateMeeting(eventData) {
 
     // 会议类型(0:一次性会议，1:周期性会议，2:微信专属会议，4:rooms 投屏会议，5:个人会议号会议， 6:网络研讨会)
     if (webhookMeetingInfo.meeting_type === 0 || webhookMeetingInfo.meeting_type === 2 || webhookMeetingInfo.meeting_type === 5 || webhookMeetingInfo.meeting_type === 6) {
-        // 非周期会议通过待办通知
+        // 非周期会议通知
         if (todoParticipants.length > 0) {
-            await createMeetingTodo(creatorUnionid, meetingInfo, todoParticipants);
+            if (serverConfig.dingtalkTodoSwitch) {
+                await createMeetingTodo(creatorUnionid, meetingInfo, todoParticipants);
+            }
+            if (serverConfig.dingtalkCalendarSwitch) {
+                await createMeetingCalendar(creatorUnionid, meetingInfo, todoParticipants);
+            }
         } else {
             logger.warn("待办通知跳过：没有有效的参会者UnionId");
         }
@@ -287,10 +292,16 @@ async function webhookUpdateMeeting(eventData) {
 
     // 会议类型(0:一次性会议，1:周期性会议，2:微信专属会议，4:rooms 投屏会议，5:个人会议号会议， 6:网络研讨会)
     if (webhookMeetingInfo.meeting_type === 0 || webhookMeetingInfo.meeting_type === 2 || webhookMeetingInfo.meeting_type === 5 || webhookMeetingInfo.meeting_type === 6) {
-        // 非周期会议通过待办通知
+        // 非周期会议通知
         if (paticipants.length > 0) {
-            // 更新会议待办事项
-            await updateMeetingTodo(creatorUnionid, meetingInfo, paticipants);
+            if (serverConfig.dingtalkTodoSwitch) {
+                // 更新会议待办事项
+                await updateMeetingTodo(creatorUnionid, meetingInfo, paticipants);
+            }
+            if (serverConfig.dingtalkCalendarSwitch) {
+                // 更新会议日程
+                await updateMeetingCalendar(creatorUnionid, meetingInfo, paticipants);
+            }
         } else {
             logger.warn("待办通知跳过：没有有效的参会者UnionId");
         }
@@ -326,8 +337,15 @@ async function webhookCancelMeeting(eventData) {
 
     // 会议类型(0:一次性会议，1:周期性会议，2:微信专属会议，4:rooms 投屏会议，5:个人会议号会议， 6:网络研讨会)
     if (webhookMeetingInfo.meeting_type === 0 || webhookMeetingInfo.meeting_type === 2 || webhookMeetingInfo.meeting_type === 5 || webhookMeetingInfo.meeting_type === 6) {
-        // 非周期会议通过待办通知
-        await deleteMeetingTodo(creatorUnionid, webhookMeetingInfo.meeting_id);
+        // 非周期会议通知
+        if (serverConfig.dingtalkTodoSwitch) {
+            // 删除会议待办事项
+            await deleteMeetingTodo(creatorUnionid, webhookMeetingInfo.meeting_id);
+        }
+        if (serverConfig.dingtalkCalendarSwitch) {
+            // 删除会议日程
+            await deleteMeetingCalendar(creatorUnionid, webhookMeetingInfo.meeting_id);
+        }
     } else if (webhookMeetingInfo.meeting_type === 1) {
         // 周期会议通过日程通知
         // sub_meeting_id存在的话代表只取消某一场子会议，钉钉日程不支持取消单次日程，此时不更新日程
@@ -368,8 +386,11 @@ async function webhookEndMeeting(eventData) {
         return;
     }
 
-    // 取消会议待办事项
-    await deleteMeetingTodo(creatorUnionid, webhookMeetingInfo.meeting_id);
+    // 会议结束时只删除待办，不删日程
+    if (serverConfig.dingtalkTodoSwitch) {
+        // 取消会议待办事项
+        await deleteMeetingTodo(creatorUnionid, webhookMeetingInfo.meeting_id);
+    }
 }
 
 /**

@@ -6,6 +6,8 @@ const config = {
     dingtalkClientId: "", //clientID(原 AppKey 和 SuiteKey)
     dingtalkClientSecret: "", //clientSecret(原 AppSecret 和 SuiteSecret)
     dingtalkRobotCode: "", //机器人code
+    dingtalkCalendarSwitch: false, //预约普通会议是是否创建钉钉日程，对周期会议不生效，周期会议固定会创建日程
+    dingtalkTodoSwitch: true, //预约普通会议是是否创建钉钉待办，对周期会议不生效，周期会议固定会创建日程
 
     // server运行参数配置
     apiPort: "7001",   //后端指定端口
