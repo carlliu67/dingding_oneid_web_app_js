@@ -32,19 +32,23 @@ app.use(session(koaSessionConfig, app));
 // 使用 koa-bodyparser 中间件
 app.use(bodyParser());
 
-// 注册服务端路由和处理
-router.get(serverConfig.getUserAccessTokenPath, getUserAccessToken)
-router.get(serverConfig.getSignParametersPath, getSignParameters)
-router.post(serverConfig.createMeetingPath, handleCreateMeeting)
-router.get(serverConfig.queryUserEndedMeetingListPath, handleQueryUserEndedMeetingList)
-router.get(serverConfig.queryUserMeetingListPath, handleQueryUserMeetingList)
-router.get(serverConfig.generateJoinSchemePath, handleGenerateJoinScheme)
-router.get(serverConfig.generateJumpUrlPath, handleGenerateJumpUrl)
-router.get(serverConfig.generateJoinUrlPath, handleGenerateJoinUrl)
+if (serverConfig.appServerMode) {
+    // 注册服务端路由和处理
+    router.get(serverConfig.getUserAccessTokenPath, getUserAccessToken)
+    router.get(serverConfig.getSignParametersPath, getSignParameters)
+    router.post(serverConfig.createMeetingPath, handleCreateMeeting)
+    router.get(serverConfig.queryUserEndedMeetingListPath, handleQueryUserEndedMeetingList)
+    router.get(serverConfig.queryUserMeetingListPath, handleQueryUserMeetingList)
+    router.get(serverConfig.generateJoinSchemePath, handleGenerateJoinScheme)
+    router.get(serverConfig.generateJumpUrlPath, handleGenerateJumpUrl)
+    router.get(serverConfig.generateJoinUrlPath, handleGenerateJoinUrl)
+}
 
-// webhook相关路由和处理
-router.get(serverConfig.webhookPath, handleVerification);
-router.post(serverConfig.webhookPath, handleEvent);
+if (serverConfig.webhookServerMode) {
+    // webhook相关路由和处理
+    router.get(serverConfig.webhookPath, handleVerification);
+    router.post(serverConfig.webhookPath, handleEvent);
+}
 
 // 注册路由
 const port = process.env.PORT || serverConfig.apiPort;
