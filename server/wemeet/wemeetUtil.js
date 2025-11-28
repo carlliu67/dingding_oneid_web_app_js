@@ -18,14 +18,20 @@ async function generateIDTokenIDaaS(userid) {
     var currentTime = Math.floor(Date.now() / 1000);
     var data = await dbGetIdToken(userid);
 
-    if (data) {
-        if (data[0].expired > currentTime + 24 * 60 * 60) {
-            idToken = data[0].idToken;
+    // 添加更健壮的类型检查，确保data是对象且有expired属性
+    if (data && typeof data === 'object' && data.expired !== undefined) {
+        if (data.expired > currentTime + 24 * 60 * 60) {
+            idToken = data.idToken;
             logger.debug("idToken: ", idToken);
             return idToken;
         } else {
-            dbDeleteIdToken(userid);
+            // 直接调用dbDeleteIdToken，但添加错误处理
+            dbDeleteIdToken(userid).catch(err => {
+                logger.error("删除过期idToken失败:", err);
+            });
         }
+    } else {
+        logger.debug("dbGetIdToken返回无效数据:", data);
     }
     var expired = currentTime + (30 * 24 * 60 * 60) // 过期时间为30天;
     // 拼接 key 目录下的 rsa_private_key.pem 文件的完整路径
@@ -58,15 +64,21 @@ async function generateIDTokenOneid(userid) {
     var idToken
     var currentTime = Math.floor(Date.now() / 1000);
     var data = await dbGetIdToken(userid);
-    if (data) {
+    // 添加更健壮的类型检查，确保data是对象且有expired属性
+    if (data && typeof data === 'object' && data.expired !== undefined) {
         // oneid idToken过期时间为300秒，超过这个有效期说明不是有效的idToken
         if (data.expired > currentTime + 30 && data.expired <= currentTime + 300) {
             idToken = data.idToken;
             logger.debug("idToken: ", idToken);
             return idToken;
         } else {
-            dbDeleteIdToken(userid);
+            // 直接调用dbDeleteIdToken，但添加错误处理
+            dbDeleteIdToken(userid).catch(err => {
+                logger.error("删除过期idToken失败:", err);
+            });
         }
+    } else {
+        logger.debug("dbGetIdToken返回无效数据:", data);
     }
     var expired = currentTime + 300 // 过期时间为300秒;
     // 拼接 key 目录下的 rsa_private_key.pem 文件的完整路径
