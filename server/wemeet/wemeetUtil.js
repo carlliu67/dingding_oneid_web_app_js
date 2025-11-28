@@ -18,7 +18,7 @@ async function generateIDTokenIDaaS(userid) {
     var currentTime = Math.floor(Date.now() / 1000);
     var data = await dbGetIdToken(userid);
 
-    if (data.length > 0) {
+    if (data) {
         if (data[0].expired > currentTime + 24 * 60 * 60) {
             idToken = data[0].idToken;
             logger.debug("idToken: ", idToken);
