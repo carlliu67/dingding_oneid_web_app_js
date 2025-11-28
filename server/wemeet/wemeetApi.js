@@ -203,14 +203,17 @@ async function handleCreateMeeting(ctx) {
         return;
     }
 
+    let requestConfig = null;
+    let meetingParams = null;
+    
     try {
         const uri = "/v1/meetings";
-        const meetingParams = JSON.parse(ctx.request.body.data);
+        meetingParams = JSON.parse(ctx.request.body.data);
         meetingParams.userid = getUserid(ctx);
         
         logger.debug("发起创建会议请求，参数: ", meetingParams);
         
-        const requestConfig = createRequestConfig('POST', uri, meetingParams);
+        requestConfig = createRequestConfig('POST', uri, meetingParams);
         logger.debug("创建会议请求配置: ", requestConfig);
         
         const response = await axios(requestConfig);
