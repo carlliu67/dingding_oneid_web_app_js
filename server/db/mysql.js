@@ -5,6 +5,7 @@ import config from '../config/server_config.js';
 // MySQL连接配置
 const dbConfig = {
   host: process.env.MYSQL_HOST || config.dbHost,
+  port: process.env.MYSQL_PORT || config.dbPort || 3306, // 添加端口配置，使用环境变量或配置文件中的端口，默认3306
   user: process.env.MYSQL_USER || config.dbUser,
   password: process.env.MYSQL_PASSWORD || config.dbPassword,
   database: process.env.MYSQL_DATABASE || config.dbDatabase,
