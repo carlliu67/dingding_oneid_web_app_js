@@ -51,8 +51,8 @@ async function getUserAccessToken(ctx) {
     logger.debug("接入服务方第③步: 获得颁发的应用授权凭证app_access_token")
     const app_access_token = await getAccessToken();
     if (!app_access_token) {
-        ctx.body = failResponse(`app access_token request error: ${error.message}`)
-        logger.error(`app_access_token request error: ${error.message}`)
+        ctx.body = failResponse('app access_token request error')
+        logger.error('app_access_token request error')
         return
     }
 

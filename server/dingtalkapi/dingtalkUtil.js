@@ -74,14 +74,17 @@ async function getInterAccessToken() {
         return interAccessToken
     }
     try {
+        logger.debug(`获取interAccessToken，使用clientId: ${serverConfig.dingtalkClientId}`);
         const internalRes = await axios.post('https://api.dingtalk.com/v1.0/oauth2/accessToken', {
             "appKey": serverConfig.dingtalkClientId,
             "appSecret": serverConfig.dingtalkClientSecret,
         }, { headers: { "Content-Type": "application/json" } })
 
-        if (!internalRes.data.accessToken) {
-            logger.error("获取 access_token 失败")
-            return
+        logger.debug("interAccessToken response:", internalRes.data);
+        
+        if (!internalRes.data || !internalRes.data.accessToken) {
+            logger.error("获取 access_token 失败，响应中没有accessToken")
+            return null
         }
 
         interAccessToken = internalRes.data.accessToken
@@ -90,7 +93,10 @@ async function getInterAccessToken() {
         return interAccessToken
     } catch (error) {
         logger.error("获取 access_token 失败", error.message, "stack:", error.stack);
-        return
+        if (error.response) {
+            logger.error("响应数据:", error.response.data);
+        }
+        return null
     }
 }
 
@@ -104,13 +110,17 @@ async function getAccessToken() {
         return accessToken;
     }
     try {
+        logger.debug(`获取accessToken，使用corpId: ${serverConfig.dingtalkCorpId}, clientId: ${serverConfig.dingtalkClientId}`);
         const internalRes = await axios.post('https://api.dingtalk.com/v1.0/oauth2/' + serverConfig.dingtalkCorpId + '/token', {
             "client_id": serverConfig.dingtalkClientId,
             "client_secret": serverConfig.dingtalkClientSecret,
             "grant_type": "client_credentials"
         }, { headers: { "Content-Type": "application/json" } })
-        if (!internalRes.data.access_token) {
-            logger.error("获取 access_token 失败");
+        
+        logger.debug("accessToken response:", internalRes.data);
+        
+        if (!internalRes.data || !internalRes.data.access_token) {
+            logger.error("获取 access_token 失败，响应中没有access_token");
             return null;
         }
 
@@ -120,6 +130,9 @@ async function getAccessToken() {
         return accessToken;
     } catch (error) {
         logger.error("获取 access_token 失败", error.message, "stack:", error.stack);
+        if (error.response) {
+            logger.error("响应数据:", error.response.data);
+        }
         return null;
     }
 }
