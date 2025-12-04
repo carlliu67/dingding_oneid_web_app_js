@@ -158,3 +158,9 @@ export function getOrigin(apiPort) {
         return clientConfig.serverProtocol + `://${hostname}:${apiPort}`
     }
 }
+
+// 移动端检测函数
+export function isMobileDevice() {
+  const userAgent = navigator.userAgent || window.opera;
+  return /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent.toLowerCase());
+}
