@@ -408,11 +408,11 @@ async function webhookRecordingCompleted(eventData) {
         logger.error("未获取到录制信息");
         return;
     }
-    ///////////////////////////////////////////////////////////////////////////////////存在多个录制文件时，这里可能会取到空值，需要看看
+    // 一场会议存在多个录制文件时，会发送多次录制完成事件，此时第一个文件可能还没生成完成，这里会取到空值，等后续事件再处理及可拿到文件地址
     const meetingRecordId = recordListResult.record_meetings[0].meeting_record_id;
     const recordAddressResult = await queryMeetingRecordAddress(meetingRecordId, webhookMeetingInfo.creator.userid);
     if (!recordAddressResult || recordAddressResult.total_count === 0) {
-        logger.error("未获取到录制地址");
+        logger.warn("未获取到录制地址");
         return;
     }
     const recordViewAddress = recordAddressResult.record_files[0].view_address;
