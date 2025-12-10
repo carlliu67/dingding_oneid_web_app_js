@@ -10,12 +10,14 @@ function openSchema(url, closePage = false) {
             complete: () => { },
         });
         if (closePage) {
-            // 移动端关闭页面
-            dd.closePage({
-                success: () => { },
-                fail: () => { },
-                complete: () => { },
-            });
+            // 移动端关闭页面，延迟10秒
+            setTimeout(() => {
+                dd.closePage({
+                    success: () => { },
+                    fail: () => { },
+                    complete: () => { },
+                });
+            }, 10000); // 10秒延迟
         }
     } else {
         dd.openLink({
@@ -24,9 +26,8 @@ function openSchema(url, closePage = false) {
             fail: () => { },
             complete: () => { },
         });
-
         if (closePage) {
-            // pc端关闭页面
+            // pc端关闭页面，立即执行
             dd.quitPage({
                 success: () => { },
                 fail: () => { },
