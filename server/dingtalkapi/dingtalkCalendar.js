@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { logger } from '../util/logger.js';
-import { convertSecondsToISO, genH5AppLink, getInterAccessToken } from './dingtalkUtil.js';
+import { convertSecondsToISO, genH5AppLink, genUrlAppLink, getInterAccessToken } from './dingtalkUtil.js';
+import serverConfig from '../config/server_config.js';
 import dbAdapter from '../db/db_adapter.js';
 
 // 从适配器获取数据库方法
@@ -148,7 +149,12 @@ async function createMeetingCalendar(creatorUnionId, meetingInfo, attendees) {
         return;
     }
     var body = null;
-    const url = genH5AppLink("?meetingCode=" + meetingInfo.meeting_code);
+    // 使用URL安全的base64编码
+    const safeJoinUrl = Buffer.from(meetingInfo.join_url).toString('base64')
+        .replace(/\+/g, '-')  // 替换+为-
+        .replace(/\//g, '_')  // 替换/为_
+        .replace(/=/g, '');   // 移除填充字符=
+    const url = genUrlAppLink(serverConfig.frontEndServerUrl + "?meetingCode=" + encodeURIComponent(meetingInfo.meeting_code) + "&joinUrl=" + safeJoinUrl);
     logger.debug("url: ", url);
 
     const calendarAttendees = attendees.map(attendee => ({
@@ -179,7 +185,7 @@ async function createMeetingCalendar(creatorUnionId, meetingInfo, attendees) {
                 recurrence: dingRecurrence,
                 attendees: calendarAttendees,
                 richTextDescription: {
-                    text: `<a href="${url}" target="_blank">加入会议</a>`
+                    text: `<a href="${url}">加入会议</a>`
                 }
             }
     } else {
@@ -195,7 +201,7 @@ async function createMeetingCalendar(creatorUnionId, meetingInfo, attendees) {
                 },
                 attendees: calendarAttendees,
                 richTextDescription: {
-                    text: `<a href="${url}" target="_blank">加入会议</a>`
+                    text: `<a href="${url}">加入会议</a>`
                 }
             }
     }

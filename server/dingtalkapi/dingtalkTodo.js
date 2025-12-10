@@ -26,6 +26,12 @@ async function createMeetingTodo(creatorUnionId, meetingInfo, executorIds) {
     }
 
     var pcUrl = genH5AppLink("?meetingCode=" + meetingInfo.meeting_code);
+    // 使用URL安全的base64编码
+    const safeJoinUrl = Buffer.from(meetingInfo.join_url).toString('base64')
+        .replace(/\+/g, '-')  // 替换+为-
+        .replace(/\//g, '_')  // 替换/为_
+        .replace(/=/g, '');   // 移除填充字符=
+    const appUrl = genH5AppLink("?meetingCode=" + encodeURIComponent(meetingInfo.meeting_code) + "&joinUrl=" + safeJoinUrl);
     try {
         // 确保executorIds是一个数组并且不为空
         if (!Array.isArray(executorIds) || executorIds.length === 0) {
@@ -41,7 +47,7 @@ async function createMeetingTodo(creatorUnionId, meetingInfo, executorIds) {
             "dueTime": meetingInfo.start_time * 1000,
             "executorIds": executorIds,
             "detailUrl": {
-                "appUrl": meetingInfo.join_url,
+                "appUrl": appUrl,
                 "pcUrl": pcUrl
             },
             "notifyConfigs": {
