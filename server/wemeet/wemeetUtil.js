@@ -125,7 +125,7 @@ function processActionParam(actionParam) {
     if (serverConfig.wemeetSSOURL && serverConfig.wemeetSSOURL.includes('id.meeting.qq.com')) {
         return Buffer.from(actionParam).toString('base64');
     } else {
-        return encodeURIComponent(actionParam); ;
+        return encodeURIComponent(actionParam);
     }
 }
 
@@ -156,7 +156,7 @@ async function generateUrl(urlString, userid, action) {
     return joinUrl;
 }
 
-// 生成免登跳转链接jumpUrl
+// 生成免登跳转链接jumpUrl，用于跳转到会议页面
 async function generateJumpUrl(base64EncodedMeetingUrl, userid) {
     const urlString = Buffer.from(base64EncodedMeetingUrl, 'base64').toString('utf-8');
     // return await generateUrl(urlString, userid, 'jump');
@@ -176,7 +176,7 @@ async function generateJumpUrl(base64EncodedMeetingUrl, userid) {
         }
     });
 
-    const encoded = processActionParam(meetingSource); 
+    const encoded = processActionParam(meetingSource);
 
     // 拼接免登链接（模板字符串优化可读性）
     const joinUrl = `${SdkUrl}?id_token=${idToken}&action=${encoded}`;
@@ -204,7 +204,7 @@ async function generateJoinUrl(urlString, userid) {
         }
     });
 
-    const encoded = processActionParam(meetingSource); 
+    const encoded = processActionParam(meetingSource);
 
     // 拼接免登链接（模板字符串优化可读性）
     const joinUrl = `${SdkUrl}?id_token=${idToken}&action=${encoded}`;
@@ -213,7 +213,7 @@ async function generateJoinUrl(urlString, userid) {
     return joinUrl;
 }
 
-//处理生成scheme免登url请求
+//处理生成scheme免登url请求，一次性scheme链接，用于跳转到会议客户端
 async function handleGenerateJoinScheme(ctx) {
     logger.debug("\n-------------------[获取scheme免登url BEGIN]-----------------------------");
     configAccessControl(ctx);
@@ -252,7 +252,7 @@ async function handleGenerateJoinScheme(ctx) {
             logger.debug("user_code: " + userCode);
             break;
         }
-        
+
         // 更新 Cookie
         const setCookieHeaders = response.headers.getSetCookie();
         if (setCookieHeaders) {
@@ -260,7 +260,7 @@ async function handleGenerateJoinScheme(ctx) {
                 await cookieJar.setCookie(cookieHeader, initialUrl);
             }
         }
-        
+
         // 处理重定向
         if ([302, 303].includes(response.status)) {
             redirectUrl = response.headers.get('location');
@@ -278,7 +278,7 @@ async function handleGenerateJoinScheme(ctx) {
         } else {
             schemeUrl = `wemeet://page/inmeeting?meeting_code=${meetingCode.replace(/-/g, '')}&token=&launch_id=${launchId}&user_code=${userCode}`;
         }
-        
+
         ctx.body = okResponse(schemeUrl);
         logger.debug("schemeUrl: " + schemeUrl);
         logger.debug("-------------------[获取scheme免登url END]-----------------------------\n");
@@ -288,7 +288,7 @@ async function handleGenerateJoinScheme(ctx) {
     }
 }
 
-//处理生成免登跳转链接请求
+//处理生成免登跳转链接请求，一次性跳转链接，用于跳转到会议页面
 async function handleGenerateJumpUrl(ctx) {
     logger.debug("\n-------------------[获取免登url BEGIN]-----------------------------");
     configAccessControl(ctx);
@@ -354,7 +354,7 @@ async function handleGenerateJumpUrl(ctx) {
     }
 }
 
-//处理生成scheme免登url请求
+// 处理生成免登入会链接joinUrl，非一次性链接，用于跳转会议客户端加入会议
 async function handleGenerateJoinUrl(ctx) {
     logger.debug("\n-------------------[获取免登入会url BEGIN]-----------------------------");
     configAccessControl(ctx);
