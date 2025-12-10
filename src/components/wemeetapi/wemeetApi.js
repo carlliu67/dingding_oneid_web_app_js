@@ -3,7 +3,7 @@ import clientConfig from '../../config/client_config.js';
 import { getOrigin } from '../../utils/auth_access_util.js';
 import { openSchema } from '../dingtalkapi/dingtalkApi.js'
 
-
+// 处理生成scheme免登url请求，一次性scheme链接，用于跳转到会议客户端
 async function handleGenerateJoinScheme(meetingCode, closePage = false) {
     console.log("\n----------[GenerateJoinScheme BEGIN]----------")
     try {
@@ -13,9 +13,9 @@ async function handleGenerateJoinScheme(meetingCode, closePage = false) {
             alert("请输入有效的会议码");
             return;
         }
-        
+
         console.log("请求参数 - meetingCode:", meetingCode);
-        
+
         const response = await axios.get(`${getOrigin(clientConfig.apiPort)}${clientConfig.generateJoinSchemePath}?meetingCode=${encodeURIComponent(meetingCode)}`,
             { withCredentials: true } // 调用时设置请求带上cookie
         );
@@ -25,17 +25,17 @@ async function handleGenerateJoinScheme(meetingCode, closePage = false) {
             return;
         }
         const data = response.data;
-        
+
         // 检查响应数据结构和状态
         if (data.code !== 0) {
             console.error(`GenerateJoinScheme 失败: ${data.msg || '未知错误'}`);
             alert(`生成会议链接失败: ${data.msg || '未知错误'}`);
             return;
         }
-        
+
         console.log("GenerateJoinScheme: 成功", data.data);
         console.log("\n----------[GenerateJoinScheme]----------")
-        
+
         // 确保data.data存在且为字符串
         if (data.data && typeof data.data === 'string') {
             openSchema(data.data, closePage);
@@ -66,6 +66,7 @@ async function handleGenerateJoinScheme(meetingCode, closePage = false) {
     }
 }
 
+// 处理生成免登跳转链接jumpUrl，用于跳转到会议页面
 async function handleGenerateJumpUrl(base64EncodedMeetingUrl, closePage = false) {
     console.log("\n----------[GenerateJumpUrl BEGIN]----------")
     try {
@@ -95,7 +96,8 @@ async function handleGenerateJumpUrl(base64EncodedMeetingUrl, closePage = false)
     }
 }
 
-async function handleGenerateJoinUrl(meetingUrl) {
+// 处理生成免登入会链接joinUrl，非一次性链接，用于跳转会议客户端加入会议
+async function handleGenerateJoinUrl(meetingUrl, closePage = false) {
     console.log("\n----------[GenerateJoinUrl BEGIN]----------")
     try {
         const response = await axios.get(`${getOrigin(clientConfig.apiPort)}${clientConfig.generateJoinUrlPath}?meetingUrl=${meetingUrl}`,
@@ -112,13 +114,15 @@ async function handleGenerateJoinUrl(meetingUrl) {
         } else {
             console.error("GenerateJoinUrl: 数据为空")
         }
-        return data;
+        console.log("\n----------[GenerateJoinUrl]----------", data.data)
+        openSchema(data.data, closePage);
+        return;
     } catch (error) {
         console.error(`${clientConfig.generateJoinUrlPath} error`, error)
         if (error.response) {
             console.error("错误响应数据:", error.response.msg || error.response.data);
         }
-        return null;
+        return;
     } finally {
         console.log("----------[GenerateJoinUrl END]----------\n")
     }
@@ -216,4 +220,4 @@ async function handleQueryUserMeetingList() {
 }
 
 
-export { handleCreateMeeting, handleGenerateJoinScheme, handleGenerateJumpUrl, handleQueryUserEndedMeetingList, handleQueryUserMeetingList }
+export { handleCreateMeeting, handleGenerateJoinScheme, handleGenerateJumpUrl, handleQueryUserEndedMeetingList, handleQueryUserMeetingList, handleGenerateJoinUrl }
