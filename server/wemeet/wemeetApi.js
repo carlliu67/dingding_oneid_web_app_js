@@ -225,7 +225,7 @@ async function handleCreateMeeting(ctx) {
             logger.error("解析请求body数据时出错: ", error);
             ctx.body = failResponse("请求数据格式错误");
         } else {
-            logger.error("请求会议接口时出错: ", error);
+            logger.error("请求会议接口时出错: ", error.data);
             ctx.status = error.response?.status || 500;
             ctx.body = failResponse(error.response?.data || { message: '内部服务器错误' });
         }

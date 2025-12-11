@@ -20,7 +20,7 @@ async function generateIDTokenIDaaS(userid) {
 
     // 添加更健壮的类型检查，确保data是对象且有expired属性
     if (data && typeof data === 'object' && data.expired !== undefined) {
-        if (data.expired > currentTime + 24 * 60 * 60) {
+        if (data.expired > currentTime + 60) {
             idToken = data.idToken;
             logger.debug("idToken: ", idToken);
             return idToken;
@@ -33,7 +33,7 @@ async function generateIDTokenIDaaS(userid) {
     } else {
         logger.debug("dbGetIdToken返回无效数据:", data);
     }
-    var expired = currentTime + (30 * 24 * 60 * 60) // 过期时间为30天;
+    var expired = currentTime + (5 * 60) // 过期时间为5分钟;
     // 拼接 key 目录下的 rsa_private_key.pem 文件的完整路径
     const privateKeyPath = path.join(process.cwd(), 'server', 'config', 'rsa_private_key.pem');
     // 读取私钥文件
@@ -66,8 +66,7 @@ async function generateIDTokenOneid(userid) {
     var data = await dbGetIdToken(userid);
     // 添加更健壮的类型检查，确保data是对象且有expired属性
     if (data && typeof data === 'object' && data.expired !== undefined) {
-        // oneid idToken过期时间为300秒，超过这个有效期说明不是有效的idToken
-        if (data.expired > currentTime + 30 && data.expired <= currentTime + 300) {
+        if (data.expired > currentTime + 60) {
             idToken = data.idToken;
             logger.debug("idToken: ", idToken);
             return idToken;
