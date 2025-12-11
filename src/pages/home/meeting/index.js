@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Tabs, Button, Table, Space } from 'antd';
+import { Tabs, Button, Table, Space, Modal } from 'antd';
 import './index.css';
 import { handleCreateMeeting, handleQueryUserEndedMeetingList, handleQueryUserMeetingList, handleGenerateJoinScheme } from '../../../components/wemeetapi/wemeetApi.js';
 import MeetingModal from './MeetingModal.js';
 import clientConfig from '../../../config/client_config.js';
+
+// 定义错误码常量
+const ERROR_CODE_LOGIN_REQUIRED = 500214; // 首次使用需要登录腾讯会议客户端的错误码
 
 function formatTimestamp(timestamp) {
   // 将秒级时间戳转换为毫秒级时间戳
@@ -229,17 +232,39 @@ function MeetingList(props) {
   const handleCreateMeetingSubmit = async (meetingParamsStr) => {
     try {
       // 创建会议
-      await handleCreateMeeting(meetingParamsStr);
-      // 关闭模态框
-      setIsModalVisible(false);
-      // 确保显示即将召开的会议列表
-      setActiveTab('upcoming');
-      
-      // 增加短暂延时，确保服务器已处理完会议创建
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // 重置MeetingListTimestamp为0，触发useEffect重新执行getMeetingInfoList，获取最新的会议列表
-      setMeetingListTimestamp(0);
+      const result = await handleCreateMeeting(meetingParamsStr);
+
+      // 检查是否有错误响应，ERROR_CODE_LOGIN_REQUIRED表示账号未激活，不能调创建会议接口，需要引导用户先登录腾讯会议客户端
+      if (result && result.new_error_code && result.new_error_code === ERROR_CODE_LOGIN_REQUIRED) {
+        // 显示登录腾讯会议客户端的弹窗
+        Modal.info({
+          title: '首次使用提示',
+          content: (
+            <div>
+              <p>首次使用预约会议功能需要先登录腾讯会议客户端</p>
+            </div>
+          ),
+          okText: '登录腾讯会议客户端',
+          onOk() {
+            // 调用handleGenerateJoinScheme方法
+            // 由于没有具体会议码，这里可以使用一个默认的会议码或者提示用户
+            // 为了演示，我们使用一个示例会议码
+            handleGenerateJoinScheme('', true);
+          },
+          okButtonProps: { style: { width: 'auto' } }
+        });
+      } else {
+        // 关闭模态框
+        setIsModalVisible(false);
+        // 确保显示即将召开的会议列表
+        setActiveTab('upcoming');
+
+        // 增加短暂延时，确保服务器已处理完会议创建
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // 重置MeetingListTimestamp为0，触发useEffect重新执行getMeetingInfoList，获取最新的会议列表
+        setMeetingListTimestamp(0);
+      }
     } catch (error) {
       console.error('创建会议失败-----:', error);
       // 即使出错也要尝试刷新列表
