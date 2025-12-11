@@ -7,12 +7,7 @@ import { openSchema } from '../dingtalkapi/dingtalkApi.js'
 async function handleGenerateJoinScheme(meetingCode, closePage = false) {
     console.log("\n----------[GenerateJoinScheme BEGIN]----------")
     try {
-        // 添加对meetingCode参数的验证
-        if (!meetingCode || meetingCode.trim() === '') {
-            console.error("会议码不能为空");
-            alert("请输入有效的会议码");
-            return;
-        }
+        // 这里不校验meetingCode，为空时表示直接唤起客户端
 
         console.log("请求参数 - meetingCode:", meetingCode);
 
@@ -153,7 +148,11 @@ async function handleCreateMeeting(meetingParamsStr) {
     } catch (error) {
         console.error(`${clientConfig.createMeetingPath} error`, error)
         if (error.response) {
-            console.error("错误响应数据:", error.response.msg || error.response.data);
+            console.error("错误响应数据:", error.response.data);
+            // 如果有new_error_code，将错误信息返回给调用方
+            if (error.response.data && error.response.data.msg && error.response.data.msg.error_info) {
+                return error.response.data.msg.error_info;
+            }
         }
         return null;
     } finally {
