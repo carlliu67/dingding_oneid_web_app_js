@@ -389,7 +389,7 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
       </Form>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, alignItems: 'center' }}>
         <Button onClick={handleCancel}>取消</Button>
-        <Button type="primary" onClick={() => formRef.current?.submit()}>确定</Button>
+        <Button type="primary" htmlType="submit">确定</Button>
       </div>
     </Modal>
   );
