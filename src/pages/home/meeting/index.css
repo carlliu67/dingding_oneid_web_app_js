@@ -2,6 +2,8 @@
   display: flex;
   align-items: center;
   gap: 16px;
+  width: 100%;
+  flex-wrap: wrap;
 }
 
 .reserve-button {
@@ -12,4 +14,26 @@
 
 .custom-row {
   height: auto;
+}
+
+/* 确保表格在所有设备上都可以横向滚动 */
+.ant-table-wrapper {
+  overflow-x: auto;
+}
+
+/* 响应式样式 */
+@media (max-width: 768px) {
+  .reserve-button {
+    margin-left: 0;
+    margin-top: 10px;
+  }
+  
+  /* 调整操作按钮的宽度和间距 */
+  .ant-space {
+    flex-wrap: wrap;
+  }
+  
+  .ant-space > .ant-btn {
+    margin: 2px 0;
+  }
 }

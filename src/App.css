@@ -3,3 +3,15 @@
   padding: 0;
 }
 
+/* 响应式基础样式 */
+* {
+  box-sizing: border-box;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .home {
+    padding: 10px;
+  }
+}
+

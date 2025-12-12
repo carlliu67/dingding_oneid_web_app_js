@@ -46,6 +46,15 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
     }
   }, [visible]);
 
+  // 监听窗口大小变化，动态调整表单布局
+  useEffect(() => {
+    const handleResize = () => {
+      formRef.current?.setFieldsValue({});
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const showModal = () => {
     // 使用新的变量名避免混淆
     const newNow = dayjs();
@@ -240,18 +249,29 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
 
   return (
     <Modal
-      title="预约会议"
-      open={visible}
-      footer={null}
-      onCancel={handleCancel}
-      onOpen={showModal}
-    >
+        title="预约会议"
+        open={visible}
+        onCancel={handleCancel}
+        footer={null}
+        onOpen={showModal}
+        // 响应式宽度设置，PC端固定宽度，移动端自适应
+        width={{ xs: '95%', sm: 700, md: 700 }}
+        // 设置最小宽度以确保内容不会太窄
+        style={{ minWidth: '400px' }}
+        bodyStyle={{ padding: '16px', maxHeight: '80vh', overflowY: 'auto' }}
+        // 移除centered属性，让弹窗在移动端默认显示在顶部
+        // 移动端自动调整
+        breakPoint="md"
+      >
       <Form
         name="meetingReservation"
         onFinish={handleCreateMeetingSubmit}
         ref={formRef}
-        labelCol={{ xs: 24, sm: 6, style: { textAlign: 'right' } }}
-        wrapperCol={{ xs: 24, sm: 16, style: { textAlign: 'left' } }}
+        // 响应式表单布局，移动端标签文字靠左显示
+        labelCol={{ xs: 24, sm: 6, style: { textAlign: window.innerWidth <= 768 ? 'left' : 'right', marginBottom: '8px' } }}
+        wrapperCol={{ xs: 24, sm: 16 }}
+        // 移动端垂直布局
+        layout={window.innerWidth <= 768 ? 'vertical' : 'horizontal'}
         initialValues={{
           topic: userInfo.name + "预约的会议",
           start_date: currentDate,
@@ -262,21 +282,31 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
         <Form.Item
           name="topic"
           label="会议主题"
-          rules={[{ required: true, message: '请输入会议主题' }]}
+          rules={[{ required: true, message: '请输入会议主题!' }]}
         >
-          <Input />
+          <Input 
+            placeholder="请输入会议主题" 
+            style={{ width: '100%' }}
+            // 移动端优化输入体验
+            autoComplete="off"
+          />
         </Form.Item>
         <Form.Item
           name="start_date"
           label="开始日期"
-          rules={[{ required: true, message: '请选择开始日期' }]}
+          rules={[{ required: true, message: '请选择开始日期!' }]}
         >
-          <DatePicker format="YYYY/MM/DD" />
+          <DatePicker 
+            format="YYYY/MM/DD" 
+            style={{ width: '100%' }}
+            // 移动端使用弹出模式
+            popupMatchSelectWidth={window.innerWidth <= 768 ? false : true}
+          />
         </Form.Item>
         <Form.Item
           name="start_time"
           label="开始时间"
-          rules={[{ required: true, message: '请选择开始时间' }]}
+          rules={[{ required: true, message: '请选择开始时间!' }]}
         >
           <TimePicker
             format="HH:mm"
@@ -285,31 +315,51 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
             }}
             placeholder="选择时间"
             showNow={false}
+            style={{ width: '100%' }}
+            // 移动端使用弹出模式
+            popupMatchSelectWidth={window.innerWidth <= 768 ? false : true}
           />
         </Form.Item>
         <Form.Item
           name="duration"
           label="持续时长（分钟）"
-          rules={[{ required: true, message: '请输入持续时长' }]}
+          rules={[{ required: true, message: '请输入持续时长!' }]}
         >
-          <InputNumber min={1} step={5} />
+          <InputNumber 
+            min={15} 
+            max={480}
+            step={5} 
+            style={{ width: '100%' }}
+            // 移动端优化输入框大小
+            size={window.innerWidth <= 768 ? 'large' : 'middle'}
+          />
         </Form.Item>
         <Form.Item
           name="host"
           label="指定主持人"
           rules={[{ message: '请选择成员' }]}
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <Button type="primary" onClick={() => handleChooseHost()}>选择主持人</Button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', width: '100%' }}>
+              <Button 
+                type="primary" 
+                onClick={() => handleChooseHost()}
+                style={{ 
+                  marginBottom: 10, 
+                  width: '100%',
+                  padding: '10px 0',
+                  fontSize: window.innerWidth <= 768 ? '16px' : '14px'
+                }}
+              >选择主持人</Button>
             </div>
             {/* 主持人展示框 */}
             <div style={{
-              padding: '12px',
-              // border: '1px solid #d9d9d9',
+              padding: '8px',
+              backgroundColor: '#f5f5f5',
               borderRadius: '4px',
-              // backgroundColor: '#fafafa',
-              wordBreak: 'break-all'
+              wordBreak: 'break-all',
+              overflowX: 'auto',
+              whiteSpace: 'nowrap'
             }}>
               {selectedHosts && selectedHosts.length > 0 ? (
                 <div>
@@ -345,17 +395,27 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
           label="邀请成员"
           rules={[{ message: '请选择成员' }]}
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <Button type="primary" onClick={() => handleChooseInvitee()}>选择邀请成员</Button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', width: '100%' }}>
+              <Button 
+                type="primary" 
+                onClick={() => handleChooseInvitee()}
+                style={{ 
+                  marginBottom: 10, 
+                  width: '100%',
+                  padding: '10px 0',
+                  fontSize: window.innerWidth <= 768 ? '16px' : '14px'
+                }}
+              >选择邀请成员</Button>
             </div>
             {/* 邀请成员展示框 */}
             <div style={{
-              padding: '12px',
-              // border: '1px solid #d9d9d9',
+              padding: '8px',
+              backgroundColor: '#f5f5f5',
               borderRadius: '4px',
-              // backgroundColor: '#fafafa',
-              wordBreak: 'break-all'
+              wordBreak: 'break-all',
+              overflowX: 'auto',
+              whiteSpace: 'nowrap'
             }}>
               {selectedInvitees && selectedInvitees.length > 0 ? (
                 <div>
@@ -387,9 +447,26 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
           </div>
         </Form.Item>
         <Form.Item wrapperCol={{ xs: 24, sm: { span: 16, offset: 6 } }}>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, alignItems: 'center' }}>
-            <Button onClick={handleCancel}>取消</Button>
-            <Button type="primary" htmlType="submit">确定</Button>
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: window.innerWidth <= 768 ? 'space-between' : 'flex-end', 
+            gap: 10, 
+            alignItems: 'center',
+            // 移动端全宽按钮
+            flexDirection: window.innerWidth <= 768 ? 'column' : 'row'
+          }}>
+            <Button onClick={handleCancel} style={{ 
+              width: window.innerWidth <= 768 ? '100%' : 'auto',
+              minWidth: window.innerWidth <= 768 ? '100%' : '120px',
+              padding: window.innerWidth <= 768 ? '12px 0' : '10px 20px',
+              fontSize: window.innerWidth <= 768 ? '16px' : '14px'
+            }}>取消</Button>
+            <Button type="primary" htmlType="submit" style={{ 
+              width: window.innerWidth <= 768 ? '100%' : 'auto',
+              minWidth: window.innerWidth <= 768 ? '100%' : '120px',
+              padding: window.innerWidth <= 768 ? '12px 0' : '10px 20px',
+              fontSize: window.innerWidth <= 768 ? '16px' : '14px'
+            }}>确定</Button>
           </div>
         </Form.Item>
       </Form>

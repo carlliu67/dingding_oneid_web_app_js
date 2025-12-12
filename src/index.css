@@ -7,6 +7,17 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: #ebf1fd;
   text-align: center;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+html {
+  overflow-x: hidden;
+}
+
+body {
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 code {
@@ -14,12 +25,5 @@ code {
     monospace;
 }
 
-button {
-  width: 90vw;
-  height: 40px;
-  border-radius: 4px;
-  align-self: center;
-  font-size: 15px;
-  background-color: #0033ff;
-  color: white;
-}
+/* 移除全局button样式，避免影响页面布局 */
+/* 如果需要全局按钮样式，请使用更具体的选择器 */

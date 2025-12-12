@@ -199,7 +199,64 @@ function MeetingList(props) {
       dataIndex: 'meeting_code',
       width: 150
     },
-    { title: '操作', width: 350, render: (_, record) => { const buttons = []; if (activeTab === 'ongoing') { buttons.unshift(<Button key="join" onClick={() => handleJoinMeeting(record.meeting_code)} style={{ width: 'auto' }}>加入会议</Button>); } else if (activeTab === 'ended') { buttons.unshift(<Button key="delete" danger onClick={() => handleDelete(record.meeting_id)} style={{ width: 'auto' }}>删除</Button>); buttons.unshift(<Button key="export-members" onClick={() => handleExportMembers(record.meeting_id)} style={{ width: 'auto' }}>导出参会成员</Button>); buttons.unshift(<Button key="export-checkin" onClick={() => handleExportCheckin(record.meeting_id)} style={{ width: 'auto' }}>导出签到记录</Button>); } else if (activeTab === 'upcoming') { buttons.unshift(<Button key="join" onClick={() => handleJoinMeeting(record.meeting_code)} style={{ width: 'auto' }}>加入会议</Button>); } return <Space>{buttons}</Space>; } }
+    { 
+      title: '操作', 
+      width: 180, 
+      render: (_, record) => { 
+        const buttons = []; 
+        if (activeTab === 'ongoing') { 
+          buttons.unshift( 
+            <Button 
+              key="join" 
+              onClick={() => handleJoinMeeting(record.meeting_code)} 
+              style={{ width: 'auto' }} 
+            >
+              加入会议
+            </Button>
+          ); 
+        } else if (activeTab === 'ended') { 
+          buttons.unshift( 
+            <Button 
+              key="delete" 
+              danger 
+              onClick={() => handleDelete(record.meeting_id)} 
+              style={{ width: 'auto' }} 
+            >
+              删除
+            </Button>
+          ); 
+          buttons.unshift( 
+            <Button 
+              key="export-members" 
+              onClick={() => handleExportMembers(record.meeting_id)} 
+              style={{ width: 'auto' }} 
+            >
+              导出参会成员
+            </Button>
+          ); 
+          buttons.unshift( 
+            <Button 
+              key="export-checkin" 
+              onClick={() => handleExportCheckin(record.meeting_id)} 
+              style={{ width: 'auto' }} 
+            >
+              导出签到记录
+            </Button>
+          ); 
+        } else if (activeTab === 'upcoming') { 
+          buttons.unshift( 
+            <Button 
+              key="join" 
+              onClick={() => handleJoinMeeting(record.meeting_code)} 
+              style={{ width: 'auto' }} 
+            >
+              加入会议
+            </Button>
+          ); 
+        } 
+        return <Space>{buttons}</Space>; 
+      } 
+    }
   ];
 
   // 新增加入会议的处理函数

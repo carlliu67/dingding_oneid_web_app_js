@@ -1,10 +1,14 @@
 .home {
     width: 100%;
-    height: 100%;
+    min-height: 100vh;
     display: -webkit-flex; /* Safari */
     display: flex;
     flex-direction: column;
     margin: 0 auto;
+    padding: 10px;
+    background-color: #f0f2f5;
+    overflow-x: hidden;
+    overflow-y: auto;
 }
 
 .error_message {
@@ -14,4 +18,20 @@
     overflow: hidden;
     color: coral;
     padding: 10px;
+}
+
+/* 响应式样式 */
+@media (max-width: 768px) {
+    .home {
+        padding: 5px;
+    }
+}
+
+@media (min-width: 769px) {
+    .home {
+        max-width: 100%;
+        padding: 20px;
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
 }
