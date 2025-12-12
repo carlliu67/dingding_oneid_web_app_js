@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Tabs, Button, Table, Space, Modal } from 'antd';
 import './index.css';
-import { handleCreateMeeting, handleQueryUserEndedMeetingList, handleQueryUserMeetingList, handleGenerateJoinScheme } from '../../../components/wemeetapi/wemeetApi.js';
+import { handleCreateMeeting, handleQueryUserEndedMeetingList, handleQueryUserMeetingList, handleGenerateJoinScheme, handleGenerateJoinUrl } from '../../../components/wemeetapi/wemeetApi.js';
+import { isMobileDevice } from '../../../utils/auth_access_util.js';
 import MeetingModal from './MeetingModal.js';
 import clientConfig from '../../../config/client_config.js';
 
@@ -88,6 +89,7 @@ function MeetingList(props) {
               meeting_code: meetingInfo.meeting_code,
               start_time: meetingInfo.start_time,
               meeting_id: meetingInfo.meeting_id,
+              join_url: meetingInfo.join_url,
             });
           } else {
             upcomingMeetingList.push({
@@ -96,6 +98,7 @@ function MeetingList(props) {
               meeting_code: meetingInfo.meeting_code,
               start_time: meetingInfo.start_time,
               meeting_id: meetingInfo.meeting_id,
+              join_url: meetingInfo.join_url,
             });
           }
         }
@@ -127,6 +130,7 @@ function MeetingList(props) {
               meeting_code: meetingInfo.meeting_code,
               start_time: meetingInfo.start_time,
               meeting_id: meetingInfo.meeting_id,
+              join_url: meetingInfo.join_url,
             });
           } else {
             upcomingMeetingList.push({
@@ -135,6 +139,7 @@ function MeetingList(props) {
               meeting_code: meetingInfo.meeting_code,
               start_time: meetingInfo.start_time,
               meeting_id: meetingInfo.meeting_id,
+              join_url: meetingInfo.join_url,
             });
           }
         }
@@ -165,6 +170,7 @@ function MeetingList(props) {
             meeting_code: meetingInfo.meeting_code,
             start_time: meetingInfo.start_time,
             meeting_id: meetingInfo.meeting_id,
+            join_url: meetingInfo.join_url,
           });
         }
         setEndedMeetings(endedMeetingList);
@@ -208,7 +214,7 @@ function MeetingList(props) {
           buttons.unshift( 
             <Button 
               key="join" 
-              onClick={() => handleJoinMeeting(record.meeting_code)} 
+              onClick={() => handleJoinMeeting(record.meeting_code, record.join_url)} 
               style={{ width: 'auto' }} 
             >
               加入会议
@@ -247,7 +253,7 @@ function MeetingList(props) {
           buttons.unshift( 
             <Button 
               key="join" 
-              onClick={() => handleJoinMeeting(record.meeting_code)} 
+              onClick={() => handleJoinMeeting(record.meeting_code, record.join_url)} 
               style={{ width: 'auto' }} 
             >
               加入会议
@@ -259,10 +265,17 @@ function MeetingList(props) {
     }
   ];
 
-  // 新增加入会议的处理函数
-  const handleJoinMeeting = meeting_code => {
-    console.log('Join meeting:', meeting_code);
-    handleGenerateJoinScheme(meeting_code, false);
+  // 加入会议的处理函数
+  const handleJoinMeeting = (meeting_code, join_url) => {
+    console.log('Join meeting:', meeting_code, join_url);
+    // 根据设备类型调用不同的加入会议函数
+    if (isMobileDevice()) {
+      // 移动端调用handleGenerateJoinUrl
+      handleGenerateJoinUrl(join_url, false);
+    } else {
+      // PC端调用handleGenerateJoinScheme
+      handleGenerateJoinScheme(meeting_code, false);
+    }
   };
 
 
