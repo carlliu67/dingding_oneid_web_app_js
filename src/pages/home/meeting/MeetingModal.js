@@ -386,11 +386,13 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
             </div>
           </div>
         </Form.Item>
+        <Form.Item wrapperCol={{ xs: 24, sm: { span: 16, offset: 6 } }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, alignItems: 'center' }}>
+            <Button onClick={handleCancel}>取消</Button>
+            <Button type="primary" htmlType="submit">确定</Button>
+          </div>
+        </Form.Item>
       </Form>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, alignItems: 'center' }}>
-        <Button onClick={handleCancel}>取消</Button>
-        <Button type="primary" htmlType="submit">确定</Button>
-      </div>
     </Modal>
   );
 };
