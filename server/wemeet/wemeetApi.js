@@ -210,17 +210,14 @@ async function handleCreateMeeting(ctx) {
         const uri = "/v1/meetings";
         meetingParams = JSON.parse(ctx.request.body.data);
         meetingParams.userid = getUserid(ctx);
-        
-        logger.debug("发起创建会议请求，参数: ", meetingParams);
-        
         requestConfig = createRequestConfig('POST', uri, meetingParams);
-        logger.debug("创建会议请求配置: ", requestConfig);
+        // 创建会议日志记录下来
+        logger.info("创建会议请求参数: ", requestConfig);
         
         const response = await axios(requestConfig);
         ctx.body = okResponse(response.data);
     } catch (error) {
-        logger.warn("创建会议请求配置: ", requestConfig);
-        logger.warn("发起创建会议请求，参数: ", meetingParams);
+        logger.warn("创建会议请求参数: ", requestConfig);
         if (error instanceof SyntaxError) {
             logger.error("解析请求body数据时出错: ", error);
             ctx.body = failResponse("请求数据格式错误");

@@ -15,6 +15,56 @@ dayjs.tz.setDefault(serverTimezone);
 
 class CustomLogger {
   constructor() {
+    // 创建文件传输并添加错误处理
+    const fileTransport = new DailyRotateFile({
+      filename: 'logs/%DATE%.log',
+      datePattern: 'YYYY-MM-DD',
+      zippedArchive: true,
+      maxSize: '20m',
+      maxFiles: '30d'
+    });
+    fileTransport.on('error', (err) => {
+      // 防止文件日志写入失败导致进程崩溃
+      // 使用最基本的console.error，避免依赖其他模块
+      try {
+        process.stderr.write(`文件日志写入失败: ${err.message || err}\n`);
+      } catch (stderrErr) {
+        // 如果stderr也不可用，我们无能为力，只能静默失败
+      }
+    });
+
+    // 创建一个安全的控制台传输，使用winston内置的Console transport
+    const safeConsoleTransport = new winston.transports.Console({
+      format: winston.format.printf(({ timestamp, level, message, fileInfo }) => {
+        return `${timestamp} [${fileInfo}] ${level}: ${message}`;
+      }),
+      stderrLevels: ['error', 'warn'],
+      consoleWarnLevels: ['warn'],
+      handleExceptions: true,
+      handleRejections: true
+    });
+    
+    // 添加错误处理，防止控制台写入失败导致进程崩溃
+    safeConsoleTransport.on('error', (err) => {
+      try {
+        process.stderr.write(`控制台日志写入失败: ${err.message || err}\n`);
+      } catch (stderrErr) {
+        // 如果stderr也不可用，我们无能为力，只能静默失败
+      }
+    });
+
+    // 根据logLevel决定是否使用控制台传输
+    const transports = [fileTransport];
+    const exceptionHandlers = [fileTransport];
+    const rejectionHandlers = [fileTransport];
+    
+    // 如果logLevel为debug，同时输出到控制台和文件
+    if (serverConfig.logLevel === 'debug') {
+      transports.push(safeConsoleTransport);
+      exceptionHandlers.push(safeConsoleTransport);
+      rejectionHandlers.push(safeConsoleTransport);
+    }
+
     this.logger = winston.createLogger({
       level: 'debug',
       format: winston.format.combine(
@@ -25,16 +75,13 @@ class CustomLogger {
           return `${timestamp} [${fileInfo}] ${level}: ${message}`;
         })
       ),
-      transports: [
-        new winston.transports.Console(),
-        new DailyRotateFile({
-          filename: 'logs/%DATE%.log',
-          datePattern: 'YYYY-MM-DD',
-          zippedArchive: true,
-          maxSize: '20m',
-          maxFiles: '30d'
-        })
-      ]
+      transports: transports,
+      // 全局处理未捕获的日志错误
+      exceptionHandlers: exceptionHandlers,
+      rejectionHandlers: rejectionHandlers,
+      // 禁用未处理的拒绝处理，我们自己处理
+      handleExceptions: true,
+      handleRejections: true
     });
   }
 

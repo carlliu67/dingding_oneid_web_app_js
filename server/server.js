@@ -59,3 +59,50 @@ app.listen(port, () => {
 }).on('error', (err) => {
     logger.error(`Failed to start server on port ${port}:`, err);
 });
+
+// 处理未捕获的异常
+process.on('uncaughtException', (err) => {
+    try {
+        logger.error('捕获到未处理的异常:', err);
+    } catch (logErr) {
+        // 如果日志记录失败，使用Node.js内置的console.error
+        console.error('捕获到未处理的异常:', err);
+        console.error('日志记录失败:', logErr);
+    }
+    // 可以添加其他清理操作
+});
+
+// 处理未处理的 Promise 拒绝
+process.on('unhandledRejection', (reason, promise) => {
+    try {
+        logger.error('捕获到未处理的 Promise 拒绝:', reason);
+    } catch (logErr) {
+        // 如果日志记录失败，使用Node.js内置的console.error
+        console.error('捕获到未处理的 Promise 拒绝:', reason);
+        console.error('日志记录失败:', logErr);
+    }
+    // 可以添加其他清理操作
+});
+
+// 处理进程终止信号
+process.on('SIGTERM', () => {
+    try {
+        logger.info('收到 SIGTERM 信号，正在关闭服务器...');
+    } catch (logErr) {
+        console.error('收到 SIGTERM 信号，正在关闭服务器...');
+        console.error('日志记录失败:', logErr);
+    }
+    // 可以添加优雅关闭的逻辑
+    process.exit(0);
+});
+
+process.on('SIGINT', () => {
+    try {
+        logger.info('收到 SIGINT 信号，正在关闭服务器...');
+    } catch (logErr) {
+        console.error('收到 SIGINT 信号，正在关闭服务器...');
+        console.error('日志记录失败:', logErr);
+    }
+    // 可以添加优雅关闭的逻辑
+    process.exit(0);
+});
