@@ -454,7 +454,7 @@ async function webhookRecordingCompleted(eventData) {
  */
 async function processWebhookEvent(eventData) {
     try {
-        logger.debug(`处理webhook事件: ${eventData.event}`);
+        logger.debug(`处理webhook事件: `, eventData);
         // 处理事件
         switch (eventData.event) {
             // 会议创建事件
