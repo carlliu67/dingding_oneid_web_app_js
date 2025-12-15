@@ -45,7 +45,7 @@ async function sendRecordViewAddressCardMessage(receive_ids, createrName, webhoo
             { headers: { "Content-Type": "application/json", "x-acs-dingtalk-access-token": access_token } })
 
         if (!internalRes.data) {
-            logger.error("创建待办失败")
+            logger.error("发送云录制卡片消息失败：响应数据为空")
             return
         }
         logger.debug("sendRecordViewAddressCardMessage result: ", internalRes.data);
