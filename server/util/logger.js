@@ -99,29 +99,45 @@ class CustomLogger {
       const match = callerLine.match(/at\s+(.+):(\d+):\d+/);
       return match ? `${path.basename(match[1])}:${match[2]}` : '';
     } catch (error) {
-      console.error('获取文件信息时出错:', error);
+      try {
+        // 使用更安全的方式记录错误，避免递归错误
+        process.stderr.write(`获取文件信息时出错: ${error.message || error}\n`);
+      } catch (stderrErr) {
+        // 如果stderr也不可用，静默失败
+      }
       return '';
     }
   }
 
   log(level, ...args) {
-    const fileInfo = this.getFileInfo();
-    const messages = args.map(arg => {
-      if (typeof arg === 'object' && arg!== null) {
-        try {
-          return util.inspect(arg, { depth: null, colors: false });
-        } catch (error) {
-          return `Failed to inspect object: ${error.message}`;
+    try {
+      const fileInfo = this.getFileInfo();
+      const messages = args.map(arg => {
+        if (typeof arg === 'object' && arg !== null) {
+          try {
+            return util.inspect(arg, { depth: null, colors: false });
+          } catch (error) {
+            return `Failed to inspect object: ${error.message}`;
+          }
         }
+        return String(arg);
+      });
+      const message = messages.join(' ');
+      this.logger.log({
+        level,
+        message,
+        fileInfo
+      });
+    } catch (logError) {
+      try {
+        // 如果日志记录失败，使用更安全的方式记录到stderr
+        const simpleMessage = args.map(arg => String(arg)).join(' ');
+        process.stderr.write(`${dayjs().tz().format('YYYY-MM-DD HH:mm:ss.SSS')} [logger.error] ERROR: Failed to log ${level} message: ${simpleMessage}\n`);
+        process.stderr.write(`Logger error: ${logError.message}\n`);
+      } catch (stderrError) {
+        // 如果stderr也不可用，静默失败
       }
-      return String(arg);
-    });
-    const message = messages.join(' ');
-    this.logger.log({
-      level,
-      message,
-      fileInfo
-    });
+    }
   }
 
     debug(...args) {

@@ -530,9 +530,23 @@ async function handleEvent(ctx) {
             result = Buffer.from(data, 'base64').toString('utf8');
         }
 
+        if (!result) {
+            logger.warn('数据解密或解码失败');
+            ctx.throw(400, 'Data decryption or decoding failed');
+            return;
+        }
+
         // 解析JSON数据
-        const eventData = JSON.parse(result);
-        const eventType = eventData.event;
+        let eventData;
+        let eventType;
+        try {
+            eventData = JSON.parse(result);
+            eventType = eventData.event;
+        } catch (jsonError) {
+            logger.error('JSON解析失败:', jsonError);
+            ctx.throw(400, 'Invalid JSON data');
+            return;
+        }
 
         // 立即返回成功响应，不再等待后续处理完成
         ctx.status = 200;

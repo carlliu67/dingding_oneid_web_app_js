@@ -60,14 +60,24 @@ app.listen(port, () => {
     logger.error(`Failed to start server on port ${port}:`, err);
 });
 
+// 安全地记录错误到stderr
+function safeErrorLog(message, error) {
+    try {
+        const errMsg = error instanceof Error ? `${error.message}\n${error.stack}` : String(error);
+        process.stderr.write(`${message}: ${errMsg}\n`);
+    } catch (stderrErr) {
+        // 如果stderr也不可用，静默失败
+    }
+}
+
 // 处理未捕获的异常
 process.on('uncaughtException', (err) => {
     try {
         logger.error('捕获到未处理的异常:', err);
     } catch (logErr) {
-        // 如果日志记录失败，使用Node.js内置的console.error
-        console.error('捕获到未处理的异常:', err);
-        console.error('日志记录失败:', logErr);
+        // 如果日志记录失败，使用安全的方式记录到stderr
+        safeErrorLog('捕获到未处理的异常', err);
+        safeErrorLog('日志记录失败', logErr);
     }
     // 可以添加其他清理操作
 });
@@ -77,9 +87,9 @@ process.on('unhandledRejection', (reason, promise) => {
     try {
         logger.error('捕获到未处理的 Promise 拒绝:', reason);
     } catch (logErr) {
-        // 如果日志记录失败，使用Node.js内置的console.error
-        console.error('捕获到未处理的 Promise 拒绝:', reason);
-        console.error('日志记录失败:', logErr);
+        // 如果日志记录失败，使用安全的方式记录到stderr
+        safeErrorLog('捕获到未处理的 Promise 拒绝', reason);
+        safeErrorLog('日志记录失败', logErr);
     }
     // 可以添加其他清理操作
 });
