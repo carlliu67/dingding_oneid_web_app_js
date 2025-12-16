@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Modal, Form, Input, DatePicker, TimePicker, InputNumber, Button, Select, Switch } from 'antd';
+import { Modal, Form, Input, DatePicker, TimePicker, Button, Select, Switch } from 'antd';
 import dayjs from 'dayjs';
 import * as dd from 'dingtalk-jsapi';
 import './MeetingModal.css'
@@ -17,7 +17,35 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
     const minutesToAdd = 30 - remainder;
     return now.add(minutesToAdd, 'minute');
   });
+  const [currentEndDate, setCurrentEndDate] = useState(dayjs().startOf('day')); // 使用状态变量存储结束日期
+  const [currentEndTime, setCurrentEndTime] = useState(() => { // 使用状态变量存储结束时间，初始值为开始时间+30分钟
+    const now = dayjs();
+    const currentMinutes = now.minute();
+    const remainder = currentMinutes % 15;
+    const minutesToAdd = 30 - remainder;
+    return now.add(minutesToAdd + 30, 'minute');
+  });
   const formRef = useRef(null);
+  // 监听开始时间变化，联动更新结束时间
+  useEffect(() => {
+    if (formRef.current) {
+      const { start_date, start_time } = formRef.current.getFieldsValue(['start_date', 'start_time']);
+      if (start_date && start_time) {
+        const startDateTime = dayjs(start_date).hour(dayjs(start_time).hour()).minute(dayjs(start_time).minute());
+        const endDateTime = startDateTime.add(30, 'minute');
+        
+        // 更新状态变量
+        setCurrentEndDate(endDateTime.startOf('day'));
+        setCurrentEndTime(endDateTime);
+        
+        // 更新表单值
+        formRef.current.setFieldsValue({
+          end_date: endDateTime.startOf('day'),
+          end_time: endDateTime
+        });
+      }
+    }
+  }, [currentDate, currentTime]);
 
   // 使用useEffect监听visible属性变化，确保每次Modal显示时都更新时间
   useEffect(() => {
@@ -28,19 +56,23 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
       const remainder = currentMinutes % 15;
       const minutesToAdd = 30 - remainder;
       const adjustedTime = now.add(minutesToAdd, 'minute');
+      const adjustedEndTime = adjustedTime.add(30, 'minute');
       
       console.log('Modal visible, updating time to:', adjustedTime.format('HH:mm'));
       
       // 更新状态变量
       setCurrentDate(now.startOf('day'));
       setCurrentTime(adjustedTime);
+      setCurrentEndDate(now.startOf('day'));
+      setCurrentEndTime(adjustedEndTime);
       
       // 延迟执行以确保formRef已初始化
       setTimeout(() => {
         if (formRef.current) {
-          formRef.current.resetFields(['start_time']);
+          formRef.current.resetFields(['start_time', 'end_time']);
           formRef.current.setFieldsValue({
-            start_time: adjustedTime
+            start_time: adjustedTime,
+            end_time: adjustedEndTime
           });
         }
       }, 0);
@@ -66,20 +98,24 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
     const remainder = currentMinutes % 15;
     const minutesToAdd = remainder > 0 ? 15 - remainder : 0;
     const adjustedTime = newNow.add(minutesToAdd, 'minute');
+    const adjustedEndTime = adjustedTime.add(30, 'minute');
     
     console.log('showModal called, current time:', newNow.format('HH:mm'), 'adjusted to:', adjustedTime.format('HH:mm'));
     
     // 更新状态变量，触发组件重新渲染
     setCurrentDate(newDate);
     setCurrentTime(adjustedTime);
+    setCurrentEndDate(newDate);
+    setCurrentEndTime(adjustedEndTime);
     
     // 强制更新表单值
     if (formRef.current) {
       // 先重置表单，确保清除之前的值
-      formRef.current.resetFields(['start_time']);
+      formRef.current.resetFields(['start_time', 'end_time']);
       // 然后设置新的值
       formRef.current.setFieldsValue({
-        start_time: adjustedTime
+        start_time: adjustedTime,
+        end_time: adjustedEndTime
       });
     }
   };
@@ -214,6 +250,16 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
     });
   };
 
+
+
+  // 监听日期和时间变化，手动触发相关字段的重新验证
+  useEffect(() => {
+    if (formRef.current) {
+      // 当日期或时间变化时，重新验证所有相关字段
+      formRef.current.validateFields(['start_date', 'start_time', 'end_date', 'end_time']);
+    }
+  }, [currentDate, currentTime, currentEndDate, currentEndTime]);
+
   const handleCreateMeetingSubmit = async (values) => {
     var meetingParams = {};
     meetingParams.instanceid = 1;
@@ -233,8 +279,8 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
     // console.log("startTime: ", values.start_time);
     const startDateTime = dayjs(values.start_date).hour(dayjs(values.start_time).hour()).minute(dayjs(values.start_time).minute());
     meetingParams.start_time = String(startDateTime.unix());
-    const durationMinutes = values.duration;
-    meetingParams.end_time = String(startDateTime.add(durationMinutes, 'minute').unix());
+    const endDateTime = dayjs(values.end_date).hour(dayjs(values.end_time).hour()).minute(dayjs(values.end_time).minute());
+    meetingParams.end_time = String(endDateTime.unix());
     var meetingParamsStr = JSON.stringify(meetingParams);
     console.log("meetingParamsStr: ", meetingParamsStr);
     onCreate(meetingParamsStr);
@@ -286,7 +332,8 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
           topic: userInfo.name + "预约的会议",
           start_date: currentDate,
           start_time: currentTime,
-          duration: 60,
+          end_date: currentEndDate,
+          end_time: currentEndTime,
           only_user_join_type: clientConfig.only_user_join_type || 1,
           allow_screen_shared_watermark: clientConfig.allow_screen_shared_watermark || true
         }}
@@ -295,6 +342,7 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
           name="topic"
           label="会议主题"
           rules={[{ required: true, message: '请输入会议主题!' }]}
+          style={{ marginBottom: 16 }}
         >
           <Input 
             placeholder="请输入会议主题" 
@@ -311,19 +359,61 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
             <Form.Item
               name="start_date"
               noStyle
-              rules={[{ required: true, message: '请选择开始日期!' }]}
+              rules={[
+                { required: true, message: '请选择开始日期!' },
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    const endDate = getFieldValue('end_date');
+                    if (endDate && value) {
+                      const startDateObj = dayjs(value).startOf('day');
+                      const endDateObj = dayjs(endDate).startOf('day');
+                      if (endDateObj.isBefore(startDateObj)) {
+                        return Promise.reject(new Error('结束日期不能早于开始日期!'));
+                      }
+                    }
+                    return Promise.resolve();
+                  },
+                }),
+              ]}
             >
               <DatePicker 
                 format="YYYY/MM/DD" 
                 style={{ width: '130px', marginRight: '-2px' }}
                 // 移动端使用弹出模式
                 popupMatchSelectWidth={window.innerWidth <= 768 ? false : true}
+                onChange={(date) => {
+                  setCurrentDate(date);
+                  // 清除开始日期的错误提示
+                  if (formRef.current) {
+                    formRef.current.setFields([{
+                      name: 'start_date',
+                      errors: []
+                    }]);
+                  }
+                }}
               />
             </Form.Item>
             <Form.Item
               name="start_time"
               noStyle
-              rules={[{ required: true, message: '请选择开始时间!' }]}
+              rules={[
+                { required: true, message: '请选择开始时间!' },
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    const startDate = getFieldValue('start_date');
+                    const endDate = getFieldValue('end_date');
+                    const endTime = getFieldValue('end_time');
+                    if (startDate && endDate && endTime && value) {
+                      const startDateTime = dayjs(startDate).hour(dayjs(value).hour()).minute(dayjs(value).minute());
+                      const endDateTime = dayjs(endDate).hour(dayjs(endTime).hour()).minute(dayjs(endTime).minute());
+                      if (endDateTime.isBefore(startDateTime)) {
+                        return Promise.reject(new Error('结束时间不能早于开始时间!'));
+                      }
+                    }
+                    return Promise.resolve();
+                  },
+                }),
+              ]}
             >
               <TimePicker
                 format="HH:mm"
@@ -335,28 +425,119 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
                 style={{ width: '130px' }}
                 // 移动端使用弹出模式
                 popupMatchSelectWidth={window.innerWidth <= 768 ? false : true}
+                onChange={(time) => {
+                  setCurrentTime(time);
+                  // 清除开始时间的错误提示
+                  if (formRef.current) {
+                    formRef.current.setFields([{
+                      name: 'start_time',
+                      errors: []
+                    }]);
+                  }
+                }}
               />
             </Form.Item>
           </div>
         </Form.Item>
         <Form.Item
-          name="duration"
-          label="持续时长（分钟）"
-          rules={[{ required: true, message: '请输入持续时长!' }]}
+          label="结束"
+          style={{ marginBottom: 0 }}
         >
-          <InputNumber 
-            min={15} 
-            max={480}
-            step={5} 
-            style={{ width: '100%' }}
-            // 移动端优化输入框大小
-            size={window.innerWidth <= 768 ? 'large' : 'middle'}
-          />
+          <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+            <Form.Item
+              name="end_date"
+              noStyle
+              rules={[
+                { required: true, message: '请选择结束日期!' },
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    const startDate = getFieldValue('start_date');
+                    if (startDate && value) {
+                      const endDateObj = dayjs(value).startOf('day');
+                      const startDateObj = dayjs(startDate).startOf('day');
+                      if (endDateObj.isBefore(startDateObj)) {
+                        return Promise.reject(new Error('结束日期不能早于开始日期!'));
+                      }
+                    }
+                    return Promise.resolve();
+                  },
+                }),
+              ]}
+            >
+              <DatePicker 
+                format="YYYY/MM/DD" 
+                style={{ width: '130px', marginRight: '-2px' }}
+                // 移动端使用弹出模式
+                popupMatchSelectWidth={window.innerWidth <= 768 ? false : true}
+                onChange={(date) => {
+                  setCurrentEndDate(date);
+                  // 清除结束日期的错误提示
+                  if (formRef.current) {
+                    formRef.current.setFields([{
+                      name: 'end_date',
+                      errors: []
+                    }]);
+                  }
+                }}
+              />
+            </Form.Item>
+            <Form.Item
+              name="end_time"
+              noStyle
+              rules={[
+                { required: true, message: '请选择结束时间!' },
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    const startDate = getFieldValue('start_date');
+                    const startTime = getFieldValue('start_time');
+                    const endDate = getFieldValue('end_date');
+                    if (startDate && startTime && endDate && value) {
+                      const startDateTime = dayjs(startDate).hour(dayjs(startTime).hour()).minute(dayjs(startTime).minute());
+                      const endDateTime = dayjs(endDate).hour(dayjs(value).hour()).minute(dayjs(value).minute());
+                      if (endDateTime.isBefore(startDateTime)) {
+                        return Promise.reject(new Error('结束时间不能早于开始时间!'));
+                      }
+                      // 检查时间差是否超过24小时
+                      const diffInMinutes = endDateTime.diff(startDateTime, 'minute');
+                      if (diffInMinutes > 24 * 60) {
+                        return Promise.reject(new Error('结束时间与开始时间的差值不能超过24小时!'));
+                      }
+                    }
+                    return Promise.resolve();
+                  },
+                }),
+              ]}
+            >
+              <TimePicker
+                format="HH:mm"
+                showTime={{
+                  disabledTime: disabledTime,
+                }}
+                placeholder="选择时间"
+                showNow={false}
+                style={{ width: '130px' }}
+                // 移动端使用弹出模式
+                popupMatchSelectWidth={window.innerWidth <= 768 ? false : true}
+                onChange={(time) => {
+                  setCurrentEndTime(time);
+                  // 清除结束时间的错误提示
+                  if (formRef.current) {
+                    formRef.current.setFields([{
+                      name: 'end_time',
+                      errors: []
+                    }]);
+                  }
+                }}
+              />
+            </Form.Item>
+          </div>
         </Form.Item>
+
         <Form.Item
           name="only_user_join_type"
           label="参会限制"
-          rules={[{ required: true, message: '请选择参会限制!' }]}
+          rules={[{ message: '请选择参会限制!' }]}
+          style={{ marginBottom: 16 }}
         >
           <Select 
             placeholder="选择参会限制"
@@ -372,6 +553,7 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
             name="allow_screen_shared_watermark"
             label="水印"
             valuePropName="checked"
+            style={{ marginBottom: 16 }}
           >
             <Switch 
               checkedChildren="开启"
@@ -384,6 +566,7 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
           name="host"
           label="指定主持人"
           rules={[{ message: '请选择成员' }]}
+          style={{ marginBottom: 16 }}
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', width: '100%' }}>
@@ -440,6 +623,7 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
           name="invitees"
           label="邀请成员"
           rules={[{ message: '请选择成员' }]}
+          style={{ marginBottom: 16 }}
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', width: '100%' }}>

@@ -304,25 +304,39 @@ function MeetingList(props) {
       // 创建会议
       const result = await handleCreateMeeting(meetingParamsStr);
 
-      // 检查是否有错误响应，ERROR_CODE_LOGIN_REQUIRED表示账号未激活，不能调创建会议接口，需要引导用户先登录腾讯会议客户端
-      if (result && result.new_error_code && result.new_error_code === ERROR_CODE_LOGIN_REQUIRED) {
-        // 显示登录腾讯会议客户端的弹窗
-        Modal.info({
-          title: '首次使用提示',
-          content: (
-            <div>
-              <p>首次使用预约会议功能需要先登录腾讯会议客户端</p>
-            </div>
-          ),
-          okText: '登录腾讯会议客户端',
-          onOk() {
-            // 调用handleGenerateJoinScheme方法
-            // 由于没有具体会议码，这里可以使用一个默认的会议码或者提示用户
-            // 为了演示，我们使用一个示例会议码
-            handleGenerateJoinScheme('', true);
-          },
-          okButtonProps: { style: { width: 'auto' } }
-        });
+      // 检查是否有错误响应
+      if (result && result.new_error_code) {
+        if (result.new_error_code === ERROR_CODE_LOGIN_REQUIRED) {
+          // 显示登录腾讯会议客户端的弹窗
+          Modal.info({
+            title: '首次使用提示',
+            content: (
+              <div>
+                <p>首次使用预约会议功能需要先登录腾讯会议客户端</p>
+              </div>
+            ),
+            okText: '登录腾讯会议客户端',
+            onOk() {
+              // 调用handleGenerateJoinScheme方法
+              // 由于没有具体会议码，这里可以使用一个默认的会议码或者提示用户
+              // 为了演示，我们使用一个示例会议码
+              handleGenerateJoinScheme('', true);
+            },
+            okButtonProps: { style: { width: 'auto' } }
+          });
+        } else {
+          // 处理其他错误
+          Modal.error({
+            title: '会议创建失败',
+            content: (
+              <div>
+                <p>{result.message || '请稍后重试'}</p>
+              </div>
+            ),
+            okText: '确定',
+            okButtonProps: { style: { width: 'auto' } }
+          });
+        }
       } else {
         // 关闭模态框
         setIsModalVisible(false);
