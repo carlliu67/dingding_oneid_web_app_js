@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Modal, Form, Input, DatePicker, TimePicker, InputNumber, Button, Select } from 'antd';
+import { Modal, Form, Input, DatePicker, TimePicker, InputNumber, Button, Select, Switch } from 'antd';
 import dayjs from 'dayjs';
 import * as dd from 'dingtalk-jsapi';
 import './MeetingModal.css'
@@ -225,6 +225,11 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
     meetingParams.settings = {};
     // 参会限制类型
     meetingParams.settings.only_user_join_type = values.only_user_join_type;
+    // 水印设置 - 优先使用表单值（如果存在），否则使用配置默认值
+    meetingParams.settings.allow_screen_shared_watermark = values.allow_screen_shared_watermark !== undefined ? values.allow_screen_shared_watermark : clientConfig.allow_screen_shared_watermark;
+    meetingParams.settings.water_mark_type = clientConfig.water_mark_type;
+    // 音频水印设置
+    meetingParams.settings.audio_watermark = clientConfig.audio_watermark;
     // console.log("startTime: ", values.start_time);
     const startDateTime = dayjs(values.start_date).hour(dayjs(values.start_time).hour()).minute(dayjs(values.start_time).minute());
     meetingParams.start_time = String(startDateTime.unix());
@@ -282,7 +287,8 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
           start_date: currentDate,
           start_time: currentTime,
           duration: 60,
-          only_user_join_type: clientConfig.only_user_join_type || 1
+          only_user_join_type: clientConfig.only_user_join_type || 1,
+          allow_screen_shared_watermark: clientConfig.allow_screen_shared_watermark || true
         }}
       >
         <Form.Item
@@ -344,17 +350,29 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
           name="only_user_join_type"
           label="参会限制"
           rules={[{ required: true, message: '请选择参会限制!' }]}
-          style={{ width: 'auto', display: 'inline-block' }}
         >
           <Select 
             placeholder="选择参会限制"
-            style={{ minWidth: 180, width: 'auto' }}
+            style={{ minWidth: 180 }}
           >
             <Option value={1}>所有成员可入会</Option>
             <Option value={2}>仅受邀成员可入会</Option>
             <Option value={3}>仅企业内部成员可入会</Option>
           </Select>
         </Form.Item>
+        {clientConfig.isShowWatermarkSwitch && (
+          <Form.Item
+            name="allow_screen_shared_watermark"
+            label="水印"
+            valuePropName="checked"
+          >
+            <Switch 
+              checkedChildren="开启"
+              unCheckedChildren="关闭"
+              style={{ minWidth: 100 }}
+            />
+          </Form.Item>
+        )}
         <Form.Item
           name="host"
           label="指定主持人"

@@ -16,6 +16,10 @@ const clientConfig = {
 
     // 会议默认参数配置
     only_user_join_type: 1, // 成员入会限制类型，1：所有成员可入会，2：仅受邀成员可入会，3：仅企业内部成员可入会
+    isShowWatermarkSwitch: false, // 是否展示水印设置选项，true：展示，false：不展示，默认值为false
+    allow_screen_shared_watermark: true, // 是否开启水印，true：开启，false：不开启，默认值为true
+    water_mark_type: 0, // 水印样式，0：单排，1：多排，默认值为0
+    audio_watermark: true, // 是否开启音频水印，true：开启，false：不开启，默认值为true
 
     // 后端服务API路径，这部分参数不要修改
     getUserAccessTokenPath:  "/api/get_user_access_token", //免登api path
