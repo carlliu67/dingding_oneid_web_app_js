@@ -304,33 +304,40 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
           />
         </Form.Item>
         <Form.Item
-          name="start_date"
-          label="开始日期"
-          rules={[{ required: true, message: '请选择开始日期!' }]}
+          label="开始"
+          style={{ marginBottom: 0 }}
         >
-          <DatePicker 
-            format="YYYY/MM/DD" 
-            style={{ width: '100%' }}
-            // 移动端使用弹出模式
-            popupMatchSelectWidth={window.innerWidth <= 768 ? false : true}
-          />
-        </Form.Item>
-        <Form.Item
-          name="start_time"
-          label="开始时间"
-          rules={[{ required: true, message: '请选择开始时间!' }]}
-        >
-          <TimePicker
-            format="HH:mm"
-            showTime={{
-              disabledTime: disabledTime,
-            }}
-            placeholder="选择时间"
-            showNow={false}
-            style={{ width: '100%' }}
-            // 移动端使用弹出模式
-            popupMatchSelectWidth={window.innerWidth <= 768 ? false : true}
-          />
+          <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+            <Form.Item
+              name="start_date"
+              noStyle
+              rules={[{ required: true, message: '请选择开始日期!' }]}
+            >
+              <DatePicker 
+                format="YYYY/MM/DD" 
+                style={{ width: '130px', marginRight: '-2px' }}
+                // 移动端使用弹出模式
+                popupMatchSelectWidth={window.innerWidth <= 768 ? false : true}
+              />
+            </Form.Item>
+            <Form.Item
+              name="start_time"
+              noStyle
+              rules={[{ required: true, message: '请选择开始时间!' }]}
+            >
+              <TimePicker
+                format="HH:mm"
+                showTime={{
+                  disabledTime: disabledTime,
+                }}
+                placeholder="选择时间"
+                showNow={false}
+                style={{ width: '130px' }}
+                // 移动端使用弹出模式
+                popupMatchSelectWidth={window.innerWidth <= 768 ? false : true}
+              />
+            </Form.Item>
+          </div>
         </Form.Item>
         <Form.Item
           name="duration"
