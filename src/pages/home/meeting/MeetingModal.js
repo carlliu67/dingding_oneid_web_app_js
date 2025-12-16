@@ -536,7 +536,6 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
         <Form.Item
           name="only_user_join_type"
           label="参会限制"
-          rules={[{ message: '请选择参会限制!' }]}
           style={{ marginBottom: 16 }}
         >
           <Select 
