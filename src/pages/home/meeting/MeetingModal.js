@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Modal, Form, Input, DatePicker, TimePicker, InputNumber, Button } from 'antd';
+import { Modal, Form, Input, DatePicker, TimePicker, InputNumber, Button, Select } from 'antd';
 import dayjs from 'dayjs';
 import * as dd from 'dingtalk-jsapi';
 import './MeetingModal.css'
 import clientConfig from '../../../config/client_config.js';
+const { Option } = Select;
 
 const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
   const [selectedHosts, setSelectedHosts] = useState([]); // 存储选中的主持人列表，每项包含 {id, name}
@@ -220,6 +221,10 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
     meetingParams.hosts = selectedHosts.map(host => host.id); // 从合并后的状态中提取hosts数组
     meetingParams.invitees = selectedInvitees.map(invitee => invitee.id); // 从合并后的状态中提取invitees数组
     meetingParams.type = 0;
+    // 初始化settings对象
+    meetingParams.settings = {};
+    // 参会限制类型
+    meetingParams.settings.only_user_join_type = values.only_user_join_type;
     // console.log("startTime: ", values.start_time);
     const startDateTime = dayjs(values.start_date).hour(dayjs(values.start_time).hour()).minute(dayjs(values.start_time).minute());
     meetingParams.start_time = String(startDateTime.unix());
@@ -276,7 +281,8 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
           topic: userInfo.name + "预约的会议",
           start_date: currentDate,
           start_time: currentTime,
-          duration: 60
+          duration: 60,
+          only_user_join_type: clientConfig.only_user_join_type || 1
         }}
       >
         <Form.Item
@@ -333,6 +339,21 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
             // 移动端优化输入框大小
             size={window.innerWidth <= 768 ? 'large' : 'middle'}
           />
+        </Form.Item>
+        <Form.Item
+          name="only_user_join_type"
+          label="参会限制"
+          rules={[{ required: true, message: '请选择参会限制!' }]}
+          style={{ width: 'auto', display: 'inline-block' }}
+        >
+          <Select 
+            placeholder="选择参会限制"
+            style={{ minWidth: 180, width: 'auto' }}
+          >
+            <Option value={1}>所有成员可入会</Option>
+            <Option value={2}>仅受邀成员可入会</Option>
+            <Option value={3}>仅企业内部成员可入会</Option>
+          </Select>
         </Form.Item>
         <Form.Item
           name="host"

@@ -14,6 +14,9 @@ const clientConfig = {
     // 工作台应用打开模式
     mode: 'upcoming', // 工作台应用打开模式，可选值：'app'（免登跳转腾讯会议客户端）、'upcoming'（展示待参加会议页面）、‘schedule’（支持创建会议）
 
+    // 会议默认参数配置
+    only_user_join_type: 1, // 成员入会限制类型，1：所有成员可入会，2：仅受邀成员可入会，3：仅企业内部成员可入会
+
     // 后端服务API路径，这部分参数不要修改
     getUserAccessTokenPath:  "/api/get_user_access_token", //免登api path
     getSignParametersPath:  "/api/get_sign_parameters", //鉴权api path;

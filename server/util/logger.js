@@ -58,8 +58,8 @@ class CustomLogger {
     const exceptionHandlers = [fileTransport];
     const rejectionHandlers = [fileTransport];
     
-    // 如果logLevel为debug，同时输出到控制台和文件
-    if (serverConfig.logLevel === 'debug') {
+    // 同时输出到控制台和文件
+    if (serverConfig.logLevel) {
       transports.push(safeConsoleTransport);
       exceptionHandlers.push(safeConsoleTransport);
       rejectionHandlers.push(safeConsoleTransport);
