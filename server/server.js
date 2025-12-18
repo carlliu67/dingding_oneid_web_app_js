@@ -42,6 +42,9 @@ if (serverConfig.appServerMode) {
     router.get(serverConfig.generateJoinSchemePath, handleGenerateJoinScheme)
     router.get(serverConfig.generateJumpUrlPath, handleGenerateJumpUrl)
     router.get(serverConfig.generateJoinUrlPath, handleGenerateJoinUrl)
+    router.get(serverConfig.keepAlivePath, (ctx) => {
+        ctx.body = serverConfig.keepAliveResponse;
+    })
 }
 
 if (serverConfig.webhookServerMode) {

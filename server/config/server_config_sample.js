@@ -36,6 +36,14 @@ const config = {
     generateJumpUrlPath:  "/api/generateJumpUrl", //获取免登跳转url的api path
     generateJoinUrlPath:  "/api/generateJoinUrl", //获取免登入会url的api path
 
+    // 保活响应配置
+    keepAlivePath: "/api/keep_alive", // 保活api path
+    keepAliveResponse: {
+        code: 0,
+        message: "OK",
+        data: {},
+    },
+
     // webhook server接口配置，webhookPath不要修改
     webhookPath:  "/api/webhook", //webhook回调的api path
     webhookRateLimit: 1000, // 每秒处理的请求数

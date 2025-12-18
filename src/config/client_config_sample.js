@@ -30,6 +30,14 @@ const clientConfig = {
     createMeetingPath:  "/api/create_meeting", //创建会议的api path
     queryUserEndedMeetingListPath:  "/api/query_user_ended_meeting_list", //获取用户已结束会议列表的api path
     queryUserMeetingListPath:  "/api/query_user_meeting_list", //获取用户会议列表的api path
+
+    // 保活响应配置
+    keepAlivePath: "/api/keep_alive", // 保活api path
+    keepAliveResponse: {
+        code: 0,
+        message: "OK",
+        data: {},
+    },
 }
     
 export default clientConfig;
