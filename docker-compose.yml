@@ -1,0 +1,83 @@
+services:
+  # 前端服务
+  front-end:
+    build: .
+    image: dingding-front-end:latest
+    container_name: dingding-front-end
+    ports:
+      - "7000:7000"
+    environment:
+      - NODE_ENV=production
+    command: ["front-end"]
+    restart: unless-stopped
+    networks:
+      - dingding-network
+    profiles:
+      - front-end
+
+  # 后端服务
+  back-end:
+    build: .
+    image: dingding-back-end:latest
+    container_name: dingding-back-end
+    ports:
+      - "7001:7001"
+    environment:
+      - NODE_ENV=production
+    command: ["back-end"]
+    restart: unless-stopped
+    networks:
+      - dingding-network
+    volumes:
+      - ./server/config:/app/server/config
+      - ./logs:/app/logs
+    profiles:
+      - back-end
+
+  # Webhook服务
+  webhook:
+    build: .
+    image: dingding-webhook:latest
+    container_name: dingding-webhook
+    ports:
+      - "7002:7002"
+    environment:
+      - NODE_ENV=production
+      - PORT=7002
+    command: ["webhook"]
+    restart: unless-stopped
+    networks:
+      - dingding-network
+    volumes:
+      - ./server/config:/app/server/config
+      - ./logs:/app/logs
+    profiles:
+      - webhook
+
+  # 完整服务（前后端+webhook）
+  full:
+    build: .
+    image: dingding-full:latest
+    container_name: dingding-full
+    ports:
+      - "7000:7000"
+      - "7001:7001"
+    environment:
+      - NODE_ENV=production
+    command: ["full"]
+    restart: unless-stopped
+    networks:
+      - dingding-network
+    volumes:
+      - ./server/config:/app/server/config
+      - ./logs:/app/logs
+    profiles:
+      - full
+
+networks:
+  dingding-network:
+    driver: bridge
+
+volumes:
+  config-data:
+  logs-data:

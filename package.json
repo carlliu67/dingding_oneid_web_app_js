@@ -32,7 +32,15 @@
     "start": "npm run start:server & npm run start:web",
     "start:web": "PORT=7000 BROWSER=none react-scripts start",
     "start:server": "node ./server/server.js",
-    "build": "react-scripts build"
+    "build": "react-scripts build",
+    "docker:build": "chmod +x build-all.sh && ./build-all.sh",
+    "docker:run-front-end": "docker-compose --profile front-end up -d",
+    "docker:run-back-end": "docker-compose --profile back-end up -d",
+    "docker:run-webhook": "docker-compose --profile webhook up -d",
+    "docker:run-full": "docker-compose --profile full up -d",
+    "docker:stop": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "docker:clean": "docker-compose down -v && docker system prune -f"
   },
   "eslintConfig": {
     "extends": [

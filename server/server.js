@@ -32,7 +32,7 @@ app.use(session(koaSessionConfig, app));
 // 使用 koa-bodyparser 中间件
 app.use(bodyParser());
 
-if (serverConfig.appServerMode) {
+if (serverConfig.serverMode === "back-end" || serverConfig.serverMode === "full") {
     // 注册服务端路由和处理
     router.get(serverConfig.getUserAccessTokenPath, getUserAccessToken)
     router.get(serverConfig.getSignParametersPath, getSignParameters)
@@ -42,16 +42,19 @@ if (serverConfig.appServerMode) {
     router.get(serverConfig.generateJoinSchemePath, handleGenerateJoinScheme)
     router.get(serverConfig.generateJumpUrlPath, handleGenerateJumpUrl)
     router.get(serverConfig.generateJoinUrlPath, handleGenerateJoinUrl)
-    router.get(serverConfig.keepAlivePath, (ctx) => {
-        ctx.body = serverConfig.keepAliveResponse;
-    })
+    
 }
 
-if (serverConfig.webhookServerMode) {
+if (serverConfig.serverMode === "webhook" || serverConfig.serverMode === "full") {
     // webhook相关路由和处理
     router.get(serverConfig.webhookPath, handleVerification);
     router.post(serverConfig.webhookPath, handleEvent);
 }
+
+// 保持alive路由
+router.get(serverConfig.keepAlivePath, (ctx) => {
+        ctx.body = serverConfig.keepAliveResponse;
+    })
 
 // 注册路由
 const port = process.env.PORT || serverConfig.apiPort;

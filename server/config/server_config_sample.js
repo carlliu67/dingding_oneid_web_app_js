@@ -11,9 +11,7 @@ const config = {
 
     // server运行参数配置
     apiPort: "7001",   //后端指定端口
-    // 当APP server和webhook server部署在同一台机器上时，appServerMode和webhookServerMode都需要设置为true；分开部署时一个为true，一个为false
-    appServerMode: true,  //是否开启app server模式
-    webhookServerMode: true,  //是否开启webhook server模式
+    serverMode: "full",  //当前server模式，可选back-end、webhook、full
     frontEndServerUrl: "http://dingtalk-test.company.cn:7000",  //前端server地址
 
     // 腾讯会议对接参数
