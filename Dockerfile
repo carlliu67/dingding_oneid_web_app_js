@@ -16,6 +16,12 @@ RUN npm install --only=production
 # 复制整个应用代码
 COPY . .
 
+# 创建必要的目录
+RUN mkdir -p logs data
+
+# 设置时区为中国时区
+ENV TZ=Asia/Shanghai
+
 # 创建启动脚本
 RUN echo '#!/bin/sh' > /app/docker-entrypoint.sh && \
     echo '' >> /app/docker-entrypoint.sh && \
