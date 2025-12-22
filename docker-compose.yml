@@ -30,7 +30,8 @@ services:
       - dingding-network
     volumes:
       - ./server/config:/app/server/config
-      - ./logs:/app/logs
+      - ./logs/back-end:/app/logs
+      - ./data/back-end:/app/data
     profiles:
       - back-end
 
@@ -50,7 +51,8 @@ services:
       - dingding-network
     volumes:
       - ./server/config:/app/server/config
-      - ./logs:/app/logs
+      - ./logs/webhook:/app/logs
+      - ./data/webhook:/app/data
     profiles:
       - webhook
 
@@ -70,7 +72,8 @@ services:
       - dingding-network
     volumes:
       - ./server/config:/app/server/config
-      - ./logs:/app/logs
+      - ./logs/full:/app/logs
+      - ./data/full:/app/data
     profiles:
       - full
 
@@ -81,3 +84,4 @@ networks:
 volumes:
   config-data:
   logs-data:
+  data-data:
