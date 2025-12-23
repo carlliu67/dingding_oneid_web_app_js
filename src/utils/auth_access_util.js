@@ -21,16 +21,14 @@ export async function handleJSAPIAccess() {
         )
         if (!res.data) {
             console.error(`${clientConfig.getSignParametersPath} fail`)
-            //complete(false)
-            return
+            return null
         }
 
         const data = res.data
         console.log("接入方前端[JSAPI鉴权处理]第② 步: 获得鉴权参数")
         if (!data) {
             console.error('获取参数失败')
-            //complete(false)
-            return
+            return null
         }
         return data
         // configJSAPIAccess(data, complete)
@@ -91,15 +89,14 @@ export function handleUserAuth(complete) {
                     const code = info.code
                     if (code.length <= 0) {
                         console.error('auth code为空')
-                        complete()
+                        complete(null)
                     } else {
                         requestUserAccessToken(code, complete)
                     }
                 },
                 onFail: function (err) {
-                    complete()
                     console.error("dd.requestAuthCode", err)
-                    //alert(JSON.stringify(err))
+                    complete(null)
                 }
             });
         });
@@ -145,14 +142,14 @@ function requestUserAccessToken(code, complete) {
             console.error("错误响应数据: ", error.response.msg)
         }
         console.log("----------[接入网页方免登处理 END]----------\n")
-        complete()
+        complete(null)
     })
 }
 
 export function getOrigin(apiPort) {
     // console.log('process.env', process.env)
     if (clientConfig.serverUrl && clientConfig.serverUrl.length > 0) {
-        return clientConfig.serverUrl + ":" + apiPort
+        return clientConfig.serverProtocol + "://" + clientConfig.serverUrl + ":" + apiPort
     } else {
         let hostname = window.location.hostname
         return clientConfig.serverProtocol + `://${hostname}:${apiPort}`
