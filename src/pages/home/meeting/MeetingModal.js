@@ -314,7 +314,7 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
         width={{ xs: '95%', sm: 700, md: 700 }}
         // 设置最小宽度以确保内容不会太窄
         style={{ minWidth: '400px' }}
-        bodyStyle={{ padding: '16px', maxHeight: '80vh', overflowY: 'auto' }}
+        styles={{ body: { padding: '16px', maxHeight: '80vh', overflowY: 'auto' } }}
         // 移除centered属性，让弹窗在移动端默认显示在顶部
         // 移动端自动调整
         breakPoint="md"
