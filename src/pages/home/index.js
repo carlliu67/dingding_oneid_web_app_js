@@ -19,6 +19,12 @@ export default function Home() {
 
         // 免登处理
         handleUserAuth((userInfo) => {
+            if (!userInfo) {
+                console.error('用户认证失败');
+                setUserInfo({});
+                setIsLoaded(true);
+                return;
+            }
             setUserInfo(userInfo);
             console.log('userInfo: ', userInfo);
             if (params.meetingCode || params.joinUrl) {
@@ -61,9 +67,11 @@ export default function Home() {
         if (clientConfig.mode === 'schedule') {
             // 鉴权处理
             handleJSAPIAccess().then(data => {
-                if (data) {
+                if (data && data.data) {
                     console.log('JSAPI鉴权参数获取成功');
                     configJSAPIAccess(data.data);
+                } else {
+                    console.error('JSAPI鉴权参数获取失败');
                 }
             }).catch(error => {
                 console.error('JSAPI鉴权失败:', error);
