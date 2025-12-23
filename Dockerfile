@@ -1,9 +1,6 @@
 # 使用官方 Node.js 镜像作为基础镜像
 FROM node:18-alpine
 
-# 安装必要的工具
-RUN apk add --no-cache sed
-
 # 设置工作目录
 WORKDIR /app
 
@@ -16,8 +13,11 @@ RUN npm install --only=production
 # 复制整个应用代码
 COPY . .
 
-# 创建必要的目录
-RUN mkdir -p logs data
+# 创建必要的目录和配置文件备份
+RUN mkdir -p logs data && \
+    # 创建配置目录备份（用于后续挂载目录为空时恢复）
+    cp -r /app/src/config /app/src/config.orig && \
+    cp -r /app/server/config /app/server/config.orig
 
 # 设置时区为中国时区
 ENV TZ=Asia/Shanghai
@@ -28,6 +28,70 @@ RUN echo '#!/bin/sh' > /app/docker-entrypoint.sh && \
     echo '# 获取启动模式参数' >> /app/docker-entrypoint.sh && \
     echo 'MODE=${1:-"full"}' >> /app/docker-entrypoint.sh && \
     echo '' >> /app/docker-entrypoint.sh && \
+    echo '# 获取 Docker 容器名称作为节点名称' >> /app/docker-entrypoint.sh && \
+    echo 'if [ -z "$NODE_NAME" ]; then' >> /app/docker-entrypoint.sh && \
+    echo '  # 尝试从容器 hostname 获取容器名称' >> /app/docker-entrypoint.sh && \
+    echo '  NODE_NAME=$(hostname)' >> /app/docker-entrypoint.sh && \
+    echo '  # 如果 hostname 是容器ID，尝试从环境变量获取容器名称' >> /app/docker-entrypoint.sh && \
+    echo '  if [ "$NODE_NAME" = "$(cat /etc/hostname)" ]; then' >> /app/docker-entrypoint.sh && \
+    echo '    # 从 docker-compose 服务名获取，如果没有则使用默认值' >> /app/docker-entrypoint.sh && \
+    echo '    NODE_NAME=${COMPOSE_PROJECT_NAME:-"dingtalk"}-${HOSTNAME:0:12}' >> /app/docker-entrypoint.sh && \
+    echo '  fi' >> /app/docker-entrypoint.sh && \
+    echo '  export NODE_NAME' >> /app/docker-entrypoint.sh && \
+    echo 'fi' >> /app/docker-entrypoint.sh && \
+    echo '' >> /app/docker-entrypoint.sh && \
+    echo '# 根据模式初始化配置文件' >> /app/docker-entrypoint.sh && \
+    echo 'case "$MODE" in' >> /app/docker-entrypoint.sh && \
+    echo '  "front-end")' >> /app/docker-entrypoint.sh && \
+    echo '    # 检查挂载目录是否为空，如果为空则从备份复制配置文件' >> /app/docker-entrypoint.sh && \
+    echo '    if [ -z "$(ls -A /app/src/config)" ]; then' >> /app/docker-entrypoint.sh && \
+    echo '      echo "挂载的配置目录为空，复制配置文件..."' >> /app/docker-entrypoint.sh && \
+    echo '      cp -r /app/src/config.orig/* /app/src/config/ 2>/dev/null || true' >> /app/docker-entrypoint.sh && \
+    echo '    fi' >> /app/docker-entrypoint.sh && \
+    echo '    # 确保前端配置文件存在' >> /app/docker-entrypoint.sh && \
+    echo '    if [ ! -f "/app/src/config/client_config.js" ]; then' >> /app/docker-entrypoint.sh && \
+    echo '      echo "创建前端配置文件..."' >> /app/docker-entrypoint.sh && \
+    echo '      cp /app/src/config/client_config_sample.js /app/src/config/client_config.js' >> /app/docker-entrypoint.sh && \
+    echo '    fi' >> /app/docker-entrypoint.sh && \
+    echo '    ;;' >> /app/docker-entrypoint.sh && \
+    echo '  "back-end"|"webhook")' >> /app/docker-entrypoint.sh && \
+    echo '    # 检查挂载目录是否为空，如果为空则从备份复制配置文件' >> /app/docker-entrypoint.sh && \
+    echo '    if [ -z "$(ls -A /app/server/config)" ]; then' >> /app/docker-entrypoint.sh && \
+    echo '      echo "挂载的配置目录为空，复制配置文件..."' >> /app/docker-entrypoint.sh && \
+    echo '      cp -r /app/server/config.orig/* /app/server/config/ 2>/dev/null || true' >> /app/docker-entrypoint.sh && \
+    echo '    fi' >> /app/docker-entrypoint.sh && \
+    echo '    # 确保服务器配置文件存在' >> /app/docker-entrypoint.sh && \
+    echo '    if [ ! -f "/app/server/config/server_config.js" ]; then' >> /app/docker-entrypoint.sh && \
+    echo '      echo "创建服务器配置文件..."' >> /app/docker-entrypoint.sh && \
+    echo '      cp /app/server/config/server_config_sample.js /app/server/config/server_config.js' >> /app/docker-entrypoint.sh && \
+    echo '    fi' >> /app/docker-entrypoint.sh && \
+    echo '    ;;' >> /app/docker-entrypoint.sh && \
+    echo '  "full")' >> /app/docker-entrypoint.sh && \
+    echo '    # 检查服务器配置挂载目录是否为空' >> /app/docker-entrypoint.sh && \
+    echo '    if [ -z "$(ls -A /app/server/config)" ]; then' >> /app/docker-entrypoint.sh && \
+    echo '      echo "挂载的服务器配置目录为空，复制配置文件..."' >> /app/docker-entrypoint.sh && \
+    echo '      cp -r /app/server/config.orig/* /app/server/config/ 2>/dev/null || true' >> /app/docker-entrypoint.sh && \
+    echo '    fi' >> /app/docker-entrypoint.sh && \
+    echo '    # 确保服务器配置文件存在' >> /app/docker-entrypoint.sh && \
+    echo '    if [ ! -f "/app/server/config/server_config.js" ]; then' >> /app/docker-entrypoint.sh && \
+    echo '      echo "创建服务器配置文件..."' >> /app/docker-entrypoint.sh && \
+    echo '      cp /app/server/config/server_config_sample.js /app/server/config/server_config.js' >> /app/docker-entrypoint.sh && \
+    echo '    fi' >> /app/docker-entrypoint.sh && \
+    echo '    # 检查前端配置挂载目录是否为空' >> /app/docker-entrypoint.sh && \
+    echo '    if [ -z "$(ls -A /app/src/config)" ]; then' >> /app/docker-entrypoint.sh && \
+    echo '      echo "挂载的前端配置目录为空，复制配置文件..."' >> /app/docker-entrypoint.sh && \
+    echo '      cp -r /app/src/config.orig/* /app/src/config/ 2>/dev/null || true' >> /app/docker-entrypoint.sh && \
+    echo '    fi' >> /app/docker-entrypoint.sh && \
+    echo '    # 确保前端配置文件存在' >> /app/docker-entrypoint.sh && \
+    echo '    if [ ! -f "/app/src/config/client_config.js" ]; then' >> /app/docker-entrypoint.sh && \
+    echo '      echo "创建前端配置文件..."' >> /app/docker-entrypoint.sh && \
+    echo '      cp /app/src/config/client_config_sample.js /app/src/config/client_config.js' >> /app/docker-entrypoint.sh && \
+    echo '    fi' >> /app/docker-entrypoint.sh && \
+    echo '    ;;' >> /app/docker-entrypoint.sh && \
+    echo 'esac' >> /app/docker-entrypoint.sh && \
+    echo '' >> /app/docker-entrypoint.sh && \
+    echo 'echo "节点名称: $NODE_NAME"' >> /app/docker-entrypoint.sh && \
+    echo '' >> /app/docker-entrypoint.sh && \
     echo 'case "$MODE" in' >> /app/docker-entrypoint.sh && \
     echo '  "front-end")' >> /app/docker-entrypoint.sh && \
     echo '    echo "Starting in front-end mode..."' >> /app/docker-entrypoint.sh && \
@@ -35,17 +99,17 @@ RUN echo '#!/bin/sh' > /app/docker-entrypoint.sh && \
     echo '    ;;' >> /app/docker-entrypoint.sh && \
     echo '  "back-end")' >> /app/docker-entrypoint.sh && \
     echo '    echo "Starting in back-end mode..."' >> /app/docker-entrypoint.sh && \
-    echo '    sed -i "s/serverMode: \".*\"/serverMode: \"back-end\"/" ./server/config/server_config.js' >> /app/docker-entrypoint.sh && \
+    echo '    export SERVER_MODE=back-end' >> /app/docker-entrypoint.sh && \
     echo '    npm run start:server' >> /app/docker-entrypoint.sh && \
     echo '    ;;' >> /app/docker-entrypoint.sh && \
     echo '  "webhook")' >> /app/docker-entrypoint.sh && \
     echo '    echo "Starting in webhook mode..."' >> /app/docker-entrypoint.sh && \
-    echo '    sed -i "s/serverMode: \".*\"/serverMode: \"webhook\"/" ./server/config/server_config.js' >> /app/docker-entrypoint.sh && \
+    echo '    export SERVER_MODE=webhook' >> /app/docker-entrypoint.sh && \
     echo '    npm run start:server' >> /app/docker-entrypoint.sh && \
     echo '    ;;' >> /app/docker-entrypoint.sh && \
     echo '  "full"|*)' >> /app/docker-entrypoint.sh && \
     echo '    echo "Starting in full mode..."' >> /app/docker-entrypoint.sh && \
-    echo '    sed -i "s/serverMode: \".*\"/serverMode: \"full\"/" ./server/config/server_config.js' >> /app/docker-entrypoint.sh && \
+    echo '    export SERVER_MODE=full' >> /app/docker-entrypoint.sh && \
     echo '    npm run start' >> /app/docker-entrypoint.sh && \
     echo '    ;;' >> /app/docker-entrypoint.sh && \
     echo 'esac' >> /app/docker-entrypoint.sh

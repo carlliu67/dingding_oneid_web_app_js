@@ -1,27 +1,29 @@
 const config = {
+    nodeName: process.env.NODE_NAME || "", //当前节点名称，多节点部署时需要配置
+    
     // 钉钉对接参数
-    dingtalkCorpId: "", //CorpId
-    dingtalkAppId: "", //AppId
-    dingtalkAgentId: "", //AgentId
-    dingtalkClientId: "", //clientID(原 AppKey 和 SuiteKey)
-    dingtalkClientSecret: "", //clientSecret(原 AppSecret 和 SuiteSecret)
-    dingtalkRobotCode: "", //机器人code
-    dingtalkCalendarSwitch: false, //预约普通会议是是否创建钉钉日程，对周期会议不生效，周期会议固定会创建日程
-    dingtalkTodoSwitch: true, //预约普通会议是是否创建钉钉待办，对周期会议不生效，周期会议固定会创建日程
+    dingtalkCorpId: process.env.DINGTALK_CORP_ID || "", //CorpId
+    dingtalkAppId: process.env.DINGTALK_APP_ID || "", //AppId
+    dingtalkAgentId: process.env.DINGTALK_AGENT_ID || "", //AgentId
+    dingtalkClientId: process.env.DINGTALK_CLIENT_ID || "", //clientID(原 AppKey 和 SuiteKey)
+    dingtalkClientSecret: process.env.DINGTALK_CLIENT_SECRET || "", //clientSecret(原 AppSecret 和 SuiteSecret)
+    dingtalkRobotCode: process.env.DINGTALK_ROBOT_CODE || "", //机器人code
+    dingtalkCalendarSwitch: process.env.DINGTALK_CALENDAR_SWITCH === "true", //预约普通会议是是否创建钉钉日程，对周期会议不生效，周期会议固定会创建日程
+    dingtalkTodoSwitch: process.env.DINGTALK_TODO_SWITCH !== "false", //预约普通会议是是否创建钉钉待办，对周期会议不生效，周期会议固定会创建日程
 
     // server运行参数配置
-    apiPort: "7001",   //后端指定端口
-    serverMode: "full",  //当前server模式，可选back-end、webhook、full
-    frontEndServerUrl: "http://dingtalk-test.company.cn:7000",  //前端server地址
+    apiPort: process.env.API_PORT || "7001",   //后端指定端口
+    serverMode: process.env.SERVER_MODE || "full",  //当前server模式，可选back-end、webhook、full
+    frontEndServerUrl: process.env.FRONT_END_SERVER_URL || "",  //前端server地址
 
     // 腾讯会议对接参数
-    wemeetAPPID: "",   //腾讯会议应用APPID
-    wemeetRestAPISDKID: "",   //腾讯会议应用SDKID
-    wemeetRestAPISecretID: "",   //腾讯会议API应用SecretID
-    wemeetRestAPISecretKey: "",   //腾讯会议API应用SecretKey
-    wemmetWebhookToken: "",   //腾讯会议webhook回调token
-    wemeetWebhookAESKey: "",   //腾讯会议webhook回调AES密钥
-    wemeetSSOURL: "https://oauth2.account.tencent.com/v1/sso/jwtp/12xxx9/13xxx8/kit/meeting",   //腾讯会议IDaaS/Oneid免登链接前缀地址，需要替换成自己所在环境的地址
+    wemeetAPPID: process.env.WEMEET_APPID || "",   //腾讯会议应用APPID
+    wemeetRestAPISDKID: process.env.WEMEET_REST_API_SDKID || "",   //腾讯会议应用SDKID
+    wemeetRestAPISecretID: process.env.WEMEET_REST_API_SECRET_ID || "",   //腾讯会议API应用SecretID
+    wemeetRestAPISecretKey: process.env.WEMEET_REST_API_SECRET_KEY || "",   //腾讯会议API应用SecretKey
+    wemeetWebhookToken: process.env.WEMEET_WEBHOOK_TOKEN || "",   //腾讯会议webhook回调token
+    wemeetWebhookAESKey: process.env.WEMEET_WEBHOOK_AES_KEY || "",   //腾讯会议webhook回调AES密钥
+    wemeetSSOURL: process.env.WEMEET_SSO_URL || "",   //腾讯会议IDaaS/Oneid免登链接前缀地址，需要替换成自己所在环境的地址
     wemeetRestAPIServerUrl: "https://api.meeting.qq.com",   //腾讯会议API应用服务地址，不需要替换
 
     // app server接口配置，这部分参数不要修改
@@ -49,15 +51,27 @@ const config = {
     webhookMaxConcurrent: 5, // 最大并发处理数
 
     // 数据库对接参数
-    dbType: "sqlite", // 数据库类型："sqlite" 或 "mysql"
-    dbHost: "", // MySQL 数据库主机
-    dbPort: 3306, // MySQL 数据库端口
-    dbUser: "", // MySQL 数据库用户名
-    dbPassword: "", // MySQL 数据库密码
-    dbDatabase: "", // MySQL 数据库名称
+    dbType: process.env.DB_TYPE || "sqlite", // 数据库类型："sqlite" 或 "mysql"
+    dbHost: process.env.DB_HOST || "", // MySQL 数据库主机
+    dbPort: process.env.DB_PORT || 3306, // MySQL 数据库端口
+    dbUser: process.env.DB_USER || "", // MySQL 数据库用户名
+    dbPassword: process.env.DB_PASSWORD || "", // MySQL 数据库密码
+    dbDatabase: process.env.DB_DATABASE || "", // MySQL 数据库名称
+    
+    // SQLite 并发配置
+    sqliteBusyTimeout: parseInt(process.env.SQLITE_BUSY_TIMEOUT) || 30000, // SQLite 忙等待超时时间（毫秒）
+    sqliteWalMode: process.env.SQLITE_WAL_MODE !== "false", // 启用WAL模式以提高并发性能
+
+    // Redis对接参数（可选）
+    redisHost: process.env.REDIS_HOST || "", // Redis 主机地址，留空则不使用Redis
+    redisPort: process.env.REDIS_PORT || 6379, // Redis 端口
+    redisPassword: process.env.REDIS_PASSWORD || "", // Redis 密码（如果有）
+    redisDb: process.env.REDIS_DB || 0, // Redis 数据库索引
+    redisKeyPrefix: process.env.REDIS_KEY_PREFIX || "dingtalk:", // Redis 键前缀
+    redisUserAuthExpire: process.env.REDIS_USER_AUTH_EXPIRE || 3600, // 用户鉴权信息过期时间（秒）
 
     // 服务端日志打印
-    logLevel: "info", // 日志级别，可选值：debug, info, warn, error
+    logLevel: process.env.LOG_LEVEL || "info", // 日志级别，可选值：debug, info, warn, error
 };
 
 export default config;

@@ -9,9 +9,13 @@ import { handleCreateMeeting, handleQueryUserEndedMeetingList, handleQueryUserMe
 import { handleGenerateJoinScheme, handleGenerateJumpUrl, handleGenerateJoinUrl } from './wemeet/wemeetUtil.js';
 import { getUserAccessToken, getSignParameters } from './dingtalkapi/dingtalkAuth.js';
 import dbAdapter from './db/db_adapter.js';
+import { initRedis } from './db/redis.js';
 
 // 初始化数据库
 dbAdapter.initDatabase();
+
+// 初始化Redis
+initRedis();
 
 // Start Server
 const app = new Koa()

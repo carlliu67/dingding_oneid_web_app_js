@@ -3,18 +3,24 @@ import sqlite3 from'sqlite3';
 const sqlite = sqlite3.verbose();
 
 import { logger } from '../util/logger.js';
+import serverConfig from '../config/server_config.js';
 
 // 数据库配置
-const idTokenDBPath = path.join(process.cwd(), 'data', 'idtoken_database.db');
-const userinfoDBPath = path.join(process.cwd(), 'data', 'userinfo_database.db');
-const todoDBPath = path.join(process.cwd(), 'data', 'todo_database.db');
-const calendarDBPath = path.join(process.cwd(), 'data', 'calendar_database.db');
+const serverMode = serverConfig.serverMode || "full"; // 获取服务器模式
+const idTokenDBPath = path.join(process.cwd(), 'data', `${serverMode}_idtoken.db`);
+const userinfoDBPath = path.join(process.cwd(), 'data', `${serverMode}_userinfo.db`);
+const todoDBPath = path.join(process.cwd(), 'data', `${serverMode}_todo.db`);
+const calendarDBPath = path.join(process.cwd(), 'data', `${serverMode}_calendar.db`);
 
 // 全局数据库连接
 let idTokenDB = null;
 let userinfoDB = null;
 let todoDB = null;
 let calendarDB = null;
+
+// SQLite 并发配置
+const SQLITE_BUSY_TIMEOUT = serverConfig.sqliteBusyTimeout || 30000; // 30秒超时
+const SQLITE_WAL_MODE = serverConfig.sqliteWalMode !== false; // 启用WAL模式以提高并发性能
 
 // 打开或初始化 todo 数据库
 function openTodoDatabase() {
@@ -25,6 +31,21 @@ function openTodoDatabase() {
                 return;
             } else {
                 logger.info('Connected to the todo database.');
+                
+                // 配置数据库以提高并发性能
+                todoDB.configure("busyTimeout", SQLITE_BUSY_TIMEOUT);
+                
+                // 启用WAL模式以提高并发性能
+                if (SQLITE_WAL_MODE) {
+                    todoDB.run("PRAGMA journal_mode=WAL;", (err) => {
+                        if (err) {
+                            logger.error('Error setting WAL mode for todo database:', err.message);
+                        } else {
+                            logger.info('WAL mode enabled for todo database.');
+                        }
+                    });
+                }
+                
                 // 创建 todo 表（如果不存在）
                 todoDB.serialize(() => {
                     todoDB.run(`CREATE TABLE IF NOT EXISTS todo (
@@ -135,6 +156,21 @@ function openCalendarDatabase() {
                     return;
                 } else {
                     logger.info('Connected to the calendar database.');
+                    
+                    // 配置数据库以提高并发性能
+                    calendarDB.configure("busyTimeout", SQLITE_BUSY_TIMEOUT);
+                    
+                    // 启用WAL模式以提高并发性能
+                    if (SQLITE_WAL_MODE) {
+                        calendarDB.run("PRAGMA journal_mode=WAL;", (err) => {
+                            if (err) {
+                                logger.error('Error setting WAL mode for calendar database:', err.message);
+                            } else {
+                                logger.info('WAL mode enabled for calendar database.');
+                            }
+                        });
+                    }
+                    
                     // 创建 calendar 表（如果不存在）
                     calendarDB.serialize(() => {
                         calendarDB.run(`CREATE TABLE IF NOT EXISTS calendar (
@@ -252,6 +288,21 @@ function openUserinfoDatabase() {
                 return;
             } else {
                 logger.info('Connected to the userinfo database.');
+                
+                // 配置数据库以提高并发性能
+                userinfoDB.configure("busyTimeout", SQLITE_BUSY_TIMEOUT);
+                
+                // 启用WAL模式以提高并发性能
+                if (SQLITE_WAL_MODE) {
+                    userinfoDB.run("PRAGMA journal_mode=WAL;", (err) => {
+                        if (err) {
+                            logger.error('Error setting WAL mode for userinfo database:', err.message);
+                        } else {
+                            logger.info('WAL mode enabled for userinfo database.');
+                        }
+                    });
+                }
+                
                 // 创建 users 表（如果不存在）
                 userinfoDB.serialize(() => {
                     userinfoDB.run(`CREATE TABLE IF NOT EXISTS users (
@@ -355,6 +406,21 @@ function openIdTokenDatabase() {
                 logger.error(err.message); 
             } else {
                 logger.info('Connected to the idtoken database.');
+                
+                // 配置数据库以提高并发性能
+                idTokenDB.configure("busyTimeout", SQLITE_BUSY_TIMEOUT);
+                
+                // 启用WAL模式以提高并发性能
+                if (SQLITE_WAL_MODE) {
+                    idTokenDB.run("PRAGMA journal_mode=WAL;", (err) => {
+                        if (err) {
+                            logger.error('Error setting WAL mode for idtoken database:', err.message);
+                        } else {
+                            logger.info('WAL mode enabled for idtoken database.');
+                        }
+                    });
+                }
+                
                 // 创建表，以 userid 为主键，包含 idToken 和 expired 字段
                 idTokenDB.serialize(() => {
                     idTokenDB.run(`CREATE TABLE IF NOT EXISTS users (

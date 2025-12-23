@@ -15,9 +15,12 @@ dayjs.tz.setDefault(serverTimezone);
 
 class CustomLogger {
   constructor() {
+    // 获取节点名称，如果配置中没有设置，则使用默认值
+    const nodeName = serverConfig.nodeName || 'node';
+    
     // 创建文件传输并添加错误处理
     const fileTransport = new DailyRotateFile({
-      filename: 'logs/%DATE%.log',
+      filename: `logs/${nodeName}_%DATE%.log`,
       datePattern: 'YYYY-MM-DD',
       zippedArchive: true,
       maxSize: '20m',

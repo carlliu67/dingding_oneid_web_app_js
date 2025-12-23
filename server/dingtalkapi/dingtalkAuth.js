@@ -5,19 +5,34 @@ import { logger } from '../util/logger.js';
 import serverConfig from '../config/server_config.js';
 import { configAccessControl, okResponse, failResponse, setCookie } from '../server_util.js';
 import { getAccessToken, getInterAccessToken } from './dingtalkUtil.js';
+import { getUserAuthFromRedis, setUserAuthToRedis } from '../db/redis.js';
 
 const DD_JSTICKET_KEY = 'dd_jsticket'
 const USER_INFO_KEY = 'user_info'
 
 // 判断是否已登录
-function isLogin(ctx) {
+async function isLogin(ctx) {
     const userInfo = ctx.session.userInfo
     const lkUserInfo = ctx.cookies.get(USER_INFO_KEY) || ''
+    
+    // 本地Session中存在用户信息
     if (userInfo && lkUserInfo && userInfo.userid == lkUserInfo) {
-        logger.debug(`userInfo: ${JSON.stringify(userInfo)}`)
-        logger.debug(`lkUserInfo: ${JSON.stringify(lkUserInfo)}`)
+        logger.debug(`本地Session中找到用户信息: ${JSON.stringify(userInfo)}`)
         return true
     }
+    
+    // 本地Session中没有用户信息，尝试从Redis获取
+    if (lkUserInfo) {
+        logger.debug(`本地Session中未找到用户信息，尝试从Redis获取用户信息: ${lkUserInfo}`)
+        const redisUserInfo = await getUserAuthFromRedis(lkUserInfo);
+        if (redisUserInfo) {
+            // 将Redis中的用户信息恢复到本地Session
+            ctx.session.userInfo = redisUserInfo;
+            logger.debug(`从Redis恢复用户信息到Session: ${JSON.stringify(redisUserInfo)}`)
+            return true
+        }
+    }
+    
     return false
 }
 
@@ -33,7 +48,7 @@ async function getUserAccessToken(ctx) {
     logger.debug("\n-------------------[接入服务端免登处理 BEGIN]-----------------------------")
     configAccessControl(ctx)
     logger.debug(`接入服务方第① 步: 接收到前端免登请求`)
-    if (isLogin(ctx)) {
+    if (await isLogin(ctx)) {
         logger.debug("接入服务方第② 步: 从Session中获取user_access_token信息，用户已登录")
         const userInfo = ctx.session.userInfo
         ctx.body = okResponse(userInfo)
@@ -72,12 +87,16 @@ async function getUserAccessToken(ctx) {
             return
         }
 
-        logger.debug("接入服务方第⑤ 步: 获取用户信息, 更新到Session，返回给前端")
+        logger.debug("接入服务方第⑤ 步: 获取用户信息, 更新到Session和Redis，返回给前端")
         const resultUserInfo = authenv1Res.data.result
         if (resultUserInfo) {
             logger.debug("userInfo: ", resultUserInfo)
             ctx.session.userInfo = resultUserInfo
             setCookie(ctx, USER_INFO_KEY, resultUserInfo.userid || '')
+            
+            // 将用户信息存储到Redis
+            await setUserAuthToRedis(resultUserInfo.userid, resultUserInfo);
+            
             ctx.body = okResponse(resultUserInfo)
         } else {
             setCookie(ctx, USER_INFO_KEY, '')

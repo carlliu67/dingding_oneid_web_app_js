@@ -30,7 +30,7 @@ const webhookTaskQueue = new TaskQueue(serverConfig.webhookMaxConcurrent || 5);
  */
 function verifySignature(timestamp, nonce, data, signature) {
     // 1. 将token、timestamp、nonce、data按字典序排序
-    const arr = [serverConfig.wemmetWebhookToken, timestamp, nonce, data].sort();
+    const arr = [serverConfig.wemeetWebhookToken, timestamp, nonce, data].sort();
 
     // 2. 将排序后的字符串拼接成一个字符串
     const str = arr.join('');

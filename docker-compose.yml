@@ -6,12 +6,20 @@ services:
     container_name: dingding-front-end
     ports:
       - "7000:7000"
+    env_file:
+      - .env
     environment:
       - NODE_ENV=production
+      # 项目名称，用于生成节点名称
+      - COMPOSE_PROJECT_NAME=dingtalk
     command: ["front-end"]
     restart: unless-stopped
     networks:
       - dingding-network
+    volumes:
+      - ./config/front-end:/app/src/config
+      - ./logs:/app/logs
+      - ./data/front-end:/app/data
     profiles:
       - front-end
 
@@ -22,15 +30,19 @@ services:
     container_name: dingding-back-end
     ports:
       - "7001:7001"
+    env_file:
+      - .env
     environment:
       - NODE_ENV=production
+      # 项目名称，用于生成节点名称
+      - COMPOSE_PROJECT_NAME=dingtalk
     command: ["back-end"]
     restart: unless-stopped
     networks:
       - dingding-network
     volumes:
-      - ./server/config:/app/server/config
-      - ./logs/back-end:/app/logs
+      - ./config/back-end:/app/server/config
+      - ./logs:/app/logs
       - ./data/back-end:/app/data
     profiles:
       - back-end
@@ -42,16 +54,20 @@ services:
     container_name: dingding-webhook
     ports:
       - "7002:7002"
+    env_file:
+      - .env
     environment:
       - NODE_ENV=production
       - PORT=7002
+      # 项目名称，用于生成节点名称
+      - COMPOSE_PROJECT_NAME=dingtalk
     command: ["webhook"]
     restart: unless-stopped
     networks:
       - dingding-network
     volumes:
-      - ./server/config:/app/server/config
-      - ./logs/webhook:/app/logs
+      - ./config/webhook:/app/server/config
+      - ./logs:/app/logs
       - ./data/webhook:/app/data
     profiles:
       - webhook
@@ -64,15 +80,19 @@ services:
     ports:
       - "7000:7000"
       - "7001:7001"
+    env_file:
+      - .env
     environment:
       - NODE_ENV=production
+      # 项目名称，用于生成节点名称
+      - COMPOSE_PROJECT_NAME=dingtalk
     command: ["full"]
     restart: unless-stopped
     networks:
       - dingding-network
     volumes:
-      - ./server/config:/app/server/config
-      - ./logs/full:/app/logs
+      - ./config/full:/app/server/config
+      - ./logs:/app/logs
       - ./data/full:/app/data
     profiles:
       - full
@@ -80,8 +100,3 @@ services:
 networks:
   dingding-network:
     driver: bridge
-
-volumes:
-  config-data:
-  logs-data:
-  data-data:
