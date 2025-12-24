@@ -12,6 +12,8 @@ services:
       - NODE_ENV=production
       # 项目名称，用于生成节点名称
       - COMPOSE_PROJECT_NAME=dingtalk
+      # 容器名称，用于标识节点
+      - CONTAINER_NAME=dingding-front-end
     command: ["front-end"]
     restart: unless-stopped
     networks:
@@ -36,6 +38,8 @@ services:
       - NODE_ENV=production
       # 项目名称，用于生成节点名称
       - COMPOSE_PROJECT_NAME=dingtalk
+      # 容器名称，用于标识节点
+      - CONTAINER_NAME=dingding-back-end
     command: ["back-end"]
     restart: unless-stopped
     networks:
@@ -61,6 +65,8 @@ services:
       - PORT=7002
       # 项目名称，用于生成节点名称
       - COMPOSE_PROJECT_NAME=dingtalk
+      # 容器名称，用于标识节点
+      - CONTAINER_NAME=dingding-webhook
     command: ["webhook"]
     restart: unless-stopped
     networks:
@@ -86,6 +92,8 @@ services:
       - NODE_ENV=production
       # 项目名称，用于生成节点名称
       - COMPOSE_PROJECT_NAME=dingtalk
+      # 容器名称，用于标识节点
+      - CONTAINER_NAME=dingding-full
     command: ["full"]
     restart: unless-stopped
     networks:

@@ -1,5 +1,5 @@
 const config = {
-    nodeName: process.env.NODE_NAME || "", //当前节点名称，多节点部署时需要配置
+    nodeName: `${process.env.CONTAINER_NAME || 'node'}_${process.env.HOSTNAME || ''}`, //当前节点名称，多节点部署时需要配置
     
     // 钉钉对接参数
     dingtalkCorpId: process.env.DINGTALK_CORP_ID || "", //CorpId
