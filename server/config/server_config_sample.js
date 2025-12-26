@@ -72,6 +72,12 @@ const config = {
 
     // 服务端日志打印
     logLevel: process.env.LOG_LEVEL || "info", // 日志级别，可选值：debug, info, warn, error
+    
+    // 前端日志配置
+    enableFrontendLog: process.env.ENABLE_FRONTEND_LOG !== "false", // 是否启用前端日志收集
+    frontendLogPath: "/api/logs", // 前端日志接收API路径
+    frontendLogMaxSize: process.env.FRONTEND_LOG_MAX_SIZE || "100", // 前端日志队列最大大小
+    frontendLogFlushInterval: process.env.FRONTEND_LOG_FLUSH_INTERVAL || "10000", // 前端日志刷新间隔(毫秒)
 };
 
 export default config;

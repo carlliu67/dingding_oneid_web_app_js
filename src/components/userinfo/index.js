@@ -1,4 +1,5 @@
 import './index.css';
+import { frontendLogger } from '../../utils/logger.js';
 
 function UserInfo(props) {
 
@@ -6,7 +7,7 @@ function UserInfo(props) {
     if (!userInfo) {
         userInfo = {} 
     }
-    console.log(userInfo)
+    frontendLogger.info('用户信息', { userInfo });
 
     return (
         <div className='userinfo'>

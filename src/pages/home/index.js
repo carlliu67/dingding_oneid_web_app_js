@@ -4,6 +4,7 @@ import { handleJSAPIAccess, handleUserAuth, configJSAPIAccess, isMobileDevice } 
 import { handleGenerateJoinScheme, handleGenerateJumpUrl, handleGenerateJoinUrl } from '../../components/wemeetapi/wemeetApi.js';
 import './index.css';
 import clientConfig from '../../config/client_config.js';
+import { frontendLogger } from '../../utils/logger.js';
 
 export default function Home() {
     const [userInfo, setUserInfo] = useState({});
@@ -20,16 +21,16 @@ export default function Home() {
         // 免登处理
         handleUserAuth((userInfo) => {
             if (!userInfo) {
-                console.error('用户认证失败');
+                frontendLogger.error('用户认证失败');
                 setUserInfo({});
                 setIsLoaded(true);
                 return;
             }
             setUserInfo(userInfo);
-            console.log('userInfo: ', userInfo);
+            frontendLogger.info('用户信息', { userInfo });
             if (params.meetingCode || params.joinUrl) {
                 // 处理 code 参数
-                console.log('meetingCode:', params.meetingCode, "joinUrl (base64):", params.joinUrl);
+                frontendLogger.info('会议参数', { meetingCode: params.meetingCode, joinUrl: params.joinUrl });
                 setIsLoaded(false);
                 // 钉钉移动端不支持跳转到三方app，识别到为移动端是直接打开参会链接，引导用户跳转到系统浏览器
                 if (isMobileDevice()) {
@@ -43,10 +44,10 @@ export default function Home() {
                             base64Url += '=';
                         }
                         const decodedJoinUrl = atob(base64Url);
-                        console.log('joinUrl (decoded):', decodedJoinUrl);
+                        frontendLogger.info('joinUrl解码结果', { decodedJoinUrl });
                         handleGenerateJoinUrl(decodedJoinUrl, true);
                     } catch (error) {
-                        console.error('joinUrl解码失败:', error);
+                        frontendLogger.error('joinUrl解码失败', { error });
                         handleGenerateJoinUrl(params.joinUrl, true); // 解码失败时尝试直接使用
                     }
                 } else {
@@ -55,7 +56,7 @@ export default function Home() {
                 }
             } else if (params.targetUrl) {
                 // 处理 targetUrl 参数
-                console.log('targetUrl:', params.targetUrl);
+                frontendLogger.info('目标URL', { targetUrl: params.targetUrl });
                 setIsLoaded(false);
                 handleGenerateJumpUrl(params.targetUrl, true)
             } else {
@@ -67,14 +68,17 @@ export default function Home() {
         if (clientConfig.mode === 'schedule') {
             // 鉴权处理
             handleJSAPIAccess().then(data => {
-                if (data && data.data) {
-                    console.log('JSAPI鉴权参数获取成功');
-                    configJSAPIAccess(data.data);
+                if (data) {
+                    frontendLogger.info('JSAPI鉴权参数获取成功');
+                    return configJSAPIAccess(data);
                 } else {
-                    console.error('JSAPI鉴权参数获取失败');
+                    frontendLogger.error('JSAPI鉴权参数获取失败');
+                    throw new Error('JSAPI鉴权参数获取失败');
                 }
+            }).then(() => {
+                frontendLogger.info('JSAPI鉴权成功完成');
             }).catch(error => {
-                console.error('JSAPI鉴权失败:', error);
+                frontendLogger.error('JSAPI鉴权失败', { error });
             });
         }
     }, []);

@@ -46,7 +46,8 @@ function getUserid(ctx) {
 async function getUserAccessToken(ctx) {
 
     logger.debug("\n-------------------[接入服务端免登处理 BEGIN]-----------------------------")
-    configAccessControl(ctx)
+    // 不再设置CORS头，让Nginx处理
+    // configAccessControl(ctx)
     logger.debug(`接入服务方第① 步: 接收到前端免登请求`)
     if (await isLogin(ctx)) {
         logger.debug("接入服务方第② 步: 从Session中获取user_access_token信息，用户已登录")
@@ -83,7 +84,7 @@ async function getUserAccessToken(ctx) {
         })
 
         if (authenv1Res.data.errcode != 0) {  //非0表示失败
-            ctx.body = failResponse(`access_toke request error: ${authenv1Res.errmsg}`)
+            ctx.body = failResponse(`access_token request error: ${authenv1Res.data.errmsg}`)
             return
         }
 
@@ -113,7 +114,8 @@ async function getSignParameters(ctx) {
 
     logger.debug("\n-------------------[接入方服务端鉴权处理 BEGIN]-----------------------------")
     //logger.debug(ctx)
-    configAccessControl(ctx)
+    // 不再设置CORS头，让Nginx处理
+    // configAccessControl(ctx)
     logger.debug(`接入服务方第① 步: 接收到前端鉴权请求`)
 
     const url = ctx.query["url"] || ""
@@ -173,14 +175,17 @@ async function getSignParameters(ctx) {
 
 //计算JSAPI鉴权参数
 function calculateSignParam(jsticket, url) {
-    // logger.debug("calculateSignParam, jsticket: ", jsticket, "url: ", url, "decode url: ", decodeUrl(url));
     try {
         const timeStamp = Math.floor(Date.now()).toString(); // 转换为字符串类型
+        logger.debug(`计算签名使用的URL: ${url}`);
+        
         const plain = `jsapi_ticket=${jsticket}&noncestr=${serverConfig.wemeetAPPID}&timestamp=${timeStamp}&url=${decodeUrl(url)}`;
-        // logger.debug("plain: ", plain);
-        const sha1 = crypto.createHash('sha256');
+        logger.debug(`签名原文: ${plain}`);
+        
+        const sha1 = crypto.createHash('sha1');
         sha1.update(plain, 'utf8');
         let signature = byteToHex(sha1.digest());
+        
         const signParam = {
             "corpId": serverConfig.dingtalkCorpId,
             "agentId": serverConfig.dingtalkAgentId,
@@ -188,7 +193,9 @@ function calculateSignParam(jsticket, url) {
             "nonceStr": serverConfig.wemeetAPPID,
             "timeStamp": timeStamp,
         }
-        return signParam
+        
+        logger.debug(`生成的签名参数: ${JSON.stringify(signParam)}`);
+        return signParam;
     } catch (error) {
         logger.error('Error in sign function:', error);
         throw error;

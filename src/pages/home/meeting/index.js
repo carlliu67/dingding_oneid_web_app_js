@@ -5,6 +5,7 @@ import { handleCreateMeeting, handleQueryUserEndedMeetingList, handleQueryUserMe
 import { isMobileDevice } from '../../../utils/auth_access_util.js';
 import MeetingModal from './MeetingModal.js';
 import clientConfig from '../../../config/client_config.js';
+import { frontendLogger } from '../../../utils/logger.js';
 
 // 定义错误码常量
 const ERROR_CODE_LOGIN_REQUIRED = 500214; // 首次使用需要登录腾讯会议客户端的错误码
@@ -52,7 +53,7 @@ function MeetingList(props) {
   const [activeTab, setActiveTab] = useState('upcoming');
   const [isModalVisible, setIsModalVisible] = useState(false);
   let userInfo = props.userInfo;
-  console.log('userInfo:', userInfo);
+  frontendLogger.info('用户信息', { userInfo });
   if (!userInfo) {
     userInfo = {};
   }
@@ -71,7 +72,7 @@ function MeetingList(props) {
       // 确保即使之前列表为空，也会重新获取数据
       if (MeetingListTimestamp === 0 || currentTimestamp - MeetingListTimestamp > 30) {
         meetingListsResult = await handleQueryUserMeetingList();
-        console.log('meetingListsResult:', meetingListsResult);
+        frontendLogger.info('会议列表结果', { meetingListsResult });
         // 即使返回空结果也要更新状态和时间戳
         if (!meetingListsResult || meetingListsResult.meeting_number === 0) {
           setMeetings(upcomingMeetingList);
@@ -113,7 +114,7 @@ function MeetingList(props) {
       // 处理正在进行的会议逻辑
       if (MeetingListTimestamp === 0 || currentTimestamp - MeetingListTimestamp > 30) {
         meetingListsResult = await handleQueryUserMeetingList();
-        console.log('meetingListsResult:', meetingListsResult);
+        frontendLogger.info('会议列表结果', { meetingListsResult });
         if (!meetingListsResult || meetingListsResult.meeting_number === 0) {
           setMeetings(ongoingMeetingList);
           setOngoingMeetings(ongoingMeetingList);
@@ -161,7 +162,7 @@ function MeetingList(props) {
           setLoading(false);
           return;
         }
-        console.log('endedMeetingListsResult:', meetingListsResult);
+        frontendLogger.info('已结束会议列表结果', { meetingListsResult });
         for (let meetingInfo of meetingListsResult.meeting_info_list) {
           let formattedStartTime = formatTimestamp(meetingInfo.start_time);
           endedMeetingList.push({
@@ -267,7 +268,7 @@ function MeetingList(props) {
 
   // 加入会议的处理函数
   const handleJoinMeeting = (meeting_code, join_url) => {
-    console.log('Join meeting:', meeting_code, join_url);
+    frontendLogger.info('加入会议', { meeting_code, join_url });
     // 根据设备类型调用不同的加入会议函数
     if (isMobileDevice()) {
       // 移动端调用handleGenerateJoinUrl
@@ -280,15 +281,15 @@ function MeetingList(props) {
 
 
   const handleDelete = id => {
-    console.log('Delete:', id);
+    frontendLogger.info('删除会议', { id });
   };
 
   const handleExportMembers = id => {
-    console.log('Export members:', id);
+    frontendLogger.info('导出参会成员', { id });
   };
 
   const handleExportCheckin = id => {
-    console.log('Export checkin:', id);
+    frontendLogger.info('导出签到记录', { id });
   };
 
   const showModal = () => {
@@ -350,12 +351,12 @@ function MeetingList(props) {
         setMeetingListTimestamp(0);
       }
     } catch (error) {
-      console.error('创建会议失败-----:', error);
+      frontendLogger.error('创建会议失败', { error });
       // 即使出错也要尝试刷新列表
       try {
         setMeetingListTimestamp(0);
       } catch (refreshError) {
-        console.error('刷新会议列表失败:', refreshError);
+        frontendLogger.error('刷新会议列表失败', { error: refreshError });
       }
     }
   };

@@ -195,7 +195,8 @@ async function queryMeetingParticipants(meeting_id, userid) {
  */
 async function handleCreateMeeting(ctx) {
     logger.debug("\n-------------------[创建会议 BEGIN]-----------------------------");
-    configAccessControl(ctx);
+    // 不再设置CORS头，让Nginx处理
+    // configAccessControl(ctx);
     
     if (isLogin(ctx) === false) {
         ctx.body = failResponse("用户未登录，请先登录");
@@ -237,7 +238,8 @@ async function handleCreateMeeting(ctx) {
  */
 async function handleQueryUserEndedMeetingList(ctx) {
     logger.debug("\n-------------------[查询用户已结束会议列表 BEGIN]-----------------------------");
-    configAccessControl(ctx);
+    // 不再设置CORS头，让Nginx处理
+    // configAccessControl(ctx);
     
     if (isLogin(ctx) === false) {
         ctx.body = failResponse("用户未登录，请先登录");
@@ -281,7 +283,8 @@ async function handleQueryUserEndedMeetingList(ctx) {
  */
 async function handleQueryUserMeetingList(ctx) {
     logger.debug("\n-------------------[查询用户会议列表 BEGIN]-----------------------------");
-    configAccessControl(ctx);
+    // 不再设置CORS头，让Nginx处理
+    // configAccessControl(ctx);
     
     if (isLogin(ctx) === false) {
         ctx.body = failResponse("用户未登录，请先登录");

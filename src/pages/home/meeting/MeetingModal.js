@@ -4,6 +4,7 @@ import dayjs from 'dayjs';
 import * as dd from 'dingtalk-jsapi';
 import './MeetingModal.css'
 import clientConfig from '../../../config/client_config.js';
+import { frontendLogger } from '../../../utils/logger.js';
 const { Option } = Select;
 
 const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
@@ -58,7 +59,7 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
       const adjustedTime = now.add(minutesToAdd, 'minute');
       const adjustedEndTime = adjustedTime.add(30, 'minute');
       
-      console.log('Modal visible, updating time to:', adjustedTime.format('HH:mm'));
+      frontendLogger.info('Modal显示，更新时间', { time: adjustedTime.format('HH:mm') });
       
       // 更新状态变量
       setCurrentDate(now.startOf('day'));
@@ -100,7 +101,10 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
     const adjustedTime = newNow.add(minutesToAdd, 'minute');
     const adjustedEndTime = adjustedTime.add(30, 'minute');
     
-    console.log('showModal called, current time:', newNow.format('HH:mm'), 'adjusted to:', adjustedTime.format('HH:mm'));
+    frontendLogger.info('showModal调用', { 
+      currentTime: newNow.format('HH:mm'), 
+      adjustedTime: adjustedTime.format('HH:mm') 
+    });
     
     // 更新状态变量，触发组件重新渲染
     setCurrentDate(newDate);
@@ -176,7 +180,7 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
         // requiredDepartments: ['deptId0', 'deptId1'],
         // startWithDepartmentId: '0332',
         success: (res) => {
-          console.log('选择人员结果:', res); // 打印返回结果以帮助调试
+          frontendLogger.info('选择人员结果', { result: res });
 
           if (res && Array.isArray(res.users) && res.users.length > 0) {
               // 确认返回的是一个用户对象数组 [{ name, avatar, emplId }, ...]
@@ -185,7 +189,7 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
                 name: user.name
               }));
 
-              console.log('解析到人员数据:', hosts); // 打印解析后的人员数据
+              frontendLogger.info('解析到人员数据', { hosts });
               setSelectedHosts(hosts); // 设置选中的人员数据
 
           } else {
@@ -196,7 +200,7 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
         fail: () => { },
         complete: () => { },
       }).catch((err) => {
-        console.error('选择主持人失败:', err);
+        frontendLogger.error('选择主持人失败', { error: err });
       });
     });
   };
@@ -225,7 +229,7 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
         // requiredDepartments: ['deptId0', 'deptId1'],
         // startWithDepartmentId: '0332',
         success: (res) => {
-          console.log('选择邀请成员结果:', res); // 打印返回结果以帮助调试
+          frontendLogger.info('选择邀请成员结果', { result: res });
 
           if (res && Array.isArray(res.users) && res.users.length > 0) {
               // 确认返回的是一个用户对象数组 [{ name, avatar, emplId }, ...]
@@ -234,7 +238,7 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
                 name: user.name
               }));
 
-              console.log('解析到邀请成员数据:', invitees); // 打印解析后的人员数据
+              frontendLogger.info('解析到邀请成员数据', { invitees });
               setSelectedInvitees(invitees); // 设置选中的人员数据
 
           } else {
@@ -245,7 +249,7 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
         fail: () => { },
         complete: () => { },
       }).catch((err) => {
-        console.error('选择邀请成员失败:', err);
+        frontendLogger.error('选择邀请成员失败', { error: err });
       });
     });
   };
@@ -282,7 +286,7 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
     const endDateTime = dayjs(values.end_date).hour(dayjs(values.end_time).hour()).minute(dayjs(values.end_time).minute());
     meetingParams.end_time = String(endDateTime.unix());
     var meetingParamsStr = JSON.stringify(meetingParams);
-    console.log("meetingParamsStr: ", meetingParamsStr);
+    frontendLogger.info('会议参数字符串', { meetingParamsStr });
     onCreate(meetingParamsStr);
     // 清空组件内部的主持人和邀请人状态数据，确保下一次打开Modal时不会显示之前的数据
     setSelectedHosts([]); // 清空主持人数据

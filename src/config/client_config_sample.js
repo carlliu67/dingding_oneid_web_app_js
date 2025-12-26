@@ -38,6 +38,11 @@ const clientConfig = {
         message: "OK",
         data: {},
     },
+    
+    // 前端日志配置
+    enableFrontendLog: process.env.ENABLE_FRONTEND_LOG !== "false", // 是否启用前端日志收集
+    logQueueSize: parseInt(process.env.LOG_QUEUE_SIZE) || 100, // 日志队列最大大小
+    logFlushInterval: parseInt(process.env.LOG_FLUSH_INTERVAL) || 10000, // 日志刷新间隔(毫秒)
 }
     
 export default clientConfig;

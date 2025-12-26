@@ -215,7 +215,8 @@ async function generateJoinUrl(urlString, userid) {
 //处理生成scheme免登url请求，一次性scheme链接，用于跳转到会议客户端
 async function handleGenerateJoinScheme(ctx) {
     logger.debug("\n-------------------[获取scheme免登url BEGIN]-----------------------------");
-    configAccessControl(ctx);
+    // 不再设置CORS头，让Nginx处理
+    // configAccessControl(ctx);
 
     if (isLogin(ctx) === false) {
         ctx.body = failResponse("用户未登录，请先登录");
@@ -290,7 +291,8 @@ async function handleGenerateJoinScheme(ctx) {
 //处理生成免登跳转链接请求，一次性跳转链接，用于跳转到会议页面
 async function handleGenerateJumpUrl(ctx) {
     logger.debug("\n-------------------[获取免登url BEGIN]-----------------------------");
-    configAccessControl(ctx);
+    // 不再设置CORS头，让Nginx处理
+    // configAccessControl(ctx);
 
     if (isLogin(ctx) === false) {
         ctx.body = failResponse("用户未登录，请先登录");
@@ -356,7 +358,8 @@ async function handleGenerateJumpUrl(ctx) {
 // 处理生成免登入会链接joinUrl，非一次性链接，用于跳转会议客户端加入会议
 async function handleGenerateJoinUrl(ctx) {
     logger.debug("\n-------------------[获取免登入会url BEGIN]-----------------------------");
-    configAccessControl(ctx);
+    // 不再设置CORS头，让Nginx处理
+    // configAccessControl(ctx);
 
     if (isLogin(ctx) === false) {
         ctx.body = failResponse("用户未登录，请先登录");

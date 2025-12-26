@@ -10,6 +10,7 @@ import { handleGenerateJoinScheme, handleGenerateJumpUrl, handleGenerateJoinUrl 
 import { getUserAccessToken, getSignParameters } from './dingtalkapi/dingtalkAuth.js';
 import dbAdapter from './db/db_adapter.js';
 import { initRedis } from './db/redis.js';
+import { handleFrontendLogs } from './util/logHandler.js';
 
 // 初始化数据库
 dbAdapter.initDatabase();
@@ -37,6 +38,12 @@ app.use(session(koaSessionConfig, app));
 app.use(bodyParser());
 
 if (serverConfig.serverMode === "back-end" || serverConfig.serverMode === "full") {
+    // 处理OPTIONS预检请求
+    router.options('/api/:path*', (ctx) => {
+        ctx.status = 204;
+        // 不设置任何CORS头，让Nginx处理
+    });
+    
     // 注册服务端路由和处理
     router.get(serverConfig.getUserAccessTokenPath, getUserAccessToken)
     router.get(serverConfig.getSignParametersPath, getSignParameters)
@@ -47,6 +54,8 @@ if (serverConfig.serverMode === "back-end" || serverConfig.serverMode === "full"
     router.get(serverConfig.generateJumpUrlPath, handleGenerateJumpUrl)
     router.get(serverConfig.generateJoinUrlPath, handleGenerateJoinUrl)
     
+    // 前端日志接收接口
+    router.post('/api/logs', handleFrontendLogs)
 }
 
 if (serverConfig.serverMode === "webhook" || serverConfig.serverMode === "full") {

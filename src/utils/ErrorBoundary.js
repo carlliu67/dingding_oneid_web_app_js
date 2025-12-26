@@ -1,4 +1,11 @@
 import React from 'react';
+import { frontendLogger } from './logger.js';
+
+// 提取DingTalk部分userAgent的辅助函数
+function extractDingTalkUserAgent(userAgent) {
+    const dingTalkMatch = userAgent.match(/DingTalk\([^)]+\)/);
+    return dingTalkMatch ? dingTalkMatch[0] : '';
+}
 
 class ErrorBoundary extends React.Component {
     constructor(props) {
@@ -12,8 +19,23 @@ class ErrorBoundary extends React.Component {
     }
 
     componentDidCatch(error, errorInfo) {
-        // 你同样可以将错误日志上报给服务器
-        console.error('错误边界捕获到错误:', error, errorInfo);
+        // 将错误日志发送到服务器
+        frontendLogger.error('错误边界捕获到错误', { error, errorInfo });
+        
+        // 记录错误到前端日志系统
+        frontendLogger.error('React组件错误', {
+            error: {
+                name: error.name,
+                message: error.message,
+                stack: error.stack
+            },
+            errorInfo: {
+                componentStack: errorInfo.componentStack
+            },
+            location: window.location.href,
+            userAgent: extractDingTalkUserAgent(navigator.userAgent)
+        });
+        
         this.setState({
             error: error,
             errorInfo: errorInfo
