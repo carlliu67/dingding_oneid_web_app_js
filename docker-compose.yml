@@ -100,6 +100,7 @@ services:
       - dingding-network
     volumes:
       - ./config/full:/app/server/config
+      - ./config/front-end:/app/src/config
       - ./logs:/app/logs
       - ./data/full:/app/data
     profiles:
