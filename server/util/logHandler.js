@@ -3,7 +3,7 @@ import { logger } from '../util/logger.js';
 // 处理前端日志接收
 export const handleFrontendLogs = async (ctx) => {
   try {
-    const { logs, source } = ctx.request.body;
+    const { logs } = ctx.request.body;
     
     if (!logs || !Array.isArray(logs)) {
       ctx.status = 400;
@@ -20,12 +20,14 @@ export const handleFrontendLogs = async (ctx) => {
       const logLevel = log.level || 'info';
       const logMessage = `[前端日志] ${log.message}`;
       
-      // 添加额外的上下文信息
+      // 添加额外的上下文信息，包括callerInfo
       const logContext = {
-        source: source || 'frontend',
         url: log.url,
         userAgent: log.userAgent,
         timestamp: log.timestamp,
+        function: log.function,
+        file: log.file,
+        line: log.line,
         ...log.extra
       };
       

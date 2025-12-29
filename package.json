@@ -25,6 +25,7 @@
     "react-scripts": "5.0.1",
     "redis": "^4.6.0",
     "sqlite3": "^5.1.7",
+    "stacktrace-js": "^2.0.2",
     "web-vitals": "^2.1.0",
     "winston": "^3.17.0",
     "winston-daily-rotate-file": "^5.0.0"

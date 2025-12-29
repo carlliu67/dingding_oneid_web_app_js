@@ -1,5 +1,6 @@
 import axios from 'axios';
 import clientConfig from '../config/client_config.js';
+import StackTrace from 'stacktrace-js';
 
 class FrontendLogger {
   constructor() {
@@ -61,37 +62,140 @@ class FrontendLogger {
   }
   
   // 获取调用栈信息，提取文件名和行号
-  getCallerInfo() {
+  async getCallerInfo() {
+    try {
+      // 使用 StackTrace 获取更准确的调用信息
+      const stack = await StackTrace.get();
+      
+      // 调试：打印整个调用栈
+      console.debug('StackTrace result:', stack);
+      
+      // 跳过前几个栈帧（getCallerInfo, addLog, debug/info/error等内部调用）
+      // 调用链：调用方代码 -> debug/info/error -> addLog -> getCallerInfo
+      // 所以我们需要跳过至少3个栈帧，可能更多取决于调用方式
+      let callerIndex = 3; // 默认跳过3个栈帧
+      
+      // 如果调用栈中有更多内部函数，尝试找到真正的调用者
+      for (let i = 3; i < Math.min(stack.length, 8); i++) {
+        const frame = stack[i];
+        // 如果是logger.js内部的函数，继续跳过
+        if (frame.fileName && frame.fileName.includes('logger.js')) {
+          callerIndex = i + 1;
+        } else {
+          break; // 找到了非logger.js的函数，使用这个作为调用者
+        }
+      }
+      
+      if (stack.length > callerIndex) {
+        const caller = stack[callerIndex];
+        
+        const callerInfo = {
+          file: caller.fileName ? caller.fileName.split('/').pop() : 'unknown',
+          line: caller.lineNumber || 0,
+          function: caller.functionName || 'anonymous'
+        };
+        
+        // 如果是打包文件，添加标记
+        if (callerInfo.file.includes('bundle') || callerInfo.file.includes('chunk')) {
+          callerInfo.bundle = true;
+        } else {
+          callerInfo.bundle = false;
+        }
+        
+        // 调试：打印解析结果
+        console.debug(`Parsed caller info from StackTrace at index ${callerIndex}:`, callerInfo);
+        
+        return callerInfo;
+      }
+      
+      return {};
+    } catch (e) {
+      console.error('Error getting caller info with StackTrace:', e);
+      
+      // 如果 StackTrace 失败，回退到原始方法
+      return this.getCallerInfoFallback();
+    }
+  }
+  
+  // 原始的回退方法
+  getCallerInfoFallback() {
     try {
       const stack = new Error().stack;
       const stackLines = stack.split('\n');
-      // 跳过当前函数和addLog函数的调用栈，获取调用者的信息
-      const callerLine = stackLines[4] || stackLines[3] || '';
       
-      // 匹配文件名和行号
-      const match = callerLine.match(/at\s+.*\s+\((.*):(\d+):(\d+)\)/) || 
-                    callerLine.match(/at\s+(.*):(\d+):(\d+)/);
+      // 调试：打印整个调用栈
+      console.debug('Full stack trace (fallback):', stack);
       
-      if (match) {
-        return {
-          file: match[1].split('/').pop(), // 只取文件名，不取路径
-          line: match[2],
-          column: match[3]
-        };
+      // 尝试多个可能的调用栈索引，找到第一个能匹配的
+      // 调用链：调用方代码 -> debug/info/error -> addLog -> getCallerInfo
+      // 所以我们需要从索引4开始尝试，跳过内部调用
+      let callerIndex = -1;
+      
+      for (let i = 4; i <= 8; i++) {
+        const callerLine = stackLines[i] || '';
+        
+        // 调试：打印尝试匹配的调用行
+        console.debug(`Attempting to match caller line [${i}]:`, callerLine);
+        
+        // 尝试多种可能的格式
+        const match = callerLine.match(/at\s+.*\s+\((.*):(\d+):(\d+)\)/) || 
+                      callerLine.match(/at\s+(.*):(\d+):(\d+)/) ||
+                      callerLine.match(/(.*):(\d+):(\d+)/);
+        
+        if (match) {
+          const fullPath = match[1];
+          
+          // 如果是logger.js文件，继续查找下一个
+          if (fullPath.includes('logger.js')) {
+            continue;
+          }
+          
+          const fileName = fullPath.split('/').pop(); // 只取文件名，不取路径
+          
+          const callerInfo = {
+            file: fileName,
+            line: match[2]
+          };
+          
+          // 如果是打包文件，尝试从调用栈中获取更多有用的信息
+          if (fileName.includes('bundle') || fileName.includes('chunk')) {
+            // 尝试从调用栈中提取函数名或模块信息
+            const functionMatch = callerLine.match(/at\s+(\w+)/);
+            if (functionMatch) {
+              callerInfo.function = functionMatch[1];
+            }
+            
+            // 添加标记，表明这是打包后的文件
+            callerInfo.bundle = true;
+          }
+          
+          callerIndex = i;
+          
+          // 调试：打印解析结果
+          console.debug(`Parsed caller info at index ${i}:`, callerInfo);
+          
+          return callerInfo;
+        }
       }
+      
+      if (callerIndex === -1) {
+        console.debug('No match found in any caller line');
+      }
+      
       return {};
     } catch (e) {
+      console.error('Error getting caller info:', e);
       return {};
     }
   }
   
-  addLog(level, message, extra = {}) {
+  async addLog(level, message, extra = {}) {
     // 如果日志功能被禁用，则不记录
     if (!this.isEnabled) {
       return;
     }
     
-    const callerInfo = this.getCallerInfo();
+    const callerInfo = await this.getCallerInfo();
     const logEntry = {
       timestamp: this.getBeijingTimestamp(),
       level: level, // debug, info, warn, error
@@ -147,8 +251,7 @@ class FrontendLogger {
     
     try {
       await axios.post(this.logServerUrl, {
-        logs: logsToSend,
-        source: 'frontend'
+        logs: logsToSend
       }, {
         timeout: 5000,
         headers: {
@@ -195,8 +298,7 @@ class FrontendLogger {
     
     try {
       request.send(JSON.stringify({
-        logs: logsToSend,
-        source: 'frontend'
+        logs: logsToSend
       }));
     } catch (error) {
       console.error('同步发送日志失败:', error);

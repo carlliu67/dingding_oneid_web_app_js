@@ -7,11 +7,20 @@ WORKDIR /app
 # 复制 package.json 和 package-lock.json（如果存在）
 COPY package*.json ./
 
-# 安装依赖
-RUN npm install --only=production
+# 安装所有依赖（包括开发依赖，因为需要构建）
+RUN npm install
+
+# 安装 serve 包用于生产环境服务静态文件
+RUN npm install --save-dev serve
 
 # 复制整个应用代码
 COPY . .
+
+# 构建生产版本的前端
+RUN npm run build
+
+# 安装仅生产依赖（清理开发依赖）
+RUN npm prune --production
 
 # 创建必要的目录和配置文件备份
 RUN mkdir -p logs data && \
@@ -95,7 +104,14 @@ RUN echo '#!/bin/sh' > /app/docker-entrypoint.sh && \
     echo 'case "$MODE" in' >> /app/docker-entrypoint.sh && \
     echo '  "front-end")' >> /app/docker-entrypoint.sh && \
     echo '    echo "Starting in front-end mode..."' >> /app/docker-entrypoint.sh && \
-    echo '    npm run start:web' >> /app/docker-entrypoint.sh && \
+    echo '    if [ "$NODE_ENV" = "production" ]; then' >> /app/docker-entrypoint.sh && \
+    echo '      # 生产模式：使用简单的 HTTP 服务器服务构建后的文件' >> /app/docker-entrypoint.sh && \
+    echo '      echo "Using production build with simple HTTP server"' >> /app/docker-entrypoint.sh && \
+    echo '      npx serve -s build -l 7000' >> /app/docker-entrypoint.sh && \
+    echo '    else' >> /app/docker-entrypoint.sh && \
+    echo '      # 开发模式：使用 React 开发服务器' >> /app/docker-entrypoint.sh && \
+    echo '      npm run start:web' >> /app/docker-entrypoint.sh && \
+    echo '    fi' >> /app/docker-entrypoint.sh && \
     echo '    ;;' >> /app/docker-entrypoint.sh && \
     echo '  "back-end")' >> /app/docker-entrypoint.sh && \
     echo '    echo "Starting in back-end mode..."' >> /app/docker-entrypoint.sh && \
@@ -110,7 +126,14 @@ RUN echo '#!/bin/sh' > /app/docker-entrypoint.sh && \
     echo '  "full"|*)' >> /app/docker-entrypoint.sh && \
     echo '    echo "Starting in full mode..."' >> /app/docker-entrypoint.sh && \
     echo '    export SERVER_MODE=full' >> /app/docker-entrypoint.sh && \
-    echo '    npm run start' >> /app/docker-entrypoint.sh && \
+    echo '    if [ "$NODE_ENV" = "production" ]; then' >> /app/docker-entrypoint.sh && \
+    echo '      # 生产模式：后端 + 使用简单 HTTP 服务器的前端' >> /app/docker-entrypoint.sh && \
+    echo '      echo "Using production build with simple HTTP server for frontend"' >> /app/docker-entrypoint.sh && \
+    echo '      npm run start:server & npx serve -s build -l 7000' >> /app/docker-entrypoint.sh && \
+    echo '    else' >> /app/docker-entrypoint.sh && \
+    echo '      # 开发模式：后端 + React 开发服务器' >> /app/docker-entrypoint.sh && \
+    echo '      npm run start' >> /app/docker-entrypoint.sh && \
+    echo '    fi' >> /app/docker-entrypoint.sh && \
     echo '    ;;' >> /app/docker-entrypoint.sh && \
     echo 'esac' >> /app/docker-entrypoint.sh
 
