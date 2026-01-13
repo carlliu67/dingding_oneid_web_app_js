@@ -43,6 +43,18 @@ const clientConfig = {
     enableFrontendLog: process.env.ENABLE_FRONTEND_LOG !== "false", // 是否启用前端日志收集
     logQueueSize: parseInt(process.env.LOG_QUEUE_SIZE) || 100, // 日志队列最大大小
     logFlushInterval: parseInt(process.env.LOG_FLUSH_INTERVAL) || 10000, // 日志刷新间隔(毫秒)
+    
+    // Web Worker 日志处理配置
+    enableLogWorker: process.env.ENABLE_LOG_WORKER !== "false", // 是否启用 Web Worker 处理日志
+    logWorkerMaxRetryCount: parseInt(process.env.LOG_WORKER_MAX_RETRY_COUNT) || 3, // 日志发送最大重试次数
+    logWorkerBatchSize: parseInt(process.env.LOG_WORKER_BATCH_SIZE) || 50, // 每批发送的最大日志数量
+    
+    // 生产环境日志配置
+    productionLogConfig: {
+        enableErrorLogOnly: process.env.PROD_ENABLE_ERROR_ONLY !== "false", // 生产环境是否只记录错误日志
+        enableStackTrace: process.env.PROD_ENABLE_STACK_TRACE === "true", // 生产环境是否记录调用栈
+        logLevel: process.env.PROD_LOG_LEVEL || "error", // 生产环境日志级别: debug, info, warn, error
+    }
 }
     
 export default clientConfig;

@@ -1,6 +1,5 @@
 import axios from 'axios';
 import clientConfig from '../config/client_config.js';
-import StackTrace from 'stacktrace-js';
 
 class FrontendLogger {
   constructor() {
@@ -10,31 +9,124 @@ class FrontendLogger {
     this.flushInterval = clientConfig.logFlushInterval || 10000;
     this.isOnline = navigator.onLine;
     this.retryCount = 0;
-    this.maxRetryCount = 3;
+    this.maxRetryCount = clientConfig.logWorkerMaxRetryCount || 3;
     this.logServerUrl = this.getLogServerUrl();
     this.isEnabled = clientConfig.enableFrontendLog !== false;
+    
+    // 生产环境下禁用详细日志
+    if (process.env.NODE_ENV === 'production') {
+      // 生产环境默认禁用，除非明确启用
+      this.isEnabled = clientConfig.enableFrontendLog === true;
+      
+      // 生产环境日志级别控制
+      this.prodLogLevel = clientConfig.productionLogConfig?.logLevel || 'error';
+      this.enableErrorOnly = clientConfig.productionLogConfig?.enableErrorLogOnly !== false;
+      this.enableStackTrace = clientConfig.productionLogConfig?.enableStackTrace === true;
+    } else {
+      // 开发环境默认启用所有日志
+      this.prodLogLevel = 'debug';
+      this.enableErrorOnly = false;
+      this.enableStackTrace = true;
+    }
+    
+    // Web Worker 相关属性
+    this.worker = null;
+    this.workerSupported = typeof Worker !== 'undefined';
+    this.workerReady = false;
+    this.enableWorker = this.isEnabled && clientConfig.enableLogWorker !== false;
+    
+    // 初始化 Web Worker
+    if (this.workerSupported && this.enableWorker) {
+      this.initWorker();
+    }
     
     // 监听网络状态变化
     window.addEventListener('online', () => {
       this.isOnline = true;
-      this.flushLogs();
+      if (this.workerReady) {
+        this.worker.postMessage({ type: 'flush' });
+      } else {
+        this.flushLogs();
+      }
     });
     
     window.addEventListener('offline', () => {
       this.isOnline = false;
-    });
-    
-    // 定期发送日志
-    setInterval(() => {
-      if (this.isOnline) {
-        this.flushLogs();
+      if (this.workerReady) {
+        this.worker.postMessage({ 
+          type: 'update-config', 
+          data: { isOnline: false } 
+        });
       }
-    }, this.flushInterval);
+    });
     
     // 页面卸载时发送剩余日志
     window.addEventListener('beforeunload', () => {
-      this.flushLogsSync();
+      if (this.workerReady) {
+        this.worker.postMessage({ type: 'flush-sync' });
+      } else {
+        this.flushLogsSync();
+      }
     });
+  }
+  
+  // 初始化 Web Worker
+  initWorker() {
+    try {
+      // 创建 Worker 实例
+      this.worker = new Worker(new URL('./loggerWorker.js', import.meta.url), { type: 'module' });
+      
+      // 监听 Worker 消息
+      this.worker.addEventListener('message', (event) => {
+        const { type, data } = event.data;
+        
+        switch (type) {
+          case 'flush-success':
+            console.log(`成功发送 ${data.count} 条日志`);
+            this.retryCount = 0;
+            break;
+            
+          case 'flush-error':
+            console.error(`日志发送失败: ${data.error}, 重试次数: ${data.retryCount}`);
+            this.retryCount = data.retryCount;
+            break;
+            
+          case 'status':
+            console.log('日志队列状态:', data);
+            break;
+            
+          default:
+            // 处理未知的消息类型
+            console.warn(`未知的Worker消息类型: ${type}`);
+            break;
+        }
+      });
+      
+      // 监听 Worker 错误
+      this.worker.addEventListener('error', (error) => {
+        console.error('Worker 错误:', error);
+        this.workerReady = false;
+      });
+      
+      // 初始化 Worker 配置
+      this.worker.postMessage({
+        type: 'init',
+        data: {
+          maxQueueSize: this.maxQueueSize,
+          flushInterval: this.flushInterval,
+          maxRetryCount: this.maxRetryCount,
+          isOnline: this.isOnline,
+          logServerUrl: this.logServerUrl
+        }
+      });
+      
+      this.workerReady = true;
+      console.log('日志 Worker 初始化成功');
+      
+    } catch (error) {
+      console.error('初始化日志 Worker 失败:', error);
+      this.workerReady = false;
+    }
   }
   
   getLogServerUrl() {
@@ -52,7 +144,17 @@ class FrontendLogger {
     const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
     // 北京时间是UTC+8，所以加上8小时
     const beijingTime = new Date(utcTime + (8 * 3600000));
-    return beijingTime.toISOString();
+    
+    // 格式化为北京时间字符串，不使用toISOString()
+    const year = beijingTime.getFullYear();
+    const month = String(beijingTime.getMonth() + 1).padStart(2, '0');
+    const day = String(beijingTime.getDate()).padStart(2, '0');
+    const hours = String(beijingTime.getHours()).padStart(2, '0');
+    const minutes = String(beijingTime.getMinutes()).padStart(2, '0');
+    const seconds = String(beijingTime.getSeconds()).padStart(2, '0');
+    const milliseconds = String(beijingTime.getMilliseconds()).padStart(3, '0');
+    
+    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.${milliseconds}+08:00`;
   }
   
   // 提取DingTalk部分userAgent
@@ -62,143 +164,173 @@ class FrontendLogger {
   }
   
   // 获取调用栈信息，提取文件名和行号
-  async getCallerInfo() {
-    try {
-      // 使用 StackTrace 获取更准确的调用信息
-      const stack = await StackTrace.get();
-      
-      // 调试：打印整个调用栈
-      console.debug('StackTrace result:', stack);
-      
-      // 跳过前几个栈帧（getCallerInfo, addLog, debug/info/error等内部调用）
-      // 调用链：调用方代码 -> debug/info/error -> addLog -> getCallerInfo
-      // 所以我们需要跳过至少3个栈帧，可能更多取决于调用方式
-      let callerIndex = 3; // 默认跳过3个栈帧
-      
-      // 如果调用栈中有更多内部函数，尝试找到真正的调用者
-      for (let i = 3; i < Math.min(stack.length, 8); i++) {
-        const frame = stack[i];
-        // 如果是logger.js内部的函数，继续跳过
-        if (frame.fileName && frame.fileName.includes('logger.js')) {
-          callerIndex = i + 1;
-        } else {
-          break; // 找到了非logger.js的函数，使用这个作为调用者
-        }
-      }
-      
-      if (stack.length > callerIndex) {
-        const caller = stack[callerIndex];
-        
-        const callerInfo = {
-          file: caller.fileName ? caller.fileName.split('/').pop() : 'unknown',
-          line: caller.lineNumber || 0,
-          function: caller.functionName || 'anonymous'
-        };
-        
-        // 如果是打包文件，添加标记
-        if (callerInfo.file.includes('bundle') || callerInfo.file.includes('chunk')) {
-          callerInfo.bundle = true;
-        } else {
-          callerInfo.bundle = false;
-        }
-        
-        // 调试：打印解析结果
-        console.debug(`Parsed caller info from StackTrace at index ${callerIndex}:`, callerInfo);
-        
-        return callerInfo;
-      }
-      
-      return {};
-    } catch (e) {
-      console.error('Error getting caller info with StackTrace:', e);
-      
-      // 如果 StackTrace 失败，回退到原始方法
-      return this.getCallerInfoFallback();
+  getCallerInfo() {
+    // 如果调用栈被禁用，返回基本信息
+    if (!this.enableStackTrace) {
+      return {
+        file: 'unknown',
+        line: 0,
+        function: 'anonymous'
+      };
     }
-  }
-  
-  // 原始的回退方法
-  getCallerInfoFallback() {
+    
     try {
-      const stack = new Error().stack;
+      // 创建一个新的错误对象来获取调用栈
+      const error = new Error();
+      const stack = error.stack;
+      
+      if (!stack) {
+        return {
+          file: 'unknown',
+          line: 0,
+          function: 'anonymous'
+        };
+      }
+      
+      // 解析调用栈
       const stackLines = stack.split('\n');
       
-      // 调试：打印整个调用栈
-      console.debug('Full stack trace (fallback):', stack);
-      
-      // 尝试多个可能的调用栈索引，找到第一个能匹配的
-      // 调用链：调用方代码 -> debug/info/error -> addLog -> getCallerInfo
-      // 所以我们需要从索引4开始尝试，跳过内部调用
+      // 找到真正的调用者（非logger.js和frontendLogger的函数）
       let callerIndex = -1;
+      let functionName = 'anonymous';
+      let fileName = 'unknown';
+      let lineNumber = 0;
       
-      for (let i = 4; i <= 8; i++) {
-        const callerLine = stackLines[i] || '';
+      for (let i = 3; i < Math.min(stackLines.length, 10); i++) {
+        const line = stackLines[i];
         
-        // 调试：打印尝试匹配的调用行
-        console.debug(`Attempting to match caller line [${i}]:`, callerLine);
+        // 跳过logger.js和frontendLogger相关的栈帧
+        if (!line || line.includes('logger.js') || line.includes('frontendLogger')) {
+          continue;
+        }
         
-        // 尝试多种可能的格式
-        const match = callerLine.match(/at\s+.*\s+\((.*):(\d+):(\d+)\)/) || 
-                      callerLine.match(/at\s+(.*):(\d+):(\d+)/) ||
-                      callerLine.match(/(.*):(\d+):(\d+)/);
+        // 解析当前栈帧
+        const match = line.match(/at\s+(.+?)\s+\((.+?):(\d+):\d+\)|at\s+(.+?):(\d+):\d+/);
         
         if (match) {
-          const fullPath = match[1];
-          
-          // 如果是logger.js文件，继续查找下一个
-          if (fullPath.includes('logger.js')) {
-            continue;
-          }
-          
-          const fileName = fullPath.split('/').pop(); // 只取文件名，不取路径
-          
-          const callerInfo = {
-            file: fileName,
-            line: match[2]
-          };
-          
-          // 如果是打包文件，尝试从调用栈中获取更多有用的信息
-          if (fileName.includes('bundle') || fileName.includes('chunk')) {
-            // 尝试从调用栈中提取函数名或模块信息
-            const functionMatch = callerLine.match(/at\s+(\w+)/);
-            if (functionMatch) {
-              callerInfo.function = functionMatch[1];
-            }
-            
-            // 添加标记，表明这是打包后的文件
-            callerInfo.bundle = true;
+          if (match[1] && match[2] && match[3]) {
+            // 格式: at functionName (filename:line:column)
+            functionName = match[1];
+            fileName = match[2];
+            lineNumber = parseInt(match[3]);
+          } else {
+            // 格式: at filename:line:column
+            functionName = 'anonymous';
+            fileName = match[4];
+            lineNumber = parseInt(match[5]);
           }
           
           callerIndex = i;
-          
-          // 调试：打印解析结果
-          console.debug(`Parsed caller info at index ${i}:`, callerInfo);
-          
-          return callerInfo;
+          break;
         }
       }
       
+      // 如果没有找到有效的调用者，返回默认值
       if (callerIndex === -1) {
-        console.debug('No match found in any caller line');
+        return {
+          file: 'unknown',
+          line: 0,
+          function: 'anonymous'
+        };
       }
       
-      return {};
-    } catch (e) {
-      console.error('Error getting caller info:', e);
-      return {};
+      // 清理函数名
+      if (functionName && functionName !== 'anonymous') {
+        // 如果函数名看起来像是代码片段而不是函数名，则标记为匿名函数
+        if (functionName.includes('.') || functionName.includes('(') || functionName.includes('[')) {
+          // 检查是否是方法调用
+          if (functionName.includes('.')) {
+            const parts = functionName.split('.');
+            const lastPart = parts[parts.length - 1];
+            // 如果最后一部分看起来像函数名，则使用它
+            if (lastPart && /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(lastPart)) {
+              functionName = lastPart;
+            } else {
+              functionName = 'anonymous';
+            }
+          } else {
+            functionName = 'anonymous';
+          }
+        }
+        
+        // 如果函数名太长，可能是表达式，标记为匿名函数
+        if (functionName.length > 30) {
+          functionName = 'anonymous';
+        }
+      }
+      
+      // 提取文件名（去掉路径）
+      const justFileName = fileName ? fileName.split('/').pop() : 'unknown';
+      
+      const callerInfo = {
+        file: fileName,
+        line: lineNumber || 0,
+        function: functionName || 'anonymous'
+      };
+      
+      // 如果是打包文件，添加标记
+      if (justFileName && (justFileName.includes('bundle') || justFileName.includes('chunk'))) {
+        callerInfo.bundle = true;
+      } else {
+        callerInfo.bundle = false;
+      }
+      
+      return callerInfo;
+    } catch (error) {
+      console.error('获取调用栈信息失败:', error);
     }
+    
+    return {
+      file: 'unknown',
+      line: 0,
+      function: 'anonymous'
+    };
   }
   
-  async addLog(level, message, extra = {}) {
+  // 检查日志级别是否应该记录
+  shouldLog(level) {
     // 如果日志功能被禁用，则不记录
     if (!this.isEnabled) {
+      return false;
+    }
+    
+    // 生产环境下，如果只记录错误日志
+    if (process.env.NODE_ENV === 'production' && this.enableErrorOnly && level !== 'error') {
+      return false;
+    }
+    
+    // 检查日志级别
+    const levels = ['debug', 'info', 'warn', 'error'];
+    const currentLevelIndex = levels.indexOf(this.prodLogLevel);
+    const logLevelIndex = levels.indexOf(level);
+    
+    return logLevelIndex >= currentLevelIndex;
+  }
+  
+  // 添加日志到队列
+  addLog(level, message, extra = {}) {
+    // 检查是否应该记录此日志
+    if (!this.shouldLog(level)) {
       return;
     }
     
-    const callerInfo = await this.getCallerInfo();
+    // 只有warn和error级别才获取调用栈信息，优化性能
+    let callerInfo;
+    if (level === 'warn' || level === 'error') {
+      callerInfo = this.getCallerInfo();
+    } else {
+      // 其他级别提供默认信息
+      callerInfo = {
+        file: 'unknown',
+        line: 0,
+        function: 'anonymous',
+        bundle: false
+      };
+    }
+    
     const logEntry = {
       timestamp: this.getBeijingTimestamp(),
-      level: level, // debug, info, warn, error
+      level: level,
       message: message,
       url: window.location.href,
       userAgent: this.extractDingTalkUserAgent(navigator.userAgent),
@@ -206,40 +338,55 @@ class FrontendLogger {
       ...extra
     };
     
-    // 添加到队列
-    this.logQueue.push(logEntry);
-    
-    // 如果队列过大，移除最旧的日志
-    if (this.logQueue.length > this.maxQueueSize) {
-      this.logQueue.shift();
-    }
-    
-    // 如果是错误级别，立即尝试发送
-    if (level === 'error') {
-      this.flushLogs();
+    // 如果 Worker 准备就绪，将日志发送给 Worker 处理
+    if (this.workerReady) {
+      // 发送给 Worker
+      this.worker.postMessage({
+        type: 'add-log',
+        data: logEntry
+      });
+    } else {
+      // 降级处理：使用原有逻辑
+      // 添加到队列
+      this.logQueue.push(logEntry);
+      
+      // 如果队列过大，移除最旧的日志
+      if (this.logQueue.length > this.maxQueueSize) {
+        this.logQueue.shift();
+      }
+      
+      // 如果是错误级别，立即尝试发送
+      if (level === 'error') {
+        this.flushLogs();
+      }
     }
   }
   
+  // 调试日志
   debug(message, extra = {}) {
     this.addLog('debug', message, extra);
     console.debug(message, extra);
   }
   
+  // 信息日志
   info(message, extra = {}) {
     this.addLog('info', message, extra);
     console.info(message, extra);
   }
   
+  // 警告日志
   warn(message, extra = {}) {
     this.addLog('warn', message, extra);
     console.warn(message, extra);
   }
   
+  // 错误日志
   error(message, extra = {}) {
     this.addLog('error', message, extra);
     console.error(message, extra);
   }
   
+  // 发送日志到服务器（降级方法）
   async flushLogs() {
     if (this.logQueue.length === 0 || !this.isOnline) {
       return;
@@ -283,7 +430,7 @@ class FrontendLogger {
     }
   }
   
-  // 同步发送日志，用于页面卸载时
+  // 同步发送日志（用于页面卸载）
   flushLogsSync() {
     if (this.logQueue.length === 0) {
       return;
@@ -302,6 +449,39 @@ class FrontendLogger {
       }));
     } catch (error) {
       console.error('同步发送日志失败:', error);
+    }
+  }
+  
+  // 获取队列状态
+  getQueueStatus() {
+    if (this.workerReady) {
+      this.worker.postMessage({ type: 'get-status' });
+    } else {
+      return {
+        queueLength: this.logQueue.length,
+        maxQueueSize: this.maxQueueSize,
+        retryCount: this.retryCount,
+        isOnline: this.isOnline,
+        workerReady: this.workerReady
+      };
+    }
+  }
+  
+  // 清空日志队列
+  clearLogs() {
+    if (this.workerReady) {
+      this.worker.postMessage({ type: 'clear' });
+    } else {
+      this.logQueue = [];
+    }
+  }
+  
+  // 销毁 Worker
+  destroy() {
+    if (this.worker) {
+      this.worker.terminate();
+      this.worker = null;
+      this.workerReady = false;
     }
   }
 }

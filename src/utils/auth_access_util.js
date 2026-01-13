@@ -147,15 +147,15 @@ export function configJSAPIAccess(data) {
 //处理用户免登逻辑
 export function handleUserAuth(complete) {
 
-    frontendLogger.info("接入方网页免登处理开始");
+    frontendLogger.debug("接入方网页免登处理开始");
     let lj_tokenString = Cookies.get(USER_INFO_KEY) || ""
     if (lj_tokenString.length > 0) {
-        frontendLogger.info("接入方前端[免登处理]第① 步: 用户已登录，请求后端验证...");
+        frontendLogger.debug("接入方前端[免登处理]第① 步: 用户已登录，请求后端验证...");
         requestUserAccessToken("", complete)
     } else {
-        frontendLogger.info("接入方前端[免登处理]第① 步: 依据App ID调用JSAPI dd.requestAuthCode 请求免登授权码");
+        frontendLogger.debug("接入方前端[免登处理]第① 步: 依据App ID调用JSAPI dd.requestAuthCode 请求免登授权码");
         // console.log("corpId: " + clientConfig.corpId, "\nclientId: " + clientConfig.clientId)
-        frontendLogger.info("href", { href: window.location.href }); // 示例输出：https://example.com/path?query=1#hash
+        frontendLogger.debug("href", { href: window.location.href }); // 示例输出：https://example.com/path?query=1#hash
         dd.ready(function () {
             var corpId = clientConfig.corpId;
             // var clientId = clientConfig.clientId;
@@ -186,11 +186,11 @@ export function handleUserAuth(complete) {
 function requestUserAccessToken(code, complete) {
 
     // 获取user_access_token信息
-    frontendLogger.info("接入方前端[免登处理]第② 步: 去接入方服务端获取user_access_token信息");
+    frontendLogger.debug("接入方前端[免登处理]第② 步: 去接入方服务端获取user_access_token信息");
     var desUrl = `${getOrigin(clientConfig.apiPort)}${clientConfig.getUserAccessTokenPath}?code=${code}`
-    frontendLogger.info("desUrl", { url: desUrl });
-    frontendLogger.info("请求完整URL", { url: desUrl });
-    frontendLogger.info("请求配置: withCredentials: true");
+    frontendLogger.debug("desUrl", { url: desUrl });
+    frontendLogger.debug("请求完整URL", { url: desUrl });
+    frontendLogger.debug("请求配置: withCredentials: true");
     axios.get(desUrl,
         { 
             withCredentials: true,   //调用时设置 请求带上cookie
@@ -200,9 +200,9 @@ function requestUserAccessToken(code, complete) {
             }
         }
     ).then(function (response) {  // ignore_security_alert
-        frontendLogger.info("收到响应，状态码", { status: response.status });
-        frontendLogger.info("响应头", { headers: response.headers });
-        frontendLogger.info("响应数据", { data: response.data });
+        frontendLogger.debug("收到响应，状态码", { status: response.status });
+        frontendLogger.debug("响应头", { headers: response.headers });
+        frontendLogger.debug("响应数据", { data: response.data });
         if (!response.data) {
             frontendLogger.error(`${clientConfig.getUserAccessTokenPath} response.data is null`);
             frontendLogger.error("接口调用返回信息", { response: response });
@@ -216,16 +216,16 @@ function requestUserAccessToken(code, complete) {
             return
         }
         const data = response.data.data
-        frontendLogger.info("data", { data: data });
+        frontendLogger.debug("data", { data: data });
         if (data) {
-            frontendLogger.info("接入方前端[免登处理]第③ 步: 获取user_access_token信息");
+            frontendLogger.debug("接入方前端[免登处理]第③ 步: 获取user_access_token信息");
             localStorage.setItem(USER_INFO_KEY, data)
-            frontendLogger.info("接入方网页方免登处理结束");
+            frontendLogger.debug("接入方网页方免登处理结束");
             complete(data)
         } else {
             frontendLogger.error("接入方前端[免登处理]第③ 步: 未获取user_access_token信息");
             complete()
-            frontendLogger.info("接入方网页方免登处理结束");
+            frontendLogger.debug("接入方网页方免登处理结束");
         }
     }).catch(function (error) {
         frontendLogger.error("获取用户访问令牌失败", { 
@@ -262,7 +262,7 @@ function requestUserAccessToken(code, complete) {
         } else {
             frontendLogger.error("请求配置错误", { config: error.config });
         }
-        frontendLogger.info("接入方网页方免登处理结束");
+        frontendLogger.debug("接入方网页方免登处理结束");
         complete(null)
     })
 }
@@ -270,7 +270,7 @@ function requestUserAccessToken(code, complete) {
 export function getOrigin(apiPort) {
     // 使用相对路径，确保请求发送到当前域名下的指定端口
     let hostname = window.location.hostname;
-    frontendLogger.info(`构建API URL: ${clientConfig.serverProtocol}://${hostname}:${apiPort}`);
+    frontendLogger.debug(`构建API URL: ${clientConfig.serverProtocol}://${hostname}:${apiPort}`);
     return clientConfig.serverProtocol + `://${hostname}:${apiPort}`;
 }
 

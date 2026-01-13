@@ -191,19 +191,19 @@ async function handleQueryUserEndedMeetingList() {
 }
 
 async function handleQueryUserMeetingList() {
-    frontendLogger.info("\n----------[查询用户会议列表 BEGIN]----------")
+    frontendLogger.debug("\n----------[查询用户会议列表 BEGIN]----------")
     try {
         const requestUrl = `${getOrigin(clientConfig.apiPort)}${clientConfig.queryUserMeetingListPath}?pos=0&cursory=0`;
-        frontendLogger.info("会议列表请求URL", { url: requestUrl });
-        frontendLogger.info("请求配置: withCredentials: true");
+        frontendLogger.debug("会议列表请求URL", { url: requestUrl });
+        frontendLogger.debug("请求配置: withCredentials: true");
         
         var response = await axios.get(requestUrl,
             { withCredentials: true } // 调用时设置请求带上cookie
         );
 
-        frontendLogger.info("会议列表响应状态码", { status: response.status });
-        frontendLogger.info("会议列表响应头", { headers: response.headers });
-        frontendLogger.info("会议列表响应数据", { data: response.data });
+        frontendLogger.debug("会议列表响应状态码", { status: response.status });
+        frontendLogger.debug("会议列表响应头", { headers: response.headers });
+        frontendLogger.debug("会议列表响应数据", { data: response.data });
 
         if (!response || !response.data) {
             frontendLogger.error(`${clientConfig.queryUserMeetingListPath} response is null`);
@@ -212,11 +212,11 @@ async function handleQueryUserMeetingList() {
 
         const data = response.data;
         if (data) {
-            frontendLogger.info("查询用户会议列表: 成功")
+            frontendLogger.debug("查询用户会议列表: 成功")
         } else {
             frontendLogger.error("查询用户会议列表: 数据为空")
         }
-        frontendLogger.info("----------[查询用户会议列表 END]----------\n")
+        frontendLogger.debug("----------[查询用户会议列表 END]----------\n")
         return data.data;
     } catch (error) {
         frontendLogger.error(`${clientConfig.queryUserMeetingListPath} error`, { error })
