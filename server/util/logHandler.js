@@ -20,15 +20,13 @@ export const handleFrontendLogs = async (ctx) => {
       const logLevel = log.level || 'info';
       const logMessage = `[前端日志] ${log.message}`;
       
-      // 添加额外的上下文信息，包括callerInfo
+      // 添加额外的上下文信息，包括callerInfo和其他额外字段
+      const { level, message, url, userAgent, timestamp, function: func, file, line, ...extra } = log;
       const logContext = {
-        url: log.url,
-        userAgent: log.userAgent,
-        timestamp: log.timestamp,
-        function: log.function,
-        file: log.file,
-        line: log.line,
-        ...log.extra
+        url: url,
+        userAgent: userAgent,
+        timestamp: timestamp,
+        ...extra
       };
       
       // 根据日志级别记录

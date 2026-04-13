@@ -36,23 +36,13 @@ RUN echo '#!/bin/sh' > /app/docker-entrypoint.sh && \
     echo '' >> /app/docker-entrypoint.sh && \
     echo '# 检查服务器配置挂载目录是否为空' >> /app/docker-entrypoint.sh && \
     echo 'if [ -z "$(ls -A /app/server/config)" ]; then' >> /app/docker-entrypoint.sh && \
-    echo '  echo "挂载的服务器配置目录为空，复制配置文件..."' >> /app/docker-entrypoint.sh && \
+    echo '  echo "挂载的服务器配置目录为空，使用默认配置..."' >> /app/docker-entrypoint.sh && \
     echo '  cp -r /app/server/config.orig/* /app/server/config/ 2>/dev/null || true' >> /app/docker-entrypoint.sh && \
-    echo 'fi' >> /app/docker-entrypoint.sh && \
-    echo '# 确保服务器配置文件存在' >> /app/docker-entrypoint.sh && \
-    echo 'if [ ! -f "/app/server/config/server_config.js" ]; then' >> /app/docker-entrypoint.sh && \
-    echo '  echo "创建服务器配置文件..."' >> /app/docker-entrypoint.sh && \
-    echo '  cp /app/server/config/server_config_sample.js /app/server/config/server_config.js' >> /app/docker-entrypoint.sh && \
     echo 'fi' >> /app/docker-entrypoint.sh && \
     echo '# 检查前端配置挂载目录是否为空' >> /app/docker-entrypoint.sh && \
     echo 'if [ -z "$(ls -A /app/src/config)" ]; then' >> /app/docker-entrypoint.sh && \
-    echo '  echo "挂载的前端配置目录为空，复制配置文件..."' >> /app/docker-entrypoint.sh && \
+    echo '  echo "挂载的前端配置目录为空，使用默认配置..."' >> /app/docker-entrypoint.sh && \
     echo '  cp -r /app/src/config.orig/* /app/src/config/ 2>/dev/null || true' >> /app/docker-entrypoint.sh && \
-    echo 'fi' >> /app/docker-entrypoint.sh && \
-    echo '# 确保前端配置文件存在' >> /app/docker-entrypoint.sh && \
-    echo 'if [ ! -f "/app/src/config/client_config.js" ]; then' >> /app/docker-entrypoint.sh && \
-    echo '  echo "创建前端配置文件..."' >> /app/docker-entrypoint.sh && \
-    echo '  cp /app/src/config/client_config_sample.js /app/src/config/client_config.js' >> /app/docker-entrypoint.sh && \
     echo 'fi' >> /app/docker-entrypoint.sh && \
     echo '' >> /app/docker-entrypoint.sh && \
     echo '# 启动完整服务' >> /app/docker-entrypoint.sh && \

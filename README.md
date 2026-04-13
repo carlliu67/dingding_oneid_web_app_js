@@ -41,13 +41,6 @@ cp .env.example .env
 # 然后编辑 .env 文件，填入相关参数
 ```
 
-#### 后端配置文件
-确保 `server/config/server_config.js` 文件存在：
-
-```bash
-cp server/config/server_config_sample.js server/config/server_config.js
-```
-
 ### 3. 本地开发
 
 #### 方式一：使用 npm 脚本
@@ -107,8 +100,8 @@ npm run docker:run
 mkdir -p config/server config/client
 
 # 复制配置文件模板
-cp src/config/client_config_sample.js config/client/client_config.js
-cp server/config/server_config_sample.js config/server/server_config.js
+cp src/config/client_config.js config/client/client_config.js
+cp server/config/server_config.js config/server/server_config.js
 ```
 
 ## 配置说明
