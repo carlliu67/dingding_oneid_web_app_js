@@ -1,5 +1,5 @@
 const config = {
-    nodeName: `${process.env.CONTAINER_NAME || 'node'}_${process.env.HOSTNAME || ''}`, //当前节点名称，多节点部署时需要配置
+    nodeName: `${process.env.CONTAINER_NAME || 'node'}`, //当前节点名称，多节点部署时需要配置
     
     // 钉钉对接参数
     dingtalkCorpId: process.env.DINGTALK_CORP_ID || "", //CorpId
@@ -13,7 +13,6 @@ const config = {
 
     // server运行参数配置
     apiPort: process.env.API_PORT || "7001",   //后端指定端口
-    serverMode: process.env.SERVER_MODE || "full",  //当前server模式，可选back-end、webhook、full
     frontEndServerUrl: process.env.FRONT_END_SERVER_URL || "",  //前端server地址
 
     // 腾讯会议对接参数

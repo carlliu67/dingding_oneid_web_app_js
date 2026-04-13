@@ -104,7 +104,7 @@ async function flushLogs() {
     // eslint-disable-next-line no-undef
     globalThis.postMessage({
       type: 'flush-success',
-      count: logsToSend.length
+      data: { count: logsToSend.length }
     });
     
   } catch (error) {
@@ -123,8 +123,10 @@ async function flushLogs() {
     // eslint-disable-next-line no-undef
     globalThis.postMessage({
       type: 'flush-error',
-      error: error.message,
-      retryCount: config.retryCount
+      data: {
+        error: error.message,
+        retryCount: config.retryCount
+      }
     });
     
     // 如果重试次数未达到上限，延迟重试

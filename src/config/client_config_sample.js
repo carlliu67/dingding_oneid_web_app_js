@@ -12,7 +12,7 @@ const clientConfig = {
     debugSwitch: process.env.DEBUG_SWITCH === "true", //是否开启调试模式
 
     // 工作台应用打开模式
-    mode: process.env.MODE || 'upcoming', // 工作台应用打开模式，可选值：'app'（免登跳转腾讯会议客户端）、'upcoming'（展示待参加会议页面）、'schedule'（支持创建会议）
+    mode: process.env.MODE || 'schedule', // 工作台应用打开模式，可选值：'app'（免登跳转腾讯会议客户端）、'upcoming'（展示待参加会议页面）、'schedule'（支持创建会议）
 
     // 会议默认参数配置
     only_user_join_type: parseInt(process.env.ONLY_USER_JOIN_TYPE) || 1, // 成员入会限制类型，1：所有成员可入会，2：仅受邀成员可入会，3：仅企业内部成员可入会
@@ -39,21 +39,21 @@ const clientConfig = {
         data: {},
     },
     
-    // 前端日志配置
-    enableFrontendLog: process.env.ENABLE_FRONTEND_LOG !== "false", // 是否启用前端日志收集
-    logQueueSize: parseInt(process.env.LOG_QUEUE_SIZE) || 100, // 日志队列最大大小
-    logFlushInterval: parseInt(process.env.LOG_FLUSH_INTERVAL) || 10000, // 日志刷新间隔(毫秒)
+    // 前端日志配置（前端使用的环境变量需要 REACT_APP_ 前缀）
+    enableFrontendLog: process.env.REACT_APP_ENABLE_FRONTEND_LOG !== "false", // 是否启用前端日志收集
+    logQueueSize: parseInt(process.env.REACT_APP_LOG_QUEUE_SIZE) || 100, // 日志队列最大大小
+    logFlushInterval: parseInt(process.env.REACT_APP_LOG_FLUSH_INTERVAL) || 10000, // 日志刷新间隔(毫秒)
     
     // Web Worker 日志处理配置
-    enableLogWorker: process.env.ENABLE_LOG_WORKER !== "false", // 是否启用 Web Worker 处理日志
-    logWorkerMaxRetryCount: parseInt(process.env.LOG_WORKER_MAX_RETRY_COUNT) || 3, // 日志发送最大重试次数
-    logWorkerBatchSize: parseInt(process.env.LOG_WORKER_BATCH_SIZE) || 50, // 每批发送的最大日志数量
+    enableLogWorker: process.env.REACT_APP_ENABLE_LOG_WORKER !== "false", // 是否启用 Web Worker 处理日志
+    logWorkerMaxRetryCount: parseInt(process.env.REACT_APP_LOG_WORKER_MAX_RETRY_COUNT) || 3, // 日志发送最大重试次数
+    logWorkerBatchSize: parseInt(process.env.REACT_APP_LOG_WORKER_BATCH_SIZE) || 50, // 每批发送的最大日志数量
     
     // 生产环境日志配置
     productionLogConfig: {
-        enableErrorLogOnly: process.env.PROD_ENABLE_ERROR_ONLY !== "false", // 生产环境是否只记录错误日志
-        enableStackTrace: process.env.PROD_ENABLE_STACK_TRACE === "true", // 生产环境是否记录调用栈
-        logLevel: process.env.PROD_LOG_LEVEL || "error", // 生产环境日志级别: debug, info, warn, error
+        enableErrorLogOnly: process.env.REACT_APP_PROD_ENABLE_ERROR_ONLY !== "false", // 生产环境是否只记录错误日志
+        enableStackTrace: process.env.REACT_APP_PROD_ENABLE_STACK_TRACE === "true", // 生产环境是否记录调用栈
+        logLevel: process.env.REACT_APP_PROD_LOG_LEVEL || "error", // 生产环境日志级别: debug, info, warn, error
     }
 }
     

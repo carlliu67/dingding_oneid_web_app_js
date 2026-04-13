@@ -1,0 +1,139 @@
+# /usr/local/nginx-docker/conf/nginx.conf
+# 示例配置文件，请根据实际环境修改节点地址
+user  nginx;
+worker_processes  auto;
+
+error_log  /var/log/nginx/error.log notice;
+pid        /var/run/nginx.pid;
+
+events {
+    worker_connections  1024;
+}
+
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"';
+
+    access_log  /var/log/nginx/access.log  main;
+
+    sendfile        on;
+    keepalive_timeout  65;
+
+    # ========== 集群1：前端服务集群（对应7000端口） ==========
+    upstream wemeet_dingding_frontend_cluster {
+        # 替换为前端服务实际节点地址（IP:端口 / Docker容器名:端口）
+        server 192.168.1.101:7000 weight=1 max_fails=3 fail_timeout=10s;
+        # server 192.168.1.102:7000 weight=1 max_fails=3 fail_timeout=10s;
+        # 前端服务可选策略：ip_hash（保证同一客户端访问同一前端节点）
+    }
+
+    # ========== 集群2：后端服务集群（对应7001端口） ==========
+    upstream wemeet_dingding_backend_cluster {
+        # 替换为后端服务实际节点地址（IP:端口 / Docker容器名:端口）
+        server 192.168.1.201:7001 weight=1 max_fails=3 fail_timeout=10s;
+        # server 192.168.1.202:7001 weight=1 max_fails=3 fail_timeout=10s;
+    }
+
+    include /etc/nginx/conf.d/*.conf;
+
+    # ========== Server块1：监听7000端口，转发给前端集群 ==========
+    server {
+        listen       7000;
+        server_name  localhost;
+
+        # 前端服务访问日志
+        access_log  /var/log/nginx/frontend.access.log  main;
+        error_log   /var/log/nginx/frontend.error.log  warn;
+
+        # WebSocket endpoint for DingTalk H5 remote debugging
+        location /ws {
+            proxy_pass http://wemeet_dingding_frontend_cluster;
+            
+            # WebSocket specific headers
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host:$server_port;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            
+            # WebSocket timeout configuration
+            proxy_connect_timeout 7d;
+            proxy_read_timeout 7d;
+            proxy_send_timeout 7d;
+        }
+
+        # 所有7000端口的请求都转发给前端集群
+        location / {
+            proxy_pass http://wemeet_dingding_frontend_cluster;
+
+            # 必要代理头
+            proxy_set_header Host $host:$server_port; # 保留端口信息
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+
+            # 超时配置
+            proxy_connect_timeout 30s;
+            proxy_read_timeout 60s;
+        }
+
+        error_page   500 502 503 504  /50x.html;
+        location = /50x.html {
+            root   /usr/share/nginx/html;
+        }
+    }
+
+    # ========== Server块2：监听7001端口，转发给后端集群 ==========
+    server {
+        listen       7001;
+        server_name  localhost;
+
+        # 7001端口独立日志
+        access_log  /var/log/nginx/port7001.access.log  main;
+        error_log   /var/log/nginx/port7001.error.log  warn;
+
+        # 前缀匹配：7001/api/
+        location /api/ {
+            proxy_pass http://wemeet_dingding_backend_cluster;
+
+            # 修复Host头传递，使用后端服务器的实际Host
+            proxy_set_header Host $proxy_host:$proxy_port;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            
+            # 确保Cookie正确传递
+            proxy_cookie_domain $proxy_host your-domain.com;
+            proxy_cookie_path / "/";
+
+            proxy_connect_timeout 30s;
+            proxy_read_timeout 60s;
+
+            # 修复CORS配置，指定具体域名而不是通配符，以支持携带Cookie的请求
+            add_header Access-Control-Allow-Origin $http_origin always;
+            add_header Access-Control-Allow-Methods GET,POST,PUT,DELETE,OPTIONS always;
+            add_header Access-Control-Allow-Headers Content-Type,Authorization always;
+            add_header Access-Control-Allow-Credentials true always;
+            
+            if ($request_method = OPTIONS) {
+                return 204;
+            }
+        }
+
+        # 7001端口非/api路径默认返回404（或按需配置）
+        location / {
+            return 404 "Port 7001 only supports /api/ paths\n";
+        }
+
+        error_page   500 502 503 504  /50x.html;
+        location = /50x.html {
+            root   /usr/share/nginx/html;
+        }
+    }
+}

@@ -6,11 +6,10 @@ import { logger } from '../util/logger.js';
 import serverConfig from '../config/server_config.js';
 
 // 数据库配置
-const serverMode = serverConfig.serverMode || "full"; // 获取服务器模式
-const idTokenDBPath = path.join(process.cwd(), 'data', `${serverMode}_idtoken.db`);
-const userinfoDBPath = path.join(process.cwd(), 'data', `${serverMode}_userinfo.db`);
-const todoDBPath = path.join(process.cwd(), 'data', `${serverMode}_todo.db`);
-const calendarDBPath = path.join(process.cwd(), 'data', `${serverMode}_calendar.db`);
+const idTokenDBPath = path.join(process.cwd(), 'data', `idtoken.db`);
+const userinfoDBPath = path.join(process.cwd(), 'data', `userinfo.db`);
+const todoDBPath = path.join(process.cwd(), 'data', `todo.db`);
+const calendarDBPath = path.join(process.cwd(), 'data', `calendar.db`);
 
 // 全局数据库连接
 let idTokenDB = null;
