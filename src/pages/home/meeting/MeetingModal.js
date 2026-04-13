@@ -59,12 +59,12 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
       const adjustedTime = now.add(minutesToAdd, 'minute');
       const adjustedEndTime = adjustedTime.add(30, 'minute');
       
-      frontendLogger.info('Modal显示，更新时间', { time: adjustedTime.format('HH:mm') });
+      frontendLogger.info('Modal显示，更新时间', { time: adjustedTime.format('YYYY-MM-DD HH:mm') });
       
-      // 更新状态变量
-      setCurrentDate(now.startOf('day'));
+      // 更新状态变量 - 使用调整后的时间来设置日期（处理跨日期的情况）
+      setCurrentDate(adjustedTime.startOf('day'));
       setCurrentTime(adjustedTime);
-      setCurrentEndDate(now.startOf('day'));
+      setCurrentEndDate(adjustedEndTime.startOf('day'));
       setCurrentEndTime(adjustedEndTime);
       
       // 延迟执行以确保formRef已初始化
@@ -92,7 +92,6 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
   const showModal = () => {
     // 使用新的变量名避免混淆
     const newNow = dayjs();
-    const newDate = newNow.startOf('day');
     
     // 计算未来最近的15分钟间隔时间
     const currentMinutes = newNow.minute();
@@ -102,14 +101,14 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
     const adjustedEndTime = adjustedTime.add(30, 'minute');
     
     frontendLogger.info('showModal调用', { 
-      currentTime: newNow.format('HH:mm'), 
-      adjustedTime: adjustedTime.format('HH:mm') 
+      currentTime: newNow.format('YYYY-MM-DD HH:mm'), 
+      adjustedTime: adjustedTime.format('YYYY-MM-DD HH:mm') 
     });
     
-    // 更新状态变量，触发组件重新渲染
-    setCurrentDate(newDate);
+    // 更新状态变量，触发组件重新渲染 - 使用调整后的时间来设置日期（处理跨日期的情况）
+    setCurrentDate(adjustedTime.startOf('day'));
     setCurrentTime(adjustedTime);
-    setCurrentEndDate(newDate);
+    setCurrentEndDate(adjustedEndTime.startOf('day'));
     setCurrentEndTime(adjustedEndTime);
     
     // 强制更新表单值
