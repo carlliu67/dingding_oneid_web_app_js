@@ -4,7 +4,5 @@ build/**
 node_modules/**
 logs/**
 server/config/rsa_private_key.pem
-src/config/client_config.js
-server/config/server_config.js
 .env
 *.conf
