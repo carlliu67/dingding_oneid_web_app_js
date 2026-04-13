@@ -1,20 +1,28 @@
 import dotenv from 'dotenv';
-// 加载环境变量配置
-dotenv.config();
+import path from 'path';
+
+// 获取项目根目录（相对于当前文件的路径）
+const projectRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
+const envPath = path.join(projectRoot, '.env');
+
+// 加载环境变量配置（必须在导入其他模块之前执行）
+dotenv.config({ path: envPath });
+
+// 使用动态 import 确保环境变量已加载后再导入配置
+const { default: serverConfig } = await import('./config/server_config.js');
+const { logger } = await import('./util/logger.js');
+const { handleVerification, handleEvent } = await import('./wemeet/webhook.js');
+const { handleCreateMeeting, handleQueryUserEndedMeetingList, handleQueryUserMeetingList } = await import('./wemeet/wemeetApi.js');
+const { handleGenerateJoinScheme, handleGenerateJumpUrl, handleGenerateJoinUrl } = await import('./wemeet/wemeetUtil.js');
+const { getUserAccessToken, getSignParameters } = await import('./dingtalkapi/dingtalkAuth.js');
+const dbAdapter = (await import('./db/db_adapter.js')).default;
+const { initRedis } = await import('./db/redis.js');
+const { handleFrontendLogs } = await import('./util/logHandler.js');
 
 import Koa from 'koa';
 import Router from 'koa-router';
 import session from 'koa-session';
-import serverConfig from './config/server_config.js';
 import bodyParser from 'koa-bodyparser';
-import { logger } from './util/logger.js';
-import { handleVerification, handleEvent } from './wemeet/webhook.js';
-import { handleCreateMeeting, handleQueryUserEndedMeetingList, handleQueryUserMeetingList } from './wemeet/wemeetApi.js';
-import { handleGenerateJoinScheme, handleGenerateJumpUrl, handleGenerateJoinUrl } from './wemeet/wemeetUtil.js';
-import { getUserAccessToken, getSignParameters } from './dingtalkapi/dingtalkAuth.js';
-import dbAdapter from './db/db_adapter.js';
-import { initRedis } from './db/redis.js';
-import { handleFrontendLogs } from './util/logHandler.js';
 
 // 初始化数据库
 dbAdapter.initDatabase();
