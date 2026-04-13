@@ -163,6 +163,63 @@ class FrontendLogger {
     return dingTalkMatch ? dingTalkMatch[0] : '';
   }
   
+  // 安全序列化对象，处理无法被postMessage克隆的对象
+  safeSerialize(obj) {
+    const seen = new WeakSet();
+    
+    const serialize = (value) => {
+      if (value === null || value === undefined) {
+        return null;
+      }
+      
+      if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+        return value;
+      }
+      
+      if (value instanceof Date) {
+        return value.toISOString();
+      }
+      
+      if (value instanceof Error) {
+        return {
+          type: value.name || 'Error',
+          message: value.message,
+          stack: value.stack,
+          ...(value.response ? { response: serialize(value.response) } : {})
+        };
+      }
+      
+      if (Array.isArray(value)) {
+        if (seen.has(value)) {
+          return '[Circular]';
+        }
+        seen.add(value);
+        return value.map(item => serialize(item));
+      }
+      
+      if (typeof value === 'object') {
+        if (seen.has(value)) {
+          return '[Circular]';
+        }
+        seen.add(value);
+        
+        const result = {};
+        for (const key of Object.keys(value)) {
+          try {
+            result[key] = serialize(value[key]);
+          } catch (e) {
+            result[key] = '[Unserializable]';
+          }
+        }
+        return result;
+      }
+      
+      return '[Unserializable]';
+    };
+    
+    return serialize(obj);
+  }
+  
   // 获取调用栈信息，提取文件名和行号
   getCallerInfo() {
     // 如果调用栈被禁用，返回基本信息
@@ -340,11 +397,18 @@ class FrontendLogger {
     
     // 如果 Worker 准备就绪，将日志发送给 Worker 处理
     if (this.workerReady) {
-      // 发送给 Worker
-      this.worker.postMessage({
-        type: 'add-log',
-        data: logEntry
-      });
+      try {
+        // 发送给 Worker，使用安全序列化处理可能无法克隆的对象
+        const serializedEntry = this.safeSerialize(logEntry);
+        this.worker.postMessage({
+          type: 'add-log',
+          data: serializedEntry
+        });
+      } catch (e) {
+        console.error('日志发送到Worker失败:', e);
+        // 降级处理：添加到队列
+        this.logQueue.push(logEntry);
+      }
     } else {
       // 降级处理：使用原有逻辑
       // 添加到队列

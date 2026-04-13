@@ -9,6 +9,7 @@ import jwt from 'jsonwebtoken';
 import fs from 'fs';
 import path from 'path';
 import { isLogin, getUserid } from '../dingtalkapi/dingtalkAuth.js';
+import axios from 'axios';
 
 const USER_INFO_KEY = 'user_info'
 
@@ -216,7 +217,7 @@ async function generateJoinUrl(urlString, userid) {
 async function handleGenerateJoinScheme(ctx) {
     logger.debug("\n-------------------[获取scheme免登url BEGIN]-----------------------------");
     // 不再设置CORS头，让Nginx处理
-    // configAccessControl(ctx);
+    configAccessControl(ctx);
 
     if (isLogin(ctx) === false) {
         ctx.body = failResponse("用户未登录，请先登录");
@@ -233,12 +234,25 @@ async function handleGenerateJoinScheme(ctx) {
     let schemeUrl = "";
 
     while (true) {
-        let response = await fetch(initialUrl, {
-            redirect: 'manual',
-            headers: { 'Cookie': await cookieJar.getCookieString(initialUrl) }
-        });
+        let response;
+        try {
+            response = await axios.get(initialUrl, {
+                maxRedirects: 0,
+                headers: { 'Cookie': await cookieJar.getCookieString(initialUrl) },
+                validateStatus: function (status) {
+                    return status >= 200 && status < 400;
+                }
+            });
+        } catch (error) {
+            if (error.response && [302, 303].includes(error.response.status)) {
+                response = error.response;
+            } else {
+                logger.error("fetch error:", error.message);
+                break;
+            }
+        }
 
-        var redirectUrl = response.headers.get('location');
+        var redirectUrl = response.headers['location'];
         logger.debug("redirectUrl: " + redirectUrl);
         // 如果redirectUrl为null，说明没有更多重定向，退出循环
         if (!redirectUrl) {
@@ -254,7 +268,7 @@ async function handleGenerateJoinScheme(ctx) {
         }
 
         // 更新 Cookie
-        const setCookieHeaders = response.headers.getSetCookie();
+        const setCookieHeaders = response.headers['set-cookie'];
         if (setCookieHeaders) {
             for (const cookieHeader of setCookieHeaders) {
                 await cookieJar.setCookie(cookieHeader, initialUrl);
@@ -263,7 +277,7 @@ async function handleGenerateJoinScheme(ctx) {
 
         // 处理重定向
         if ([302, 303].includes(response.status)) {
-            redirectUrl = response.headers.get('location');
+            redirectUrl = response.headers['location'];
             logger.debug(`Redirecting to: ${redirectUrl}`);
             initialUrl = redirectUrl;
             continue;
@@ -292,7 +306,7 @@ async function handleGenerateJoinScheme(ctx) {
 async function handleGenerateJumpUrl(ctx) {
     logger.debug("\n-------------------[获取免登url BEGIN]-----------------------------");
     // 不再设置CORS头，让Nginx处理
-    // configAccessControl(ctx);
+    configAccessControl(ctx);
 
     if (isLogin(ctx) === false) {
         ctx.body = failResponse("用户未登录，请先登录");
@@ -312,14 +326,27 @@ async function handleGenerateJumpUrl(ctx) {
     let jumpUrl = "";
 
     while (true) {
-        let response = await fetch(initialUrl, {
-            redirect: 'manual',
-            headers: { 'Cookie': await cookieJar.getCookieString(initialUrl) }
-        });
+        let response;
+        try {
+            response = await axios.get(initialUrl, {
+                maxRedirects: 0,
+                headers: { 'Cookie': await cookieJar.getCookieString(initialUrl) },
+                validateStatus: function (status) {
+                    return status >= 200 && status < 400;
+                }
+            });
+        } catch (error) {
+            if (error.response && [302, 303].includes(error.response.status)) {
+                response = error.response;
+            } else {
+                logger.error("fetch error:", error.message);
+                break;
+            }
+        }
 
-        var redirectUrl = response.headers.get('location');
+        var redirectUrl = response.headers['location'];
         logger.debug("redirectUrl: " + redirectUrl);
-        if (redirectUrl.includes('sso_auth_code')) {
+        if (redirectUrl && redirectUrl.includes('sso_auth_code')) {
             const urlParams = new URLSearchParams(redirectUrl.split('?')[1]);
             ssoAuthCode = urlParams.get('sso_auth_code');
             logger.debug("sso_auth_code: " + ssoAuthCode);
@@ -328,7 +355,7 @@ async function handleGenerateJumpUrl(ctx) {
         }
 
         // 更新 Cookie
-        const setCookieHeaders = response.headers.getSetCookie();
+        const setCookieHeaders = response.headers['set-cookie'];
         if (setCookieHeaders) {
             for (const cookieHeader of setCookieHeaders) {
                 await cookieJar.setCookie(cookieHeader, initialUrl);
@@ -337,7 +364,7 @@ async function handleGenerateJumpUrl(ctx) {
 
         // 处理重定向
         if ([302, 303].includes(response.status)) {
-            redirectUrl = response.headers.get('location');
+            redirectUrl = response.headers['location'];
             logger.debug(`Redirecting to: ${redirectUrl}`);
             initialUrl = redirectUrl;
             continue;
@@ -359,7 +386,7 @@ async function handleGenerateJumpUrl(ctx) {
 async function handleGenerateJoinUrl(ctx) {
     logger.debug("\n-------------------[获取免登入会url BEGIN]-----------------------------");
     // 不再设置CORS头，让Nginx处理
-    // configAccessControl(ctx);
+    configAccessControl(ctx);
 
     if (isLogin(ctx) === false) {
         ctx.body = failResponse("用户未登录，请先登录");

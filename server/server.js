@@ -12,12 +12,13 @@ dotenv.config({ path: envPath });
 const { default: serverConfig } = await import('./config/server_config.js');
 const { logger } = await import('./util/logger.js');
 const { handleVerification, handleEvent } = await import('./wemeet/webhook.js');
-const { handleCreateMeeting, handleQueryUserEndedMeetingList, handleQueryUserMeetingList } = await import('./wemeet/wemeetApi.js');
+const { handleCreateMeeting, handleQueryUserEndedMeetingList, handleQueryUserMeetingList, handleGetUserInfo } = await import('./wemeet/wemeetApi.js');
 const { handleGenerateJoinScheme, handleGenerateJumpUrl, handleGenerateJoinUrl } = await import('./wemeet/wemeetUtil.js');
 const { getUserAccessToken, getSignParameters } = await import('./dingtalkapi/dingtalkAuth.js');
 const dbAdapter = (await import('./db/db_adapter.js')).default;
 const { initRedis } = await import('./db/redis.js');
 const { handleFrontendLogs } = await import('./util/logHandler.js');
+const { initializeAdminUserid } = await import('./util/adminUseridManager.js');
 
 import Koa from 'koa';
 import Router from 'koa-router';
@@ -25,7 +26,10 @@ import session from 'koa-session';
 import bodyParser from 'koa-bodyparser';
 
 // 初始化数据库
-dbAdapter.initDatabase();
+dbAdapter.initDatabase().then(async () => {
+  // 初始化ADMIN_USERID
+  await initializeAdminUserid();
+});
 
 // 初始化Redis
 initRedis();
@@ -49,10 +53,13 @@ app.use(session(koaSessionConfig, app));
 // 使用 koa-bodyparser 中间件
 app.use(bodyParser());
 
-// 处理OPTIONS预检请求
 router.options('/api/:path*', (ctx) => {
+    const origin = ctx.headers.origin || '*';
+    ctx.set("Access-Control-Allow-Origin", origin);
+    ctx.set("Access-Control-Allow-Methods", "OPTIONS, GET, PUT, POST, DELETE");
+    ctx.set("Access-Control-Allow-Credentials", "true");
+    ctx.set("Access-Control-Allow-Headers", "x-requested-with, accept, origin, content-type");
     ctx.status = 204;
-    // 不设置任何CORS头，让Nginx处理
 });
 
 // 注册服务端路由和处理
@@ -61,6 +68,7 @@ router.get(serverConfig.getSignParametersPath, getSignParameters)
 router.post(serverConfig.createMeetingPath, handleCreateMeeting)
 router.get(serverConfig.queryUserEndedMeetingListPath, handleQueryUserEndedMeetingList)
 router.get(serverConfig.queryUserMeetingListPath, handleQueryUserMeetingList)
+router.get(serverConfig.getUserInfoPath, handleGetUserInfo)
 router.get(serverConfig.generateJoinSchemePath, handleGenerateJoinScheme)
 router.get(serverConfig.generateJumpUrlPath, handleGenerateJumpUrl)
 router.get(serverConfig.generateJoinUrlPath, handleGenerateJoinUrl)

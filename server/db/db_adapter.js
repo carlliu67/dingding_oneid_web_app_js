@@ -68,6 +68,8 @@ const databaseMethods = [
   'dbInsertUserinfo',
   'dbGetUserinfoByUserid',
   'dbGetUserinfoByUnionid',
+  'dbGetConfig',
+  'dbSetConfig',
   'dbInsertTodo',
   'dbGetTodoByMeetingid',
   'dbDeleteTodoByMeetingid',

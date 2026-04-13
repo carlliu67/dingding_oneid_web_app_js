@@ -196,7 +196,7 @@ async function handleQueryUserMeetingList() {
         const requestUrl = `${getOrigin(clientConfig.apiPort)}${clientConfig.queryUserMeetingListPath}?pos=0&cursory=0`;
         frontendLogger.debug("会议列表请求URL", { url: requestUrl });
         frontendLogger.debug("请求配置: withCredentials: true");
-        
+
         var response = await axios.get(requestUrl,
             { withCredentials: true } // 调用时设置请求带上cookie
         );
@@ -229,5 +229,37 @@ async function handleQueryUserMeetingList() {
     }
 }
 
+async function handleGetUserInfo() {
+    frontendLogger.info("\n----------[获取用户信息 BEGIN]----------")
+    try {
+        const requestUrl = `${getOrigin(clientConfig.apiPort)}${clientConfig.getUserInfoPath}`;
+        frontendLogger.info("获取用户信息请求URL", { url: requestUrl });
 
-export { handleCreateMeeting, handleGenerateJoinScheme, handleGenerateJumpUrl, handleQueryUserEndedMeetingList, handleQueryUserMeetingList, handleGenerateJoinUrl }
+        var response = await axios.get(requestUrl,
+            { withCredentials: true } // 调用时设置请求带上cookie
+        );
+
+        if (!response || !response.data) {
+            frontendLogger.error("获取用户信息 response is null");
+            return null;
+        }
+
+        const data = response.data;
+        if (data) {
+            frontendLogger.info("获取用户信息: 成功", { data: data.data })
+        } else {
+            frontendLogger.error("获取用户信息: 数据为空")
+        }
+        frontendLogger.info("----------[获取用户信息 END]----------\n")
+        return data.data;
+    } catch (error) {
+        frontendLogger.error("获取用户信息 error", { error })
+        if (error.response) {
+            frontendLogger.error("错误响应数据", { data: error.response.msg || error.response.data });
+        }
+        return null;
+    }
+}
+
+
+export { handleCreateMeeting, handleGenerateJoinScheme, handleGenerateJumpUrl, handleQueryUserEndedMeetingList, handleQueryUserMeetingList, handleGenerateJoinUrl, handleGetUserInfo }

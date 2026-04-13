@@ -19,8 +19,6 @@ services:
     networks:
       - dingding-network
     volumes:
-      - ./config/server:/app/server/config
-      - ./config/client:/app/src/config
       - ./logs:/app/logs
       - ./data:/app/data
 

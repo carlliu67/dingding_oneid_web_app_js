@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Tabs, Button, Table, Space, Modal } from 'antd';
 import './index.css';
-import { handleCreateMeeting, handleQueryUserEndedMeetingList, handleQueryUserMeetingList, handleGenerateJoinScheme, handleGenerateJoinUrl } from '../../../components/wemeetapi/wemeetApi.js';
+import { handleCreateMeeting, handleQueryUserEndedMeetingList, handleQueryUserMeetingList, handleGenerateJoinScheme, handleGenerateJoinUrl, handleGetUserInfo } from '../../../components/wemeetapi/wemeetApi.js';
 import { isMobileDevice } from '../../../utils/auth_access_util.js';
 import MeetingModal from './MeetingModal.js';
 import clientConfig from '../../../config/client_config.js';
@@ -52,11 +52,29 @@ function MeetingList(props) {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('upcoming');
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [userAccountInfo, setUserAccountInfo] = useState(null);
   let userInfo = props.userInfo;
   frontendLogger.info('用户信息', { userInfo });
   if (!userInfo) {
     userInfo = {};
   }
+
+  const getUserAccountInfo = useCallback(async () => {
+    try {
+      const userInfoData = await handleGetUserInfo();
+      frontendLogger.info('获取到的用户账号信息', { userInfoData });
+      setUserAccountInfo(userInfoData);
+    } catch (error) {
+      frontendLogger.error('获取用户账号信息失败', { error });
+    }
+  }, []);
+
+  // 检查是否为免费账号
+  const isFreeAccount = () => {
+    if (!userAccountInfo) return false;
+    const userAccountType = userAccountInfo.user_account_type;
+    return userAccountType === 2 || userAccountType === 3;
+  };
 
   const getMeetingInfoList = useCallback(async () => {
     setLoading(true);
@@ -184,10 +202,12 @@ function MeetingList(props) {
     setLoading(false);
   }, [activeTab, ongoingMeetings, upcomingMeetings, endedMeetings, MeetingListTimestamp, endedMeetingsTimestamp]);
 
-
   useEffect(() => {
-    getMeetingInfoList();
-  }, [activeTab, userInfo.userid, getMeetingInfoList]);
+    if (userInfo && userInfo.userid) {
+      getMeetingInfoList();
+      getUserAccountInfo();
+    }
+  }, [activeTab, userInfo, getMeetingInfoList, getUserAccountInfo]);
 
   const columns = [
     {
@@ -206,63 +226,63 @@ function MeetingList(props) {
       dataIndex: 'meeting_code',
       width: 150
     },
-    { 
-      title: '操作', 
-      width: 180, 
-      render: (_, record) => { 
-        const buttons = []; 
-        if (activeTab === 'ongoing') { 
-          buttons.unshift( 
-            <Button 
-              key="join" 
-              onClick={() => handleJoinMeeting(record.meeting_code, record.join_url)} 
-              style={{ width: 'auto' }} 
+    {
+      title: '操作',
+      width: 180,
+      render: (_, record) => {
+        const buttons = [];
+        if (activeTab === 'ongoing') {
+          buttons.unshift(
+            <Button
+              key="join"
+              onClick={() => handleJoinMeeting(record.meeting_code, record.join_url)}
+              style={{ width: 'auto' }}
             >
               加入会议
             </Button>
-          ); 
-        } else if (activeTab === 'ended') { 
-          buttons.unshift( 
-            <Button 
-              key="delete" 
-              danger 
-              onClick={() => handleDelete(record.meeting_id)} 
-              style={{ width: 'auto' }} 
+          );
+        } else if (activeTab === 'ended') {
+          buttons.unshift(
+            <Button
+              key="delete"
+              danger
+              onClick={() => handleDelete(record.meeting_id)}
+              style={{ width: 'auto' }}
             >
               删除
             </Button>
-          ); 
-          buttons.unshift( 
-            <Button 
-              key="export-members" 
-              onClick={() => handleExportMembers(record.meeting_id)} 
-              style={{ width: 'auto' }} 
+          );
+          buttons.unshift(
+            <Button
+              key="export-members"
+              onClick={() => handleExportMembers(record.meeting_id)}
+              style={{ width: 'auto' }}
             >
               导出参会成员
             </Button>
-          ); 
-          buttons.unshift( 
-            <Button 
-              key="export-checkin" 
-              onClick={() => handleExportCheckin(record.meeting_id)} 
-              style={{ width: 'auto' }} 
+          );
+          buttons.unshift(
+            <Button
+              key="export-checkin"
+              onClick={() => handleExportCheckin(record.meeting_id)}
+              style={{ width: 'auto' }}
             >
               导出签到记录
             </Button>
-          ); 
-        } else if (activeTab === 'upcoming') { 
-          buttons.unshift( 
-            <Button 
-              key="join" 
-              onClick={() => handleJoinMeeting(record.meeting_code, record.join_url)} 
-              style={{ width: 'auto' }} 
+          );
+        } else if (activeTab === 'upcoming') {
+          buttons.unshift(
+            <Button
+              key="join"
+              onClick={() => handleJoinMeeting(record.meeting_code, record.join_url)}
+              style={{ width: 'auto' }}
             >
               加入会议
             </Button>
-          ); 
-        } 
-        return <Space>{buttons}</Space>; 
-      } 
+          );
+        }
+        return <Space>{buttons}</Space>;
+      }
     }
   ];
 
@@ -384,9 +404,11 @@ function MeetingList(props) {
       <div style={{ padding: 24, background: '#fff' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
           <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
-          {<div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <Button type="primary" className="reserve-button" onClick={showModal}>预定会议</Button>
-          </div>}
+          {userAccountInfo && !isFreeAccount() && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <Button type="primary" className="reserve-button" onClick={showModal}>预定会议</Button>
+            </div>
+          )}
         </div>
 
         <Table

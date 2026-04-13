@@ -94,9 +94,26 @@ class GlobalErrorHandler {
       const stack = event.reason && event.reason.stack ? event.reason.stack : null;
       const callerInfo = this.extractCallerInfoFromStack(stack);
       
+      let reasonData = null;
+      if (event.reason instanceof Error) {
+        reasonData = {
+          type: event.reason.name || 'Error',
+          message: event.reason.message,
+          stack: event.reason.stack
+        };
+      } else if (typeof event.reason === 'object' && event.reason !== null) {
+        try {
+          reasonData = JSON.parse(JSON.stringify(event.reason));
+        } catch {
+          reasonData = String(event.reason);
+        }
+      } else {
+        reasonData = String(event.reason);
+      }
+      
       frontendLogger.error('未处理的Promise拒绝', {
-        reason: event.reason,
-        promise: event.promise ? event.promise.toString() : null,
+        reason: reasonData,
+        promise: event.promise ? '[Promise]' : null,
         stack: stack,
         file: callerInfo.file,
         line: callerInfo.line,

@@ -315,11 +315,63 @@ function openUserinfoDatabase() {
                             logger.info('Table "users" created successfully.');
                         }
                     });
+                 
+                    // 创建 config 表（如果不存在）
+                    userinfoDB.run(`CREATE TABLE IF NOT EXISTS config (
+                        config_key TEXT PRIMARY KEY,
+                        value TEXT NOT NULL
+                    )`, (err) => {
+                        if (err) {
+                            logger.error('Error creating config table:', err.message);
+                        } else {
+                            logger.info('Table "config" created successfully.');
+                        }
+                    });
                 });
             }
         });
     }
     return userinfoDB;
+}
+
+// 获取配置值
+function dbGetConfig(key) {
+    return new Promise((resolve, reject) => {
+        const db = openUserinfoDatabase();
+        const query = 'SELECT value FROM config WHERE config_key = ?';
+        const values = [key];
+
+        db.get(query, values, (err, row) => {
+            if (err) {
+                logger.error('查询配置失败:', err.message);
+                reject(err);
+            } else if (row) {
+                logger.debug('查询配置成功:', key, '=', row.value);
+                resolve(row.value);
+            } else {
+                logger.debug('未找到配置:', key);
+                resolve(null);
+            }
+        });
+    });
+}
+
+// 设置配置值
+function dbSetConfig(key, value) {
+    return new Promise((resolve, reject) => {
+        const db = openUserinfoDatabase();
+        const insert = db.prepare('INSERT OR REPLACE INTO config (config_key, value) VALUES (?,?)');
+        insert.run(key, value, (err) => {
+            insert.finalize();
+            if (err) {
+                reject(err);
+                logger.error('设置配置失败:', err.message);
+            } else {
+                logger.debug('设置配置成功:', key, '=', value);
+                resolve('配置设置成功');
+            }
+        });
+    });
 }
 
 // 插入userinfo数据
@@ -509,6 +561,8 @@ export {
     dbInsertUserinfo,
     dbGetUserinfoByUserid,
     dbGetUserinfoByUnionid,
+    dbGetConfig,
+    dbSetConfig,
     openTodoDatabase,
     dbInsertTodo,
     dbGetTodoByMeetingid,

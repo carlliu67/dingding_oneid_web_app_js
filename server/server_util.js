@@ -7,7 +7,7 @@ function failResponse(msg) {
         "msg": msg || "error"
     };
     logger.error('Failed response:', response);
-    return JSON.stringify(response);
+    return response;
 }
 
 function okResponse(data) {
@@ -17,7 +17,7 @@ function okResponse(data) {
         "data": data
     };
     logger.debug('Success response:', response);
-    return JSON.stringify(response);
+    return response;
 }
 
 // 处理跨域问题

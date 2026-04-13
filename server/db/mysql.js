@@ -81,6 +81,15 @@ async function createTables() {
       )
     `);
     logger.info('Table "calendar" created successfully');
+
+    // 创建config表
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS config (
+        config_key VARCHAR(255) PRIMARY KEY,
+        value VARCHAR(255) NOT NULL
+      )
+    `);
+    logger.info('Table "config" created successfully');
     
   } catch (err) {
     logger.error('Error creating tables:', err.message);
@@ -398,6 +407,48 @@ async function dbDeleteCalendarByMeetingid(meetingid) {
   }
 }
 
+// 获取配置值
+async function dbGetConfig(key) {
+  const connection = await getConnection();
+  try {
+    const [rows] = await connection.execute(
+      'SELECT value FROM config WHERE config_key = ?',
+      [key]
+    );
+    
+    if (rows.length > 0) {
+      logger.debug(`查询配置成功: ${key} = ${rows[0].value}`);
+      return rows[0].value;
+    } else {
+      logger.debug(`未找到配置: ${key}`);
+      return null;
+    }
+  } catch (err) {
+    logger.error('查询配置失败:', err.message);
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
+// 设置配置值
+async function dbSetConfig(key, value) {
+  const connection = await getConnection();
+  try {
+    const [result] = await connection.execute(
+      'INSERT INTO config (config_key, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = VALUES(value)',
+      [key, value]
+    );
+    logger.debug(`设置配置成功: ${key} = ${value}`);
+    return '配置设置成功';
+  } catch (err) {
+    logger.error('设置配置失败:', err.message);
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
 // 为了保持与sqlite.js的接口一致性，导出相应的方法
 export {
   // 由于使用连接池，不需要单独的openXXX方法，直接导出操作方法
@@ -407,6 +458,8 @@ export {
   dbInsertUserinfo,
   dbGetUserinfoByUserid,
   dbGetUserinfoByUnionid,
+  dbGetConfig,
+  dbSetConfig,
   dbInsertTodo,
   dbGetTodoByMeetingid,
   dbDeleteTodoByMeetingid,

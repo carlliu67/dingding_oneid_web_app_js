@@ -9,7 +9,6 @@ build
 *.log
 
 # Environment variables
-.env
 .env.local
 .env.development.local
 .env.test.local
@@ -47,5 +46,5 @@ logs
 *.sqlite
 *.sqlite3
 
-# Config files (sensitive data)
-server/config/server_config.js
+# Config files (sensitive data) - removed from ignore so Dockerfile can copy them
+# server/config/server_config.js

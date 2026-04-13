@@ -46,8 +46,7 @@ function getUserid(ctx) {
 async function getUserAccessToken(ctx) {
 
     logger.debug("\n-------------------[接入服务端免登处理 BEGIN]-----------------------------")
-    // 不再设置CORS头，让Nginx处理
-    // configAccessControl(ctx)
+    configAccessControl(ctx)
     logger.debug(`接入服务方第① 步: 接收到前端免登请求`)
     if (await isLogin(ctx)) {
         logger.debug("接入服务方第② 步: 从Session中获取user_access_token信息，用户已登录")
@@ -114,8 +113,7 @@ async function getSignParameters(ctx) {
 
     logger.debug("\n-------------------[接入方服务端鉴权处理 BEGIN]-----------------------------")
     //logger.debug(ctx)
-    // 不再设置CORS头，让Nginx处理
-    // configAccessControl(ctx)
+    configAccessControl(ctx)
     logger.debug(`接入服务方第① 步: 接收到前端鉴权请求`)
 
     const url = ctx.query["url"] || ""
