@@ -2,10 +2,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Tabs, Button, Table, Space, Modal } from 'antd';
 import './index.css';
 import { handleCreateMeeting, handleQueryUserEndedMeetingList, handleQueryUserMeetingList, handleGenerateJoinScheme, handleGenerateJoinUrl, handleGetUserInfo } from '../../../components/wemeetapi/wemeetApi.js';
-import { isMobileDevice } from '../../../utils/auth_access_util.js';
+import { isMobileDevice, isHarmony, isHarmonyCompatMode } from '../../../utils/auth_access_util.js';
 import MeetingModal from './MeetingModal.js';
 import clientConfig from '../../../config/client_config.js';
 import { frontendLogger } from '../../../utils/logger.js';
+import { openSchema } from '../../../components/dingtalkapi/dingtalkApi.js';
 
 // 定义错误码常量
 const ERROR_CODE_LOGIN_REQUIRED = 500214; // 首次使用需要登录腾讯会议客户端的错误码
@@ -291,8 +292,13 @@ function MeetingList(props) {
     frontendLogger.info('加入会议', { meeting_code, join_url });
     // 根据设备类型调用不同的加入会议函数
     if (isMobileDevice()) {
-      // 移动端调用handleGenerateJoinUrl
-      handleGenerateJoinUrl(join_url, false);
+      if (isHarmony() && !isHarmonyCompatMode()) {
+        // 鸿蒙端未开兼容模式：直接调用 openSchema 接口打开参会链接
+        openSchema(join_url, false);
+      } else {
+        // 兼容模式或Android/iOS：调用handleGenerateJoinUrl
+        handleGenerateJoinUrl(join_url, false);
+      }
     } else {
       // PC端调用handleGenerateJoinScheme
       handleGenerateJoinScheme(meeting_code, false);

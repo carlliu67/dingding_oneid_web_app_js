@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import MeetingList from './meeting/index.js';
-import { handleJSAPIAccess, handleUserAuth, configJSAPIAccess, isMobileDevice } from '../../utils/auth_access_util.js';
+import { handleJSAPIAccess, handleUserAuth, configJSAPIAccess, isMobileDevice, isHarmony, isHarmonyCompatMode } from '../../utils/auth_access_util.js';
 import { handleGenerateJoinScheme, handleGenerateJumpUrl, handleGenerateJoinUrl } from '../../components/wemeetapi/wemeetApi.js';
 import './index.css';
 import clientConfig from '../../config/client_config.js';
@@ -36,6 +36,7 @@ export default function Home() {
                 if (isMobileDevice()) {
                     // 移动端处理
                     // 处理 joinUrl 参数，需要先进行base64解码
+                    let decodedJoinUrl = params.joinUrl;
                     try {
                         // 处理URL安全的base64编码（替换-为+，_为/，并添加必要的填充字符）
                         let base64Url = params.joinUrl.replace(/-/g, '+').replace(/_/g, '/');
@@ -43,12 +44,18 @@ export default function Home() {
                         while (base64Url.length % 4) {
                             base64Url += '=';
                         }
-                        const decodedJoinUrl = atob(base64Url);
+                        decodedJoinUrl = atob(base64Url);
                         frontendLogger.info('joinUrl解码结果', { decodedJoinUrl });
-                        handleGenerateJoinUrl(decodedJoinUrl, true);
                     } catch (error) {
                         frontendLogger.error('joinUrl解码失败', { error });
-                        handleGenerateJoinUrl(params.joinUrl, true); // 解码失败时尝试直接使用
+                        // 解码失败时使用原始 joinUrl
+                    }
+                    if (isHarmony() && !isHarmonyCompatMode()) {
+                        // 鸿蒙端未开兼容模式：不自动跳转，直接显示应用首页
+                        setIsLoaded(true);
+                    } else {
+                        // 兼容模式或Android/iOS：按通用逻辑处理参会链接
+                        handleGenerateJoinUrl(decodedJoinUrl, true);
                     }
                 } else {
                     // pc端处理

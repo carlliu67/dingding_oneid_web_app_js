@@ -2,7 +2,11 @@ import axios from 'axios';
 import clientConfig from '../config/client_config.js';
 import Cookies from 'js-cookie';
 import * as dd from 'dingtalk-jsapi'; // 此方式为整体加载，也可按需进行加载
+import * as ddEnvSDK from 'dingtalk-jsapi/lib/env.js'; // 平台枚举模块（带扩展名以满足 ESM 严格解析）
 import { frontendLogger } from './logger.js';
+
+// 从 SDK 运行时取平台枚举，避免 CJS 命名导入静态分析不确定性
+const ENV_ENUM = ddEnvSDK.ENV_ENUM;
 
 const USER_INFO_KEY = 'user_info'
 
@@ -274,8 +278,55 @@ export function getOrigin(apiPort) {
     return clientConfig.serverProtocol + `://${hostname}:${apiPort}`;
 }
 
+// 移动端平台集合（基于 dingtalk-jsapi 的 ENV_ENUM，含鸿蒙）
+const MOBILE_PLATFORMS = [
+  ENV_ENUM.android,
+  ENV_ENUM.ios,
+  ENV_ENUM.harmony,
+  ENV_ENUM.gdtAndroid,
+  ENV_ENUM.gdtIos,
+  ENV_ENUM.gdtStandardAndroid,
+  ENV_ENUM.gdtStandardIos,
+];
+
 // 移动端检测函数
+// 优先使用 dingtalk-jsapi SDK 的 ENV_ENUM 判断 env.platform；非钉钉环境（notInDingTalk）或 SDK 不可用时，用 userAgent 兜底
 export function isMobileDevice() {
-  const userAgent = navigator.userAgent || window.opera;
-  return /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent.toLowerCase());
+  try {
+    const platform = dd.env && dd.env.platform;
+    // 钉钉容器内：pc/windows/mac/gdtPc 判为 PC 端，其余移动端平台判为 true
+    if (platform && platform !== ENV_ENUM.notInDingTalk) {
+      return MOBILE_PLATFORMS.includes(platform);
+    }
+  } catch (e) {
+    // dd.env 不可用时忽略，走兜底逻辑
+  }
+  // 兜底：非钉钉环境或 SDK 不可用时，通过 userAgent 判断（含鸿蒙 OpenHarmony）
+  const userAgent = navigator.userAgent || window.opera || '';
+  return /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini|openharmony/i.test(userAgent.toLowerCase());
+}
+
+// 判断是否鸿蒙系统
+// 优先使用 dingtalk-jsapi SDK 判断（文档推荐方法A），并用 userAgent 兜底（方法B）
+export function isHarmony() {
+  try {
+    // 方法A：通过 SDK 的 env.platform 判断（鸿蒙+钉钉容器时为 ENV_ENUM.harmony）
+    if (dd.env && dd.env.platform === ENV_ENUM.harmony) {
+      return true;
+    }
+  } catch (e) {
+    // dd.env 不可用时忽略，走兜底逻辑
+  }
+  // 方法B：通过浏览器 userAgent 判断（兼容 OpenHarmony / HarmonyOS 两种标识）
+  const userAgent = navigator.userAgent || window.opera || '';
+  return /OpenHarmony|HarmonyOS/i.test(userAgent);
+}
+
+// 判断是否已开启鸿蒙"兼容模式"
+// 兼容模式会在鸿蒙设备 UA 中插入 Android 标识，因此 UA 同时含鸿蒙标识与 Android 标识即为兼容模式
+export function isHarmonyCompatMode() {
+  const userAgent = navigator.userAgent || window.opera || '';
+  const hasHarmonyUA = /OpenHarmony|HarmonyOS/i.test(userAgent);
+  const hasAndroidUA = /Android/i.test(userAgent);
+  return hasHarmonyUA && hasAndroidUA;
 }
