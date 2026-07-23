@@ -46,13 +46,16 @@ cp .env.example .env
 #### 方式一：使用 npm 脚本
 
 ```bash
-# 启动完整服务（前后端）
+# 开发模式：并行启动前端 dev server（7000）与后端（7001），前端通过 proxy 代理 /api
+npm run start:dev
+
+# 生产模式：构建前端并由后端（默认7000）托管静态文件，前后端复用同一端口
 npm run start
 
-# 仅启动前端
+# 仅启动前端 dev server（7000）
 npm run start:web
 
-# 仅启动后端
+# 仅启动后端（开发内部端口7001；生产默认7000）
 npm run start:server
 ```
 
@@ -119,10 +122,9 @@ cp server/config/server_config.js config/server/server_config.js
 - `DINGTALK_ROBOT_CODE`: 钉钉机器人代码
 
 #### 服务配置
-- `SERVER_URL`: 后端服务地址
-- `SERVER_PROTOCOL`: 服务协议（http/https）
-- `API_PORT`: API端口（默认7001）
-- `FRONT_END_SERVER_URL`: 前端服务地址
+- `API_PORT`: 后端监听端口（默认7000，可被 `PORT` 环境变量覆盖）
+- `PORT`: 后端实际监听端口（优先级高于 `API_PORT`，Docker 中默认7000）
+- `FRONT_END_SERVER_URL`: 前端服务完整地址（用于后端生成钉钉日程/待办跳转链接，需包含协议+域名+端口，如 `http://your-domain.com:7000`）
 
 #### 腾讯会议对接参数
 - `WEMEET_APPID`: 腾讯会议应用ID
@@ -155,10 +157,12 @@ cp server/config/server_config.js config/server/server_config.js
 
 ## 端口说明
 
+前后端复用同一端口（7000）：生产由后端 Koa 服务同时托管前端静态文件与 API；开发时前端 dev server 占用 7000，通过 proxy 代理 /api 到后端内部端口 7001。
+
 | 端口 | 服务 |
 |------|------|
-| 7000 | React 前端服务 |
-| 7001 | 后端 API 服务（包含 webhook） |
+| 7000 | 生产：前端静态文件 + 后端 API 服务（含 webhook）；开发：前端 dev server（用户侧统一访问端口） |
+| 7001 | 仅开发模式下后端内部端口（供 dev server 的 proxy 代理，不对用户暴露） |
 
 ## 管理命令
 
@@ -201,7 +205,7 @@ docker-compose pull && docker-compose up -d
 docker build --tag dingding-oneid .
 
 # 运行容器
-docker run -d -p 7000:7000 -p 7001:7001 --name dingding-oneid dingding-oneid
+docker run -d -p 7000:7000 --name dingding-oneid dingding-oneid
 ```
 
 ## 注意事项

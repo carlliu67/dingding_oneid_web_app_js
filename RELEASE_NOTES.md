@@ -1,5 +1,21 @@
 # Release Notes
 
+## [1.1.0]
+
+### 前后端同端口部署
+- 后端 Koa 服务同时托管前端静态文件，前后端复用同一端口（默认 7000），简化部署与域名配置
+- 前端改用相对路径访问后端 API，消除跨端口跨域问题
+- Docker、docker-compose、nginx 示例配置统一为单端口
+
+### 开发模式
+- 新增 `npm run start:dev` 开发命令，并行启动前后端
+- 开发模式下前端 dev server 占用 7000，后端运行在内部端口 7001，通过 proxy 代理 `/api`，用户侧统一访问 7000
+- 生产模式 `npm start` 构建前端并由后端托管静态文件
+
+### 配置清理
+- 移除前端无用的 `REACT_APP_SERVER_URL`、`REACT_APP_SERVER_PROTOCOL`、`REACT_APP_API_PORT` 配置
+- 移除后端无用的日志配置（`ENABLE_FRONTEND_LOG`、`FRONTEND_LOG_MAX_SIZE`、`FRONTEND_LOG_FLUSH_INTERVAL`）
+
 ## [1.0.6]
 
 ### 鸿蒙端适配

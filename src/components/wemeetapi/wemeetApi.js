@@ -12,7 +12,7 @@ async function handleGenerateJoinScheme(meetingCode, closePage = false) {
 
         frontendLogger.info("请求参数 - meetingCode", { meetingCode });
 
-        const response = await axios.get(`${getOrigin(clientConfig.apiPort)}${clientConfig.generateJoinSchemePath}?meetingCode=${encodeURIComponent(meetingCode)}`,
+        const response = await axios.get(`${getOrigin()}${clientConfig.generateJoinSchemePath}?meetingCode=${encodeURIComponent(meetingCode)}`,
             { withCredentials: true } // 调用时设置请求带上cookie
         );
 
@@ -66,7 +66,7 @@ async function handleGenerateJoinScheme(meetingCode, closePage = false) {
 async function handleGenerateJumpUrl(base64EncodedMeetingUrl, closePage = false) {
     frontendLogger.info("\n----------[GenerateJumpUrl BEGIN]----------")
     try {
-        const response = await axios.get(`${getOrigin(clientConfig.apiPort)}${clientConfig.generateJumpUrlPath}?meetingUrl=${base64EncodedMeetingUrl}`,
+        const response = await axios.get(`${getOrigin()}${clientConfig.generateJumpUrlPath}?meetingUrl=${base64EncodedMeetingUrl}`,
             { withCredentials: true } // 调用时设置请求带上cookie
         );
 
@@ -96,7 +96,7 @@ async function handleGenerateJumpUrl(base64EncodedMeetingUrl, closePage = false)
 async function handleGenerateJoinUrl(meetingUrl, closePage = false) {
     frontendLogger.info("\n----------[GenerateJoinUrl BEGIN]----------")
     try {
-        const response = await axios.get(`${getOrigin(clientConfig.apiPort)}${clientConfig.generateJoinUrlPath}?meetingUrl=${meetingUrl}`,
+        const response = await axios.get(`${getOrigin()}${clientConfig.generateJoinUrlPath}?meetingUrl=${meetingUrl}`,
             { withCredentials: true } // 调用时设置请求带上cookie
         );
 
@@ -130,7 +130,7 @@ async function handleCreateMeeting(meetingParamsStr) {
     formData.append('data', meetingParamsStr);
 
     try {
-        const response = await axios.post(`${getOrigin(clientConfig.apiPort)}${clientConfig.createMeetingPath}`,
+        const response = await axios.post(`${getOrigin()}${clientConfig.createMeetingPath}`,
             formData.toString(), // 请求体
             { withCredentials: true } // 调用时设置请求带上cookie
         );
@@ -164,7 +164,7 @@ async function handleCreateMeeting(meetingParamsStr) {
 async function handleQueryUserEndedMeetingList() {
     frontendLogger.info("\n----------[查询用户已结束会议列表 BEGIN]----------")
     try {
-        var response = await axios.get(`${getOrigin(clientConfig.apiPort)}${clientConfig.queryUserEndedMeetingListPath}?page_size=20&page=1`,
+        var response = await axios.get(`${getOrigin()}${clientConfig.queryUserEndedMeetingListPath}?page_size=20&page=1`,
             { withCredentials: true } // 调用时设置请求带上cookie
         );
 
@@ -193,7 +193,7 @@ async function handleQueryUserEndedMeetingList() {
 async function handleQueryUserMeetingList() {
     frontendLogger.debug("\n----------[查询用户会议列表 BEGIN]----------")
     try {
-        const requestUrl = `${getOrigin(clientConfig.apiPort)}${clientConfig.queryUserMeetingListPath}?pos=0&cursory=0`;
+        const requestUrl = `${getOrigin()}${clientConfig.queryUserMeetingListPath}?pos=0&cursory=0`;
         frontendLogger.debug("会议列表请求URL", { url: requestUrl });
         frontendLogger.debug("请求配置: withCredentials: true");
 
@@ -232,7 +232,7 @@ async function handleQueryUserMeetingList() {
 async function handleGetUserInfo() {
     frontendLogger.info("\n----------[获取用户信息 BEGIN]----------")
     try {
-        const requestUrl = `${getOrigin(clientConfig.apiPort)}${clientConfig.getUserInfoPath}`;
+        const requestUrl = `${getOrigin()}${clientConfig.getUserInfoPath}`;
         frontendLogger.info("获取用户信息请求URL", { url: requestUrl });
 
         var response = await axios.get(requestUrl,

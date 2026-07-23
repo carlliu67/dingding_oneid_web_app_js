@@ -130,11 +130,8 @@ class FrontendLogger {
   }
   
   getLogServerUrl() {
-    const protocol = clientConfig.serverProtocol || 'http';
-    const serverUrl = clientConfig.serverUrl || window.location.hostname;
-    const port = clientConfig.apiPort || '7001';
-    
-    return `${protocol}://${serverUrl}:${port}/api/logs`;
+    // 前后端同端口部署，使用相对路径访问日志接口
+    return '/api/logs';
   }
   
   // 获取北京时区的时间戳

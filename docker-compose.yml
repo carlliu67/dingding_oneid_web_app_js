@@ -6,7 +6,6 @@ services:
     container_name: dingding-oneid
     ports:
       - "7000:7000"
-      - "7001:7001"
     env_file:
       - .env
     environment:

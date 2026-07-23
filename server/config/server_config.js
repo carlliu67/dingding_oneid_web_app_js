@@ -12,7 +12,7 @@ const config = {
     dingtalkTodoSwitch: process.env.DINGTALK_TODO_SWITCH !== "false", //预约普通会议是是否创建钉钉待办，对周期会议不生效，周期会议固定会创建日程
 
     // server运行参数配置
-    apiPort: process.env.API_PORT || "7001",   //后端指定端口
+    apiPort: process.env.API_PORT || "7000",   //后端指定端口（前后端同端口部署，默认7000）
     frontEndServerUrl: process.env.FRONT_END_SERVER_URL || "",  //前端server地址
 
     // 腾讯会议对接参数
@@ -73,12 +73,6 @@ const config = {
 
     // 服务端日志打印
     logLevel: process.env.LOG_LEVEL || "info", // 日志级别，可选值：debug, info, warn, error
-    
-    // 前端日志配置
-    enableFrontendLog: process.env.ENABLE_FRONTEND_LOG !== "false", // 是否启用前端日志收集
-    frontendLogPath: "/api/logs", // 前端日志接收API路径
-    frontendLogMaxSize: process.env.FRONTEND_LOG_MAX_SIZE || "100", // 前端日志队列最大大小
-    frontendLogFlushInterval: process.env.FRONTEND_LOG_FLUSH_INTERVAL || "10000", // 前端日志刷新间隔(毫秒)
 };
 
 export default config;

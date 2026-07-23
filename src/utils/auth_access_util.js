@@ -18,7 +18,7 @@ export async function handleJSAPIAccess() {
     const url = encodeURIComponent(window.location.href.split("#")[0]);
     frontendLogger.info("接入方前端[JSAPI鉴权处理]第① 步: 请求JSAPI鉴权参数");
     // 向接入方服务端发起请求，获取鉴权参数
-    var desUrl = `${getOrigin(clientConfig.apiPort)}${clientConfig.getSignParametersPath}?url=${url}`
+    var desUrl = `${getOrigin()}${clientConfig.getSignParametersPath}?url=${url}`
     frontendLogger.info("desUrl: " + desUrl, { url: desUrl });
     frontendLogger.info("请求完整URL", { url: desUrl });
     frontendLogger.info("请求配置: withCredentials: true");
@@ -191,7 +191,7 @@ function requestUserAccessToken(code, complete) {
 
     // 获取user_access_token信息
     frontendLogger.debug("接入方前端[免登处理]第② 步: 去接入方服务端获取user_access_token信息");
-    var desUrl = `${getOrigin(clientConfig.apiPort)}${clientConfig.getUserAccessTokenPath}?code=${code}`
+    var desUrl = `${getOrigin()}${clientConfig.getUserAccessTokenPath}?code=${code}`
     frontendLogger.debug("desUrl", { url: desUrl });
     frontendLogger.debug("请求完整URL", { url: desUrl });
     frontendLogger.debug("请求配置: withCredentials: true");
@@ -271,11 +271,10 @@ function requestUserAccessToken(code, complete) {
     })
 }
 
-export function getOrigin(apiPort) {
-    // 使用相对路径，确保请求发送到当前域名下的指定端口
-    let hostname = window.location.hostname;
-    frontendLogger.debug(`构建API URL: ${clientConfig.serverProtocol}://${hostname}:${apiPort}`);
-    return clientConfig.serverProtocol + `://${hostname}:${apiPort}`;
+export function getOrigin() {
+    // 前后端同端口部署，使用相对路径访问后端 API，避免跨端口跨域问题
+    frontendLogger.debug('构建API URL: 使用相对路径 /api/...');
+    return '';
 }
 
 // 移动端平台集合（基于 dingtalk-jsapi 的 ENV_ENUM，含鸿蒙）

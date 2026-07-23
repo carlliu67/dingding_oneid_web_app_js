@@ -24,6 +24,8 @@ import Koa from 'koa';
 import Router from 'koa-router';
 import session from 'koa-session';
 import bodyParser from 'koa-bodyparser';
+import serve from 'koa-static';
+import fs from 'fs';
 
 // 初始化数据库
 dbAdapter.initDatabase().then(async () => {
@@ -52,6 +54,14 @@ const koaSessionConfig = {
 app.use(session(koaSessionConfig, app));
 // 使用 koa-bodyparser 中间件
 app.use(bodyParser());
+
+// 静态文件服务：托管前端构建产物（build 目录），实现前后端同端口部署
+const buildDir = path.resolve(projectRoot, 'build');
+const staticExists = fs.existsSync(buildDir);
+if (staticExists) {
+    app.use(serve(buildDir));
+    logger.info(`静态文件服务已启用，托管目录: ${buildDir}`);
+}
 
 router.options('/api/:path*', (ctx) => {
     const origin = ctx.headers.origin || '*';
@@ -88,6 +98,36 @@ router.get(serverConfig.keepAlivePath, (ctx) => {
 // 注册路由
 const port = process.env.PORT || serverConfig.apiPort;
 app.use(router.routes()).use(router.allowedMethods());
+
+// SPA fallback：非 /api 的未匹配 GET 请求返回 index.html，交给前端路由处理
+if (staticExists) {
+    app.use(async (ctx) => {
+        if (ctx.method === 'GET' && !ctx.path.startsWith('/api') && ctx.status === 404) {
+            const indexFile = path.join(buildDir, 'index.html');
+            if (fs.existsSync(indexFile)) {
+                ctx.type = 'text/html';
+                const indexStream = fs.createReadStream(indexFile);
+                indexStream.on('error', (streamErr) => {
+                    logger.debug('返回 index.html 流读取错误:', streamErr.message);
+                });
+                ctx.body = indexStream;
+                ctx.status = 200;
+            }
+        }
+    });
+}
+
+// 全局错误处理：捕获请求处理过程中的错误（如客户端断开导致的流错误）
+app.on('error', (err, ctx) => {
+    // 客户端主动断开连接导致的错误，属于正常现象，仅 debug 记录，避免污染日志
+    if (err && (err.code === 'EPIPE' || err.code === 'ECONNRESET' || err.code === 'ECONNABORTED')) {
+        logger.debug(`客户端连接中断: ${err.code}${ctx ? ' ' + ctx.method + ' ' + ctx.url : ''}`);
+        return;
+    }
+    // 仅记录错误摘要，避免完整堆栈对象刷屏
+    const reqInfo = ctx ? `${ctx.method} ${ctx.url}` : '';
+    logger.error(`请求处理错误 ${reqInfo}: ${err.message}`);
+});
 
 app.listen(port, () => {
     logger.info(`server is start, listening on port ${port}`);

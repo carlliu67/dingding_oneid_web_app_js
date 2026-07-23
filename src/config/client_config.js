@@ -3,11 +3,6 @@ const clientConfig = {
     corpId: process.env.REACT_APP_CORP_ID || "", //CorpId
     clientId: process.env.REACT_APP_CLIENT_ID || "", //clientID(原 AppKey 和 SuiteKey)
 
-    // 后端服务配置
-    serverUrl: process.env.REACT_APP_SERVER_URL || "", //后端服务地址，后端服务和前端部署在同一台机器上时不需要设置，后端URL和前端URL需要是在同一个域名下
-    serverProtocol: process.env.REACT_APP_SERVER_PROTOCOL || "http", //后端服务协议类型，http或者https
-    apiPort: process.env.REACT_APP_API_PORT || "7001",   //后端指定端口
-
     // 调试模式开关
     debugSwitch: process.env.REACT_APP_DEBUG_SWITCH === "true", //是否开启调试模式
 
