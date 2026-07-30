@@ -16,7 +16,14 @@ export async function initRedis() {
         redisClient = createClient({
             socket: {
                 host: serverConfig.redisHost,
-                port: serverConfig.redisPort
+                port: serverConfig.redisPort,
+                connectTimeout: 10000,
+                // 自动重连策略：连接被关闭后按指数退避重试，持续重连不放弃
+                reconnectStrategy: (retries) => {
+                    const delay = Math.min(retries * 100, 3000);
+                    logger.warn(`Redis 连接断开，第 ${retries + 1} 次重连，${delay}ms 后重试`);
+                    return delay;
+                }
             },
             password: serverConfig.redisPassword || undefined,
             database: serverConfig.redisDb
@@ -28,6 +35,18 @@ export async function initRedis() {
 
         redisClient.on('connect', () => {
             logger.info('Redis Client Connected');
+        });
+
+        redisClient.on('ready', () => {
+            logger.info('Redis Client Ready');
+        });
+
+        redisClient.on('reconnecting', () => {
+            logger.info('Redis Client Reconnecting');
+        });
+
+        redisClient.on('end', () => {
+            logger.warn('Redis Client 连接已关闭，将自动尝试重连');
         });
 
         await redisClient.connect();
