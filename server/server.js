@@ -26,6 +26,7 @@ import session from 'koa-session';
 import bodyParser from 'koa-bodyparser';
 import serve from 'koa-static';
 import fs from 'fs';
+import zlib from 'zlib';
 
 // 初始化数据库
 dbAdapter.initDatabase().then(async () => {
@@ -54,6 +55,47 @@ const koaSessionConfig = {
 app.use(session(koaSessionConfig, app));
 // 使用 koa-bodyparser 中间件
 app.use(bodyParser());
+
+// gzip 压缩中间件：对文本类响应（静态JS/CSS/HTML/JSON等）启用压缩，
+// 大幅减小高延迟链路下的传输体积，降低连接超时中断（ECONNRESET）概率
+app.use(async (ctx, next) => {
+    await next();
+    if (!ctx.body || ctx.method === 'HEAD' || ctx.status === 204 || ctx.status === 304) return;
+    if (ctx.response.get('Content-Encoding')) return;
+    const acceptEncoding = (ctx.headers['accept-encoding'] || '').toLowerCase();
+    if (!acceptEncoding.includes('gzip')) return;
+    const contentType = ctx.response.get('Content-Type') || '';
+    if (!/text|javascript|json|xml|svg|wasm/i.test(contentType)) return;
+
+    // 流式响应（koa-static 以 stream 托管文件）：通过 gzip 转换流处理
+    if (ctx.body && typeof ctx.body.pipe === 'function') {
+        ctx.body = ctx.body.pipe(zlib.createGzip({ level: 6 }));
+        ctx.set('Content-Encoding', 'gzip');
+        ctx.remove('Content-Length');
+        return;
+    }
+    // 缓冲型响应：仅在超过阈值（1KB）时压缩
+    let buf = Buffer.isBuffer(ctx.body) ? ctx.body
+        : typeof ctx.body === 'string' ? Buffer.from(ctx.body)
+        : null;
+    if (!buf || buf.length < 1024) return;
+    const gz = zlib.gzipSync(buf, { level: 6 });
+    ctx.body = gz;
+    ctx.set('Content-Encoding', 'gzip');
+    ctx.set('Content-Length', gz.length);
+});
+
+// 缓存策略中间件：静态资源（JS/CSS/字体/图片等）长缓存 immutable，HTML 不缓存以便发版即时生效
+app.use(async (ctx, next) => {
+    await next();
+    if (ctx.status !== 200) return;
+    const contentType = ctx.response.get('Content-Type') || '';
+    if (contentType.includes('text/html')) {
+        ctx.set('Cache-Control', 'no-cache');
+    } else if (/javascript|css|font|image|svg|wasm|audio|video/i.test(contentType)) {
+        ctx.set('Cache-Control', 'public, max-age=31536000, immutable');
+    }
+});
 
 // 静态文件服务：托管前端构建产物（build 目录），实现前后端同端口部署
 const buildDir = path.resolve(projectRoot, 'build');

@@ -1,12 +1,14 @@
 import { Route, Routes, BrowserRouter as Router } from "react-router-dom"
 import { Modal } from 'antd';
-import NotFound from './pages/notfound/index.js';
-import Mobile from './pages/mobile/index.js'
-import Home from './pages/home/index.js'
-import KeepAlive from './pages/keepalive/index.js'
+import { Suspense, lazy, useEffect, useState } from 'react';
 import { frontendLogger } from './utils/logger.js';
 import { isHarmony, isHarmonyCompatMode } from './utils/auth_access_util.js';
-import { useEffect, useState } from 'react';
+
+// 路由级按需加载，减小首屏主包体积
+const NotFound = lazy(() => import('./pages/notfound/index.js'));
+const Mobile = lazy(() => import('./pages/mobile/index.js'));
+const Home = lazy(() => import('./pages/home/index.js'));
+const KeepAlive = lazy(() => import('./pages/keepalive/index.js'));
 
 function App() {
   const [showHarmonyGuide, setShowHarmonyGuide] = useState(false);
@@ -65,12 +67,14 @@ function App() {
         <p>检测到您正在使用鸿蒙系统访问。如遇页面功能异常（如无法加入会议），请点击右上角「⋯」菜单，切换到「兼容模式」后重新打开本页面。</p>
       </Modal>
       <Router>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/mobile" element={<Mobile />} />
-          <Route path="/api/keep_alive" element={<KeepAlive />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <Suspense fallback={null}>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/mobile" element={<Mobile />} />
+            <Route path="/api/keep_alive" element={<KeepAlive />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Suspense>
       </Router>
     </>
   );

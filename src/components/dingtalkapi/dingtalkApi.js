@@ -1,4 +1,4 @@
-import * as dd from 'dingtalk-jsapi';
+import dd from '../../utils/ddSdk.js';
 import { isMobileDevice } from '../../utils/auth_access_util.js';
 
 function openSchema(url, closePage = false) {

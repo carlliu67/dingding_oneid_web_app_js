@@ -1,8 +1,8 @@
 import axios from 'axios';
 import clientConfig from '../config/client_config.js';
 import Cookies from 'js-cookie';
-import * as dd from 'dingtalk-jsapi'; // 此方式为整体加载，也可按需进行加载
 import * as ddEnvSDK from 'dingtalk-jsapi/lib/env.js'; // 平台枚举模块（带扩展名以满足 ESM 严格解析）
+import dd from './ddSdk.js'; // dingtalk-jsapi 按需加载（仅引入实际使用的 API）
 import { frontendLogger } from './logger.js';
 
 // 从 SDK 运行时取平台枚举，避免 CJS 命名导入静态分析不确定性

@@ -1,12 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import { Tabs, Button, Table, Space, Modal } from 'antd';
 import './index.css';
 import { handleCreateMeeting, handleQueryUserEndedMeetingList, handleQueryUserMeetingList, handleGenerateJoinScheme, handleGenerateJoinUrl, handleGetUserInfo } from '../../../components/wemeetapi/wemeetApi.js';
 import { isMobileDevice, isHarmony, isHarmonyCompatMode } from '../../../utils/auth_access_util.js';
-import MeetingModal from './MeetingModal.js';
 import clientConfig from '../../../config/client_config.js';
 import { frontendLogger } from '../../../utils/logger.js';
 import { openSchema } from '../../../components/dingtalkapi/dingtalkApi.js';
+// 预定会议弹窗按需加载：将 DatePicker/TimePicker 等重组件拆分到独立 chunk，减小主包体积
+const MeetingModal = lazy(() => import('./MeetingModal.js'));
 
 // 定义错误码常量
 const ERROR_CODE_LOGIN_REQUIRED = 500214; // 首次使用需要登录腾讯会议客户端的错误码
@@ -427,12 +428,16 @@ function MeetingList(props) {
           rowClassName="custom-row"
         />
 
-        <MeetingModal
-          visible={isModalVisible}
-          onCancel={handleCancel}
-          onCreate={handleCreateMeetingSubmit}
-          userInfo={userInfo}
-        />
+        {isModalVisible && (
+          <Suspense fallback={null}>
+            <MeetingModal
+              visible={isModalVisible}
+              onCancel={handleCancel}
+              onCreate={handleCreateMeetingSubmit}
+              userInfo={userInfo}
+            />
+          </Suspense>
+        )}
       </div>
     );
   } else {
@@ -452,12 +457,16 @@ function MeetingList(props) {
           rowClassName="custom-row"
         />
 
-        <MeetingModal
-          visible={isModalVisible}
-          onCancel={handleCancel}
-          onCreate={handleCreateMeetingSubmit}
-          userInfo={userInfo}
-        />
+        {isModalVisible && (
+          <Suspense fallback={null}>
+            <MeetingModal
+              visible={isModalVisible}
+              onCancel={handleCancel}
+              onCreate={handleCreateMeetingSubmit}
+              userInfo={userInfo}
+            />
+          </Suspense>
+        )}
       </div>
     );
   }

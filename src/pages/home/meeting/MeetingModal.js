@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Modal, Form, Input, DatePicker, TimePicker, Button, Select, Switch } from 'antd';
 import dayjs from 'dayjs';
-import * as dd from 'dingtalk-jsapi';
+import dd from '../../../utils/ddSdk.js';
 import './MeetingModal.css'
 import clientConfig from '../../../config/client_config.js';
 import { frontendLogger } from '../../../utils/logger.js';
