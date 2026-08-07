@@ -46,5 +46,6 @@ logs
 *.sqlite
 *.sqlite3
 
-# Config files (sensitive data) - removed from ignore so Dockerfile can copy them
+# .env 不被忽略：前端构建阶段（frontend-builder）需要它注入 REACT_APP_* 变量
+# 但 .env 不会进入最终镜像（多阶段构建隔离），后端密钥通过 docker-compose env_file 运行时注入
 # server/config/server_config.js

@@ -35,8 +35,10 @@ COPY server/ ./server/
 COPY server/config/ ./server/config/
 COPY src/config/ ./src/config/
 
-# 复制环境变量文件
-COPY .env ./
+# 注意：不将 .env 复制到最终镜像，避免敏感密钥（Client Secret、SecretKey、DB 密码等）固化进镜像层
+# 后端环境变量通过 docker-compose.yml 的 env_file 在容器启动时注入（up -d 重建容器即生效）
+# 前端构建所需的 REACT_APP_* 变量已在第一阶段（frontend-builder）使用，
+# 该阶段的 .env 仅存在于中间层，不会进入最终镜像（多阶段构建天然隔离）
 
 # 复制构建好的前端应用
 COPY --from=frontend-builder /app/build ./build

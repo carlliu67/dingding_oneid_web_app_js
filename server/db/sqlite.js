@@ -59,6 +59,8 @@ function openTodoDatabase() {
                             logger.info('Table "todo" created successfully.');
                         }
                     });
+                    // 为定时清理字段创建索引
+                    todoDB.run(`CREATE INDEX IF NOT EXISTS idx_todo_createtimestamp ON todo(createtimestamp)`);
                 });
             }
         });
@@ -188,6 +190,8 @@ function openCalendarDatabase() {
                                 resolve(calendarDB);
                             }
                         });
+                        // 为定时清理字段创建索引
+                        calendarDB.run(`CREATE INDEX IF NOT EXISTS idx_calendar_createtimestamp ON calendar(createtimestamp)`);
                     });
                 }
             });
@@ -307,12 +311,24 @@ function openUserinfoDatabase() {
                     userinfoDB.run(`CREATE TABLE IF NOT EXISTS users (
                         userid TEXT PRIMARY KEY,
                         unionid TEXT NOT NULL,
-                        name TEXT NOT NULL
+                        name TEXT NOT NULL,
+                        lastupdatetime INTEGER
                     )`, (err) => {
                         if (err) {
                             logger.error('Error creating table:', err.message);
                         } else {
                             logger.info('Table "users" created successfully.');
+                            // 兼容旧表：若 lastupdatetime 列不存在则添加（SQLite 不支持 IF NOT EXISTS 语法）
+                            userinfoDB.run(`ALTER TABLE users ADD COLUMN lastupdatetime INTEGER`, (alterErr) => {
+                                if (alterErr) {
+                                    // 列已存在时会报错，属于正常情况，无需处理
+                                    logger.debug('Column lastupdatetime already exists or alter skipped:', alterErr.message);
+                                } else {
+                                    logger.info('Column "lastupdatetime" added to table "users".');
+                                }
+                            });
+                            // 为定时清理字段创建索引
+                            userinfoDB.run(`CREATE INDEX IF NOT EXISTS idx_users_lastupdatetime ON users(lastupdatetime)`);
                         }
                     });
                  
@@ -378,8 +394,9 @@ function dbSetConfig(key, value) {
 function dbInsertUserinfo(userid, unionid, name) {
     return new Promise((resolve, reject) => {
         const db = openUserinfoDatabase();
-        const insert = db.prepare('INSERT INTO users (userid, unionid, name) VALUES (?,?,?)');
-        insert.run(userid, unionid, name, (err) => {
+        const currentTime = Math.floor(Date.now() / 1000);
+        const insert = db.prepare('INSERT OR REPLACE INTO users (userid, unionid, name, lastupdatetime) VALUES (?,?,?,?)');
+        insert.run(userid, unionid, name, currentTime, (err) => {
             insert.finalize();
             // 修复：避免每次操作都关闭数据库连接
             // db.close(); 
@@ -431,9 +448,6 @@ function dbGetUserinfoByUnionid(unionid) {
         const values = [unionid];
 
         db.get(query, values, (err, row) => {
-            // 确保在操作完成后关闭数据库连接
-            db.close();
-
             if (err) {
                 logger.error('dbGetUserinfoByUnionid 查询失败:', err.message);
                 reject(err); // 出错时 reject
@@ -444,6 +458,23 @@ function dbGetUserinfoByUnionid(unionid) {
             } else {
                 logger.debug("dbGetUserinfoByUnionid: ", unionid, " ", JSON.stringify(row));
                 resolve(row); // 成功找到，返回查询结果
+            }
+        });
+    });
+}
+
+// 更新用户最后登录时间（用于定期清理判断，仅更新已存在的记录）
+function dbUpdateUserLoginTime(userid) {
+    return new Promise((resolve, reject) => {
+        const db = openUserinfoDatabase();
+        const currentTime = Math.floor(Date.now() / 1000);
+        db.run('UPDATE users SET lastupdatetime = ? WHERE userid = ?', [currentTime, userid], function (err) {
+            if (err) {
+                logger.error('dbUpdateUserLoginTime failed:', err.message);
+                reject(err);
+            } else {
+                logger.debug('dbUpdateUserLoginTime userid: ' + userid + ', affected: ' + this.changes);
+                resolve(this.changes);
             }
         });
     });
@@ -485,6 +516,8 @@ function openIdTokenDatabase() {
                             logger.info('Table created successfully.');
                         }
                     });
+                    // 为定时清理字段创建索引
+                    idTokenDB.run(`CREATE INDEX IF NOT EXISTS idx_idtoken_expired ON users(expired)`);
                 });
             }
         });
@@ -552,6 +585,135 @@ function dbGetIdToken(userid) {
     });
 }
 
+// ==================== 数据定时清理函数 ====================
+// 分批删除配置：每批最多删除1000条，单次清理最多执行100批（10万条），避免长时间锁表
+const CLEANUP_BATCH_SIZE = 1000;
+const CLEANUP_MAX_BATCHES = 100;
+
+// 清理已过期的 idToken 记录（分批删除）
+function dbCleanupExpiredIdTokens() {
+    return new Promise((resolve, reject) => {
+        const db = openIdTokenDatabase();
+        const currentTime = Math.floor(Date.now() / 1000);
+        let totalDeleted = 0;
+        let batchCount = 0;
+
+        function deleteBatch() {
+            db.run(`DELETE FROM users WHERE rowid IN (SELECT rowid FROM users WHERE expired < ? LIMIT ?)`,
+                [currentTime, CLEANUP_BATCH_SIZE], function (err) {
+                if (err) {
+                    logger.error('清理过期idToken失败:', err.message);
+                    reject(err);
+                    return;
+                }
+                totalDeleted += this.changes;
+                batchCount++;
+                if (this.changes === CLEANUP_BATCH_SIZE && batchCount < CLEANUP_MAX_BATCHES) {
+                    deleteBatch();
+                } else {
+                    logger.info(`清理过期idToken完成，删除 ${totalDeleted} 条记录`);
+                    resolve(totalDeleted);
+                }
+            });
+        }
+        deleteBatch();
+    });
+}
+
+// 清理超过保留期的 todo 记录（分批删除）
+function dbCleanupOldTodos(retentionSeconds) {
+    return new Promise((resolve, reject) => {
+        const db = openTodoDatabase();
+        const cutoff = Math.floor(Date.now() / 1000) - retentionSeconds;
+        let totalDeleted = 0;
+        let batchCount = 0;
+
+        function deleteBatch() {
+            db.run(`DELETE FROM todo WHERE rowid IN (SELECT rowid FROM todo WHERE createtimestamp < ? LIMIT ?)`,
+                [cutoff, CLEANUP_BATCH_SIZE], function (err) {
+                if (err) {
+                    logger.error('清理过期todo失败:', err.message);
+                    reject(err);
+                    return;
+                }
+                totalDeleted += this.changes;
+                batchCount++;
+                if (this.changes === CLEANUP_BATCH_SIZE && batchCount < CLEANUP_MAX_BATCHES) {
+                    deleteBatch();
+                } else {
+                    logger.info(`清理过期todo完成，删除 ${totalDeleted} 条记录`);
+                    resolve(totalDeleted);
+                }
+            });
+        }
+        deleteBatch();
+    });
+}
+
+// 清理超过保留期的 calendar 记录（分批删除）
+function dbCleanupOldCalendars(retentionSeconds) {
+    return new Promise((resolve, reject) => {
+        openCalendarDatabase().then(db => {
+            const cutoff = Math.floor(Date.now() / 1000) - retentionSeconds;
+            let totalDeleted = 0;
+            let batchCount = 0;
+
+            function deleteBatch() {
+                db.run(`DELETE FROM calendar WHERE rowid IN (SELECT rowid FROM calendar WHERE createtimestamp < ? LIMIT ?)`,
+                    [cutoff, CLEANUP_BATCH_SIZE], function (err) {
+                    if (err) {
+                        logger.error('清理过期calendar失败:', err.message);
+                        reject(err);
+                        return;
+                    }
+                    totalDeleted += this.changes;
+                    batchCount++;
+                    if (this.changes === CLEANUP_BATCH_SIZE && batchCount < CLEANUP_MAX_BATCHES) {
+                        deleteBatch();
+                    } else {
+                        logger.info(`清理过期calendar完成，删除 ${totalDeleted} 条记录`);
+                        resolve(totalDeleted);
+                    }
+                });
+            }
+            deleteBatch();
+        }).catch(err => {
+            logger.error('dbCleanupOldCalendars database error:', err.message);
+            reject(err);
+        });
+    });
+}
+
+// 清理超过保留期的用户信息记录（依据最后登录时间，分批删除）
+function dbCleanupOldUserinfos(retentionSeconds) {
+    return new Promise((resolve, reject) => {
+        const db = openUserinfoDatabase();
+        const cutoff = Math.floor(Date.now() / 1000) - retentionSeconds;
+        let totalDeleted = 0;
+        let batchCount = 0;
+
+        function deleteBatch() {
+            db.run(`DELETE FROM users WHERE rowid IN (SELECT rowid FROM users WHERE lastupdatetime IS NOT NULL AND lastupdatetime < ? LIMIT ?)`,
+                [cutoff, CLEANUP_BATCH_SIZE], function (err) {
+                if (err) {
+                    logger.error('清理过期用户信息失败:', err.message);
+                    reject(err);
+                    return;
+                }
+                totalDeleted += this.changes;
+                batchCount++;
+                if (this.changes === CLEANUP_BATCH_SIZE && batchCount < CLEANUP_MAX_BATCHES) {
+                    deleteBatch();
+                } else {
+                    logger.info(`清理过期用户信息完成（最后登录时间早于${retentionSeconds}秒前），删除 ${totalDeleted} 条记录`);
+                    resolve(totalDeleted);
+                }
+            });
+        }
+        deleteBatch();
+    });
+}
+
 export {
     openIdTokenDatabase,
     dbInsertIdToken,
@@ -561,6 +723,7 @@ export {
     dbInsertUserinfo,
     dbGetUserinfoByUserid,
     dbGetUserinfoByUnionid,
+    dbUpdateUserLoginTime,
     dbGetConfig,
     dbSetConfig,
     openTodoDatabase,
@@ -570,5 +733,9 @@ export {
     openCalendarDatabase,
     dbInsertCalendar,
     dbGetCalendarByMeetingid,
-    dbDeleteCalendarByMeetingid
+    dbDeleteCalendarByMeetingid,
+    dbCleanupExpiredIdTokens,
+    dbCleanupOldTodos,
+    dbCleanupOldCalendars,
+    dbCleanupOldUserinfos
 };

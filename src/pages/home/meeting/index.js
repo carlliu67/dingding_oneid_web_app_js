@@ -448,6 +448,7 @@ function MeetingList(props) {
               onCancel={handleCancel}
               onCreate={handleCreateMeetingSubmit}
               userInfo={userInfo}
+              isFreeAccount={isFreeAccount()}
             />
           </Suspense>
         )}
@@ -477,6 +478,7 @@ function MeetingList(props) {
               onCancel={handleCancel}
               onCreate={handleCreateMeetingSubmit}
               userInfo={userInfo}
+              isFreeAccount={isFreeAccount()}
             />
           </Suspense>
         )}

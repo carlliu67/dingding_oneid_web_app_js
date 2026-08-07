@@ -73,6 +73,14 @@ const config = {
 
     // 服务端日志打印
     logLevel: process.env.LOG_LEVEL || "info", // 日志级别，可选值：debug, info, warn, error
+
+    // 数据自动过期/定时清理配置
+    dataCleanupEnabled: process.env.DATA_CLEANUP_ENABLED !== "false", // 是否启用数据定时清理，默认启用
+    dataCleanupTime: process.env.DATA_CLEANUP_TIME || "02:00", // 每日定时清理执行时间，格式 HH:MM，默认凌晨2点
+    idTokenCleanupEnabled: process.env.ID_TOKEN_CLEANUP_ENABLED !== "false", // 是否清理已过期的idToken记录，默认启用
+    todoRetentionDays: isNaN(parseInt(process.env.TODO_RETENTION_DAYS)) ? 366 : parseInt(process.env.TODO_RETENTION_DAYS), // todo数据保留天数，超过则清理，默认366天，设为0表示不清理
+    calendarRetentionDays: isNaN(parseInt(process.env.CALENDAR_RETENTION_DAYS)) ? 366 : parseInt(process.env.CALENDAR_RETENTION_DAYS), // calendar数据保留天数，超过则清理，默认366天，设为0表示不清理
+    userinfoRetentionDays: isNaN(parseInt(process.env.USERINFO_RETENTION_DAYS)) ? 366 : parseInt(process.env.USERINFO_RETENTION_DAYS), // 用户信息保留天数，超过最后登录时间则清理，默认366天，设为0表示不清理
 };
 
 export default config;

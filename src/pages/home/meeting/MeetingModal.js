@@ -7,7 +7,7 @@ import clientConfig from '../../../config/client_config.js';
 import { frontendLogger } from '../../../utils/logger.js';
 const { Option } = Select;
 
-const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
+const MeetingModal = ({ visible, onCancel, onCreate, userInfo, isFreeAccount }) => {
   const [selectedHosts, setSelectedHosts] = useState([]); // 存储选中的主持人列表，每项包含 {id, name}
   const [selectedInvitees, setSelectedInvitees] = useState([]); // 存储选中的邀请人列表，每项包含 {id, name}
   const [currentDate, setCurrentDate] = useState(dayjs().startOf('day')); // 使用状态变量存储日期
@@ -267,18 +267,24 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
     var meetingParams = {};
     meetingParams.instanceid = 1;
     meetingParams.subject = values.topic;
-    meetingParams.hosts = selectedHosts.map(host => host.id); // 从合并后的状态中提取hosts数组
+    // 免费账号不支持设置主持人，仅高级账号可设置
+    if (!isFreeAccount) {
+      meetingParams.hosts = selectedHosts.map(host => host.id); // 从合并后的状态中提取hosts数组
+    }
     meetingParams.invitees = selectedInvitees.map(invitee => invitee.id); // 从合并后的状态中提取invitees数组
     meetingParams.type = 0;
     // 初始化settings对象
     meetingParams.settings = {};
-    // 参会限制类型
-    meetingParams.settings.only_user_join_type = values.only_user_join_type;
-    // 水印设置 - 优先使用表单值（如果存在），否则使用配置默认值
-    meetingParams.settings.allow_screen_shared_watermark = values.allow_screen_shared_watermark !== undefined ? values.allow_screen_shared_watermark : clientConfig.allow_screen_shared_watermark;
-    meetingParams.settings.water_mark_type = clientConfig.water_mark_type;
-    // 音频水印设置
-    meetingParams.settings.audio_watermark = clientConfig.audio_watermark;
+    // 以下参数免费账号不支持设置：参会限制、水印、音频水印
+    if (!isFreeAccount) {
+      // 参会限制类型
+      meetingParams.settings.only_user_join_type = values.only_user_join_type;
+      // 水印设置 - 优先使用表单值（如果存在），否则使用配置默认值
+      meetingParams.settings.allow_screen_shared_watermark = values.allow_screen_shared_watermark !== undefined ? values.allow_screen_shared_watermark : clientConfig.allow_screen_shared_watermark;
+      meetingParams.settings.water_mark_type = clientConfig.water_mark_type;
+      // 音频水印设置
+      meetingParams.settings.audio_watermark = clientConfig.audio_watermark;
+    }
     // console.log("startTime: ", values.start_time);
     const startDateTime = dayjs(values.start_date).hour(dayjs(values.start_time).hour()).minute(dayjs(values.start_time).minute());
     meetingParams.start_time = String(startDateTime.unix());
@@ -536,6 +542,7 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
           </div>
         </Form.Item>
 
+        {!isFreeAccount && (
         <Form.Item
           name="only_user_join_type"
           label="参会限制"
@@ -550,6 +557,7 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
             <Option value={3}>仅企业内部成员可入会</Option>
           </Select>
         </Form.Item>
+        )}
         {clientConfig.isShowWatermarkSwitch && (
           <Form.Item
             name="allow_screen_shared_watermark"
@@ -564,6 +572,7 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
             />
           </Form.Item>
         )}
+        {!isFreeAccount && (
         <Form.Item
           name="host"
           label="指定主持人"
@@ -621,6 +630,7 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo }) => {
             </div>
           </div>
         </Form.Item>
+        )}
         <Form.Item
           name="invitees"
           label="邀请成员"

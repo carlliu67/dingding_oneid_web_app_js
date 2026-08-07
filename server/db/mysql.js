@@ -35,6 +35,17 @@ async function initDatabase() {
   return pool;
 }
 
+// 安全创建索引（索引已存在时静默跳过）
+async function createIndexIfNotExists(connection, indexName, tableName, columnName) {
+  try {
+    await connection.query(`CREATE INDEX ${indexName} ON ${tableName}(${columnName})`);
+    logger.info(`Index "${indexName}" created on ${tableName}(${columnName}).`);
+  } catch (err) {
+    // 索引已存在时会报错，属于正常情况
+    logger.debug(`Index ${indexName} already exists or creation skipped:`, err.message);
+  }
+}
+
 // 创建所有必要的表
 async function createTables() {
   const connection = await pool.getConnection();
@@ -49,16 +60,29 @@ async function createTables() {
       )
     `);
     logger.info('Table "idtoken_users" created successfully');
+    // 为定时清理字段创建索引
+    await createIndexIfNotExists(connection, 'idx_idtoken_expired', 'idtoken_users', 'expired');
     
     // 创建userinfo表
     await connection.query(`
       CREATE TABLE IF NOT EXISTS users (
         userid VARCHAR(255) PRIMARY KEY,
         unionid VARCHAR(255) NOT NULL,
-        name VARCHAR(255) NOT NULL
+        name VARCHAR(255) NOT NULL,
+        lastupdatetime DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
       )
     `);
     logger.info('Table "users" created successfully');
+    // 兼容旧表：若 lastupdatetime 列不存在则添加
+    try {
+      await connection.query(`ALTER TABLE users ADD COLUMN lastupdatetime DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`);
+      logger.info('Column "lastupdatetime" added to table "users".');
+    } catch (alterErr) {
+      // 列已存在时会报错，属于正常情况
+      logger.debug('Column lastupdatetime already exists:', alterErr.message);
+    }
+    // 为定时清理字段创建索引
+    await createIndexIfNotExists(connection, 'idx_users_lastupdatetime', 'users', 'lastupdatetime');
     
     // 创建todo表
     await connection.query(`
@@ -70,6 +94,8 @@ async function createTables() {
       )
     `);
     logger.info('Table "todo" created successfully');
+    // 为定时清理字段创建索引
+    await createIndexIfNotExists(connection, 'idx_todo_createtimestamp', 'todo', 'createtimestamp');
     
     // 创建calendar表
     await connection.query(`
@@ -81,6 +107,8 @@ async function createTables() {
       )
     `);
     logger.info('Table "calendar" created successfully');
+    // 为定时清理字段创建索引
+    await createIndexIfNotExists(connection, 'idx_calendar_createtimestamp', 'calendar', 'createtimestamp');
 
     // 创建config表
     await connection.query(`
@@ -188,7 +216,7 @@ async function dbInsertUserinfo(userid, unionid, name) {
   const connection = await getConnection();
   try {
     const [result] = await connection.execute(
-      'INSERT INTO users (userid, unionid, name) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE unionid = VALUES(unionid), name = VALUES(name)',
+      'INSERT INTO users (userid, unionid, name, lastupdatetime) VALUES (?, ?, ?, NOW()) ON DUPLICATE KEY UPDATE unionid = VALUES(unionid), name = VALUES(name), lastupdatetime = NOW()',
       [userid, unionid, name]
     );
     logger.debug(`dbInsertUserinfo userid: ${userid}, unionid: ${unionid}, name: ${name} inserted successfully`);
@@ -249,6 +277,24 @@ async function dbGetUserinfoByUnionid(unionid) {
     }
   } catch (err) {
     logger.error('dbGetUserinfoByUnionid 查询失败:', err.message);
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
+// 更新用户最后登录时间（用于定期清理判断，仅更新已存在的记录）
+async function dbUpdateUserLoginTime(userid) {
+  const connection = await getConnection();
+  try {
+    const [result] = await connection.execute(
+      'UPDATE users SET lastupdatetime = NOW() WHERE userid = ?',
+      [userid]
+    );
+    logger.debug(`dbUpdateUserLoginTime userid: ${userid}, affected: ${result.affectedRows}`);
+    return result.affectedRows;
+  } catch (err) {
+    logger.error('dbUpdateUserLoginTime failed:', err.message);
     throw err;
   } finally {
     connection.release();
@@ -449,6 +495,107 @@ async function dbSetConfig(key, value) {
   }
 }
 
+// ==================== 数据定时清理函数 ====================
+// 分批删除配置：每批最多删除1000条，单次清理最多执行100批（10万条），避免长时间锁表
+const CLEANUP_BATCH_SIZE = 1000;
+const CLEANUP_MAX_BATCHES = 100;
+
+// 清理已过期的 idToken 记录（分批删除）
+// 注意：expired 字段以 UTC 时间字符串存储（dbInsertIdToken 使用 toISOString），
+// 因此此处使用 UTC_TIMESTAMP() 而非 NOW()，避免服务器时区非 UTC 时清理失效
+async function dbCleanupExpiredIdTokens() {
+  const connection = await getConnection();
+  try {
+    let totalDeleted = 0;
+    for (let i = 0; i < CLEANUP_MAX_BATCHES; i++) {
+      const [result] = await connection.query(
+        'DELETE FROM idtoken_users WHERE expired < UTC_TIMESTAMP() LIMIT ?',
+        [CLEANUP_BATCH_SIZE]
+      );
+      totalDeleted += result.affectedRows;
+      if (result.affectedRows < CLEANUP_BATCH_SIZE) break;
+    }
+    logger.info(`清理过期idToken完成，删除 ${totalDeleted} 条记录`);
+    return totalDeleted;
+  } catch (err) {
+    logger.error('清理过期idToken失败:', err.message);
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
+// 清理超过保留期的 todo 记录（分批删除）
+async function dbCleanupOldTodos(retentionSeconds) {
+  const connection = await getConnection();
+  try {
+    const cutoff = Math.floor(Date.now() / 1000) - retentionSeconds;
+    let totalDeleted = 0;
+    for (let i = 0; i < CLEANUP_MAX_BATCHES; i++) {
+      const [result] = await connection.query(
+        'DELETE FROM todo WHERE createtimestamp < ? LIMIT ?',
+        [cutoff, CLEANUP_BATCH_SIZE]
+      );
+      totalDeleted += result.affectedRows;
+      if (result.affectedRows < CLEANUP_BATCH_SIZE) break;
+    }
+    logger.info(`清理过期todo完成，删除 ${totalDeleted} 条记录`);
+    return totalDeleted;
+  } catch (err) {
+    logger.error('清理过期todo失败:', err.message);
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
+// 清理超过保留期的 calendar 记录（分批删除）
+async function dbCleanupOldCalendars(retentionSeconds) {
+  const connection = await getConnection();
+  try {
+    const cutoff = Math.floor(Date.now() / 1000) - retentionSeconds;
+    let totalDeleted = 0;
+    for (let i = 0; i < CLEANUP_MAX_BATCHES; i++) {
+      const [result] = await connection.query(
+        'DELETE FROM calendar WHERE createtimestamp < ? LIMIT ?',
+        [cutoff, CLEANUP_BATCH_SIZE]
+      );
+      totalDeleted += result.affectedRows;
+      if (result.affectedRows < CLEANUP_BATCH_SIZE) break;
+    }
+    logger.info(`清理过期calendar完成，删除 ${totalDeleted} 条记录`);
+    return totalDeleted;
+  } catch (err) {
+    logger.error('清理过期calendar失败:', err.message);
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
+// 清理超过保留期的用户信息记录（依据最后登录时间，分批删除）
+async function dbCleanupOldUserinfos(retentionSeconds) {
+  const connection = await getConnection();
+  try {
+    let totalDeleted = 0;
+    for (let i = 0; i < CLEANUP_MAX_BATCHES; i++) {
+      const [result] = await connection.query(
+        'DELETE FROM users WHERE lastupdatetime IS NOT NULL AND lastupdatetime < DATE_SUB(NOW(), INTERVAL ? SECOND) LIMIT ?',
+        [retentionSeconds, CLEANUP_BATCH_SIZE]
+      );
+      totalDeleted += result.affectedRows;
+      if (result.affectedRows < CLEANUP_BATCH_SIZE) break;
+    }
+    logger.info(`清理过期用户信息完成（最后登录时间早于${retentionSeconds}秒前），删除 ${totalDeleted} 条记录`);
+    return totalDeleted;
+  } catch (err) {
+    logger.error('清理过期用户信息失败:', err.message);
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
 // 为了保持与sqlite.js的接口一致性，导出相应的方法
 export {
   // 由于使用连接池，不需要单独的openXXX方法，直接导出操作方法
@@ -458,6 +605,7 @@ export {
   dbInsertUserinfo,
   dbGetUserinfoByUserid,
   dbGetUserinfoByUnionid,
+  dbUpdateUserLoginTime,
   dbGetConfig,
   dbSetConfig,
   dbInsertTodo,
@@ -466,6 +614,10 @@ export {
   dbInsertCalendar,
   dbGetCalendarByMeetingid,
   dbDeleteCalendarByMeetingid,
+  dbCleanupExpiredIdTokens,
+  dbCleanupOldTodos,
+  dbCleanupOldCalendars,
+  dbCleanupOldUserinfos,
   // 额外导出初始化方法，方便应用启动时初始化数据库
   initDatabase
 };

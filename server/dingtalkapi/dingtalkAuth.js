@@ -6,6 +6,7 @@ import serverConfig from '../config/server_config.js';
 import { configAccessControl, okResponse, failResponse, setCookie } from '../server_util.js';
 import { getAccessToken, getInterAccessToken } from './dingtalkUtil.js';
 import { getUserAuthFromRedis, setUserAuthToRedis } from '../db/redis.js';
+import dbAdapter from '../db/db_adapter.js';
 
 const DD_JSTICKET_KEY = 'dd_jsticket'
 const USER_INFO_KEY = 'user_info'
@@ -51,6 +52,12 @@ async function getUserAccessToken(ctx) {
     if (await isLogin(ctx)) {
         logger.debug("接入服务方第② 步: 从Session中获取user_access_token信息，用户已登录")
         const userInfo = ctx.session.userInfo
+        // 更新用户最后登录时间（用于定期清理判断）
+        if (userInfo && userInfo.userid) {
+            dbAdapter.dbUpdateUserLoginTime(userInfo.userid).catch(err => {
+                logger.debug('更新用户登录时间失败（用户可能尚未在users表中）:', err.message);
+            });
+        }
         ctx.body = okResponse(userInfo)
         logger.debug("-------------------[接入服务端免登处理 END]-----------------------------\n")
         return
@@ -96,6 +103,13 @@ async function getUserAccessToken(ctx) {
             
             // 将用户信息存储到Redis
             await setUserAuthToRedis(resultUserInfo.userid, resultUserInfo);
+
+            // 更新用户最后登录时间（用于定期清理判断）
+            if (resultUserInfo.userid) {
+                dbAdapter.dbUpdateUserLoginTime(resultUserInfo.userid).catch(err => {
+                    logger.debug('更新用户登录时间失败（用户可能尚未在users表中）:', err.message);
+                });
+            }
             
             ctx.body = okResponse(resultUserInfo)
         } else {

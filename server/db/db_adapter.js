@@ -68,6 +68,7 @@ const databaseMethods = [
   'dbInsertUserinfo',
   'dbGetUserinfoByUserid',
   'dbGetUserinfoByUnionid',
+  'dbUpdateUserLoginTime',
   'dbGetConfig',
   'dbSetConfig',
   'dbInsertTodo',
@@ -75,7 +76,11 @@ const databaseMethods = [
   'dbDeleteTodoByMeetingid',
   'dbInsertCalendar',
   'dbGetCalendarByMeetingid',
-  'dbDeleteCalendarByMeetingid'
+  'dbDeleteCalendarByMeetingid',
+  'dbCleanupExpiredIdTokens',
+  'dbCleanupOldTodos',
+  'dbCleanupOldCalendars',
+  'dbCleanupOldUserinfos'
 ];
 
 // 立即创建并导出所有数据库方法的包装函数

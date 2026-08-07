@@ -19,6 +19,7 @@ const dbAdapter = (await import('./db/db_adapter.js')).default;
 const { initRedis } = await import('./db/redis.js');
 const { handleFrontendLogs } = await import('./util/logHandler.js');
 const { initializeAdminUserid } = await import('./util/adminUseridManager.js');
+const { startCleanupScheduler, stopCleanupScheduler } = await import('./db/data_cleanup.js');
 
 import Koa from 'koa';
 import Router from 'koa-router';
@@ -32,6 +33,8 @@ import zlib from 'zlib';
 dbAdapter.initDatabase().then(async () => {
   // 初始化ADMIN_USERID
   await initializeAdminUserid();
+  // 启动数据定时清理调度器（在数据库初始化完成后启动）
+  startCleanupScheduler();
 });
 
 // 初始化Redis
@@ -141,6 +144,10 @@ router.get(serverConfig.keepAlivePath, (ctx) => {
 const port = process.env.PORT || serverConfig.apiPort;
 app.use(router.routes()).use(router.allowedMethods());
 
+// 读取 package.json 获取版本信息
+const pkgPath = path.join(projectRoot, 'package.json');
+const { version, name } = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+
 // SPA fallback：非 /api 的未匹配 GET 请求返回 index.html，交给前端路由处理
 if (staticExists) {
     app.use(async (ctx) => {
@@ -172,7 +179,7 @@ app.on('error', (err, ctx) => {
 });
 
 app.listen(port, () => {
-    logger.info(`server is start, listening on port ${port}`);
+    logger.info(`${name} v${version} server started, listening on port ${port}`);
 }).on('error', (err) => {
     logger.error(`Failed to start server on port ${port}:`, err);
 });
@@ -219,7 +226,8 @@ process.on('SIGTERM', () => {
         console.error('收到 SIGTERM 信号，正在关闭服务器...');
         console.error('日志记录失败:', logErr);
     }
-    // 可以添加优雅关闭的逻辑
+    // 停止数据定时清理调度器
+    stopCleanupScheduler();
     process.exit(0);
 });
 
@@ -230,6 +238,7 @@ process.on('SIGINT', () => {
         console.error('收到 SIGINT 信号，正在关闭服务器...');
         console.error('日志记录失败:', logErr);
     }
-    // 可以添加优雅关闭的逻辑
+    // 停止数据定时清理调度器
+    stopCleanupScheduler();
     process.exit(0);
 });

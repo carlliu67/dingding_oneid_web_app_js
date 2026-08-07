@@ -4,10 +4,7 @@
 
 ## 功能特性
 
-- **钉钉免登**：支持钉钉企业内部免登
-- **会议管理**：创建、查询、取消会议
-- **日程同步**：会议与钉钉日程同步
-- **云录制**：支持会议录制和回放
+参考RELEASE_NOTES.md文档
 
 ## 技术栈
 
@@ -18,22 +15,13 @@
 
 ### 环境要求
 
-- **Node.js**：≥ 18.0.0（建议使用 LTS 版本）
-- **npm**：≥ 9.0.0
-- **Docker**：≥ 20.10（如需 Docker 部署）
-- **docker-compose**：≥ 2.0（如需 Docker Compose 部署）
+- **Docker**：≥ 20.10
+- **docker-compose**：≥ 2.0
 
 ## 快速开始
 
-### 1. 安装依赖
+### 1. 配置文件
 
-```bash
-npm install
-```
-
-### 2. 配置文件
-
-#### 环境变量配置
 复制环境变量示例文件并配置必要参数：
 
 ```bash
@@ -41,70 +29,26 @@ cp .env.example .env
 # 然后编辑 .env 文件，填入相关参数
 ```
 
-### 3. 本地开发
-
-#### 方式一：使用 npm 脚本
+### 2. 构建并启动
 
 ```bash
-# 开发模式：并行启动前端 dev server（7000）与后端（7001），前端通过 proxy 代理 /api
-npm run start:dev
-
-# 生产模式：构建前端并由后端（默认7000）托管静态文件，前后端复用同一端口
-npm run start
-
-# 仅启动前端 dev server（7000）
-npm run start:web
-
-# 仅启动后端（开发内部端口7001；生产默认7000）
-npm run start:server
+docker-compose up -d --build
 ```
 
-
-
-## Docker 部署
-
-### 构建镜像
+## 管理命令
 
 ```bash
-npm run docker:build
-```
+# 查看服务状态
+docker-compose ps
 
-或者直接使用 Docker 命令：
+# 查看服务日志
+docker-compose logs -f
 
-```bash
-docker build --tag dingding-oneid .
-```
+# 停止服务
+docker-compose down
 
-### 启动服务
-
-```bash
-# 使用 docker-compose
-docker-compose up -d
-
-# 或者使用 npm 脚本
-npm run docker:run
-```
-
-### 目录结构
-
-确保以下目录结构存在：
-
-```
-./config/
-├── server/          # 后端配置文件
-└── client/          # 前端配置文件
-./logs/              # 日志目录
-./data/              # 数据目录
-```
-
-创建配置目录：
-
-```bash
-mkdir -p config/server config/client
-
-# 复制配置文件模板
-cp src/config/client_config.js config/client/client_config.js
-cp server/config/server_config.js config/server/server_config.js
+# 重启服务
+docker-compose restart
 ```
 
 ## 配置说明
@@ -151,6 +95,11 @@ cp server/config/server_config.js config/server/server_config.js
 - `REDIS_KEY_PREFIX`: Redis键前缀（默认dingtalk:）
 - `REDIS_USER_AUTH_EXPIRE`: 用户鉴权信息过期时间（默认3600秒）
 
+#### 数据自动过期/定时清理配置
+- `TODO_RETENTION_DAYS`: todo数据保留天数，超过则清理（默认366，设为0表示不清理）
+- `CALENDAR_RETENTION_DAYS`: calendar数据保留天数，超过则清理（默认366，设为0表示不清理）
+- `USERINFO_RETENTION_DAYS`: 用户信息保留天数，超过最后登录时间则清理（默认366，设为0表示不清理）
+
 #### 其他配置
 - `LOG_LEVEL`: 日志级别（默认info）
 - `MODE`: 工作台应用打开模式（默认upcoming）
@@ -158,56 +107,11 @@ cp server/config/server_config.js config/server/server_config.js
 
 ## 端口说明
 
-前后端复用同一端口（7000）：生产由后端 Koa 服务同时托管前端静态文件与 API；开发时前端 dev server 占用 7000，通过 proxy 代理 /api 到后端内部端口 7001。
+后端 Koa 服务同时托管前端静态文件与 API，前后端复用同一端口。
 
 | 端口 | 服务 |
 |------|------|
-| 7000 | 生产：前端静态文件 + 后端 API 服务（含 webhook）；开发：前端 dev server（用户侧统一访问端口） |
-| 7001 | 仅开发模式下后端内部端口（供 dev server 的 proxy 代理，不对用户暴露） |
-
-## 管理命令
-
-### Docker 管理
-
-```bash
-# 查看日志
-npm run docker:logs
-
-# 停止服务
-npm run docker:stop
-
-# 清理容器和镜像
-npm run docker:clean
-```
-
-### docker-compose 命令
-
-```bash
-# 查看服务状态
-docker-compose ps
-
-# 查看服务日志
-docker-compose logs -f
-
-# 停止服务
-docker-compose down
-
-# 重启服务
-docker-compose restart
-
-# 更新镜像并重启
-docker-compose pull && docker-compose up -d
-```
-
-## 直接使用 Docker 命令
-
-```bash
-# 构建镜像
-docker build --tag dingding-oneid .
-
-# 运行容器
-docker run -d -p 7000:7000 --name dingding-oneid dingding-oneid
-```
+| 7000 | 前端静态文件 + 后端 API 服务（含 webhook） |
 
 ## 注意事项
 
