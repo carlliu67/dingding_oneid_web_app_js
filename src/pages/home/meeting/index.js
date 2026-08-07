@@ -78,6 +78,19 @@ function MeetingList(props) {
     return userAccountType === 2 || userAccountType === 3;
   };
 
+  // 判断是否展示创建会议按钮
+  // 可选值：'all'（所有用户可见）、'advanced'（仅高级账号可见）、'none'（全部不允许展示）
+  const shouldShowCreateMeetingButton = () => {
+    const visibility = clientConfig.createMeetingButtonVisibility;
+    if (visibility === 'all') {
+      return true;
+    } else if (visibility === 'none') {
+      return false;
+    }
+    // 默认 'advanced'：仅高级账号可见
+    return !isFreeAccount();
+  };
+
   const getMeetingInfoList = useCallback(async () => {
     setLoading(true);
     const currentTimestamp = Math.floor(Date.now() / 1000);
@@ -411,7 +424,7 @@ function MeetingList(props) {
       <div style={{ padding: 24, background: '#fff' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
           <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
-          {userAccountInfo && !isFreeAccount() && (
+          {userAccountInfo && shouldShowCreateMeetingButton() && (
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <Button type="primary" className="reserve-button" onClick={showModal}>预定会议</Button>
             </div>

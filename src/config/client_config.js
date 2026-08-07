@@ -9,6 +9,9 @@ const clientConfig = {
     // 工作台应用打开模式
     mode: process.env.REACT_APP_MODE || 'schedule', // 工作台应用打开模式，可选值：'app'（免登跳转腾讯会议客户端）、'upcoming'（展示待参加会议页面）、'schedule'（支持创建会议）
 
+    // 创建会议按钮展示控制，可选值：'all'（所有用户可见）、'advanced'（仅高级账号可见）、'none'（全部不允许展示），默认值为'advanced'
+    createMeetingButtonVisibility: process.env.REACT_APP_CREATE_MEETING_BUTTON_VISIBILITY || 'advanced',
+
     // 会议默认参数配置
     only_user_join_type: parseInt(process.env.REACT_APP_ONLY_USER_JOIN_TYPE) || 1, // 成员入会限制类型，1：所有成员可入会，2：仅受邀成员可入会，3：仅企业内部成员可入会
     isShowWatermarkSwitch: process.env.REACT_APP_IS_SHOW_WATERMARK_SWITCH === "true", // 是否展示水印设置选项，true：展示，false：不展示，默认值为false

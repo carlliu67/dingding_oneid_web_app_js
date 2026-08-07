@@ -154,6 +154,7 @@ cp server/config/server_config.js config/server/server_config.js
 #### 其他配置
 - `LOG_LEVEL`: 日志级别（默认info）
 - `MODE`: 工作台应用打开模式（默认upcoming）
+- `REACT_APP_CREATE_MEETING_BUTTON_VISIBILITY`: 创建会议按钮展示控制（默认advanced），可选值：`all`（所有用户可见）、`advanced`（仅高级账号可见）、`none`（全部不允许展示）
 
 ## 端口说明
 
