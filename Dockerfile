@@ -1,13 +1,23 @@
 # 第一阶段：构建前端应用
 FROM node:18-alpine AS frontend-builder
 
+# 配置 Alpine 国内源（阿里云），加速系统包安装
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
+
 WORKDIR /app
 
 # 复制package.json和package-lock.json（单独复制以利用docker层缓存，依赖不变时跳过安装）
 COPY package*.json ./
 
-# 安装依赖并清理npm缓存（合并为一层，减少镜像体积与inode占用）
-RUN npm ci && npm cache clean --force
+# 安装 sqlite3 原生模块编译所需的构建工具（prebuild 下载超时时回退到本地编译）
+# py3-setuptools 提供 Python 3.12 移除的 distutils 模块（node-gyp 8.x 依赖）
+# 同层安装并卸载，避免残留增大镜像体积
+RUN apk add --no-cache python3 py3-setuptools make g++ \
+    && export SETUPTOOLS_USE_DISTUTILS=local \
+    && npm config set registry https://registry.npmmirror.com \
+    && npm ci \
+    && apk del python3 py3-setuptools make g++ \
+    && npm cache clean --force
 
 # 复制前端源代码
 COPY src/ ./src/
@@ -20,13 +30,23 @@ RUN npm run build
 # 第二阶段：运行后端应用（同时托管前端静态文件）
 FROM node:18-alpine
 
+# 配置 Alpine 国内源（阿里云），加速系统包安装
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
+
 WORKDIR /app
 
 # 复制package.json和package-lock.json
 COPY package*.json ./
 
-# 安装生产依赖并清理npm缓存（npm ci 基于lockfile，--omit=dev 跳过开发依赖）
-RUN npm ci --omit=dev && npm cache clean --force
+# 安装 sqlite3 原生模块编译所需的构建工具（prebuild 下载超时时回退到本地编译）
+# py3-setuptools 提供 Python 3.12 移除的 distutils 模块（node-gyp 8.x 依赖）
+# 同层安装并卸载，避免残留增大镜像体积
+RUN apk add --no-cache python3 py3-setuptools make g++ \
+    && export SETUPTOOLS_USE_DISTUTILS=local \
+    && npm config set registry https://registry.npmmirror.com \
+    && npm ci --omit=dev \
+    && apk del python3 py3-setuptools make g++ \
+    && npm cache clean --force
 
 # 复制后端源代码
 COPY server/ ./server/
