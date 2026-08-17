@@ -14,7 +14,7 @@ const { logger } = await import('./util/logger.js');
 const { handleVerification, handleEvent } = await import('./wemeet/webhook.js');
 const { handleCreateMeeting, handleQueryUserEndedMeetingList, handleQueryUserMeetingList, handleGetUserInfo } = await import('./wemeet/wemeetApi.js');
 const { handleGenerateJoinScheme, handleGenerateJumpUrl, handleGenerateJoinUrl } = await import('./wemeet/wemeetUtil.js');
-const { getUserAccessToken, getSignParameters } = await import('./dingtalkapi/dingtalkAuth.js');
+const { getUserAccessToken, getSignParameters, isLogin, getUserid, handleSearchUser } = await import('./dingtalkapi/dingtalkAuth.js');
 const dbAdapter = (await import('./db/db_adapter.js')).default;
 const { initRedis } = await import('./db/redis.js');
 const { handleFrontendLogs } = await import('./util/logHandler.js');
@@ -124,6 +124,7 @@ router.post(serverConfig.createMeetingPath, handleCreateMeeting)
 router.get(serverConfig.queryUserEndedMeetingListPath, handleQueryUserEndedMeetingList)
 router.get(serverConfig.queryUserMeetingListPath, handleQueryUserMeetingList)
 router.get(serverConfig.getUserInfoPath, handleGetUserInfo)
+router.get(serverConfig.searchUserPath, handleSearchUser)
 router.get(serverConfig.generateJoinSchemePath, handleGenerateJoinScheme)
 router.get(serverConfig.generateJumpUrlPath, handleGenerateJumpUrl)
 router.get(serverConfig.generateJoinUrlPath, handleGenerateJoinUrl)

@@ -4,7 +4,7 @@ import crypto from 'crypto';
 import { logger } from '../util/logger.js';
 import serverConfig from '../config/server_config.js';
 import { configAccessControl, okResponse, failResponse, setCookie } from '../server_util.js';
-import { getAccessToken, getInterAccessToken } from './dingtalkUtil.js';
+import { getAccessToken, getInterAccessToken, searchUserByKeyword, getUserDetailByUserid } from './dingtalkUtil.js';
 import { getUserAuthFromRedis, setUserAuthToRedis } from '../db/redis.js';
 import dbAdapter from '../db/db_adapter.js';
 
@@ -248,9 +248,75 @@ function decodeUrl(urlString) {
 }
 
 
+// 处理搜索用户请求
+// 前端传入搜索关键词(query)，后端调用钉钉通讯录搜索接口获取匹配的用户userId列表
+// 再批量查询每个用户的详情(姓名等)，返回给前端展示
+async function handleSearchUser(ctx) {
+    logger.debug("\n-------------------[搜索用户 BEGIN]-----------------------------");
+    configAccessControl(ctx);
+
+    if (!(await isLogin(ctx))) {
+        ctx.body = failResponse("用户未登录，请先登录");
+        logger.debug("-------------------[搜索用户 用户未登录 END]-----------------------------\n");
+        return;
+    }
+
+    const query = ctx.query["query"] || "";
+    if (!query || query.trim().length === 0) {
+        ctx.body = failResponse("搜索关键词不能为空");
+        return;
+    }
+
+    const size = parseInt(ctx.query["size"]) || 20;
+    const offset = parseInt(ctx.query["offset"]) || 0;
+
+    try {
+        logger.info(`搜索用户: query="${query}", offset=${offset}, size=${size}`);
+
+        // 第一步：调用钉钉通讯录搜索接口获取userId列表
+        const searchResult = await searchUserByKeyword(query.trim(), offset, size);
+        if (!searchResult || !searchResult.list || searchResult.list.length === 0) {
+            logger.debug("搜索用户结果为空");
+            ctx.body = okResponse({ hasMore: false, totalCount: 0, users: [] });
+            return;
+        }
+
+        logger.debug(`搜索到 ${searchResult.list.length} 个用户userId，开始批量获取用户详情`);
+
+        // 第二步：批量查询每个userId的用户详情（姓名等）
+        const userDetails = await Promise.all(
+            searchResult.list.map(userid => getUserDetailByUserid(userid))
+        );
+
+        // 过滤掉查询失败的结果，组装返回数据
+        const users = userDetails
+            .filter(detail => detail !== null)
+            .map(detail => ({
+                userid: detail.userid,
+                name: detail.name || detail.userid,
+                avatar: detail.avatar || "",             // 头像URL
+                jobnumber: detail.job_number || "",      // 工号（钉钉API返回字段名为job_number）
+            }));
+
+        logger.info(`搜索用户完成: 匹配${searchResult.list.length}个，成功获取详情${users.length}个`);
+
+        ctx.body = okResponse({
+            hasMore: searchResult.hasMore || false,
+            totalCount: searchResult.totalCount || users.length,
+            users,
+        });
+    } catch (error) {
+        logger.error("搜索用户处理失败:", error.message, "stack:", error.stack);
+        ctx.body = failResponse("搜索用户失败");
+    }
+
+    logger.debug("-------------------[搜索用户 END]-----------------------------\n");
+}
+
 export {
     getUserAccessToken,
     getSignParameters,
     isLogin,
-    getUserid
+    getUserid,
+    handleSearchUser
 };

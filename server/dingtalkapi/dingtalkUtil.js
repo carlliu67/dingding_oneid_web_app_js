@@ -196,6 +196,70 @@ async function queryUserIdByUnionId(unionid) {
 
 }
 
+// 搜索用户userId
+// 调用钉钉通讯录搜索接口，根据用户名称/拼音/英文名称搜索匹配的用户userId列表
+// 接口文档：https://open.dingtalk.com/document/development/address-book-search-user-id
+async function searchUserByKeyword(queryWord, offset = 0, size = 20, fullMatchField) {
+    const accessToken = await getInterAccessToken();
+    if (!accessToken) {
+        logger.error("搜索用户失败：无法获取access_token");
+        return null;
+    }
+
+    try {
+        const requestBody = {
+            queryWord,
+            offset,
+            size,
+        };
+        if (fullMatchField !== undefined) {
+            requestBody.fullMatchField = fullMatchField;
+        }
+
+        const response = await axios.post('https://api.dingtalk.com/v1.0/contact/users/search', requestBody, {
+            headers: {
+                "Content-Type": "application/json",
+                "x-acs-dingtalk-access-token": accessToken,
+            }
+        });
+
+        logger.debug("searchUserByKeyword result:", response.data);
+        return response.data;  // {hasMore, totalCount, list: [userId, ...]}
+    } catch (error) {
+        logger.error("搜索用户失败:", error.message, "stack:", error.stack);
+        if (error.response) {
+            logger.error("响应数据:", error.response.data);
+        }
+        return null;
+    }
+}
+
+// 查询用户详情（返回userid, name, unionid, avatar等）
+// 调用钉钉topapi/v2/user/get接口获取用户完整信息
+async function getUserDetailByUserid(userid) {
+    const accessToken = await getInterAccessToken();
+    if (!accessToken) {
+        return null;
+    }
+
+    try {
+        const response = await axios.post('https://oapi.dingtalk.com/topapi/v2/user/get?access_token=' + accessToken, {
+            userid: userid
+        }, { headers: { "Content-Type": "application/json" } });
+
+        if (!response.data || response.data.errcode != 0) {
+            logger.warn("getUserDetailByUserid失败:", response.data?.errcode, response.data?.errmsg);
+            return null;
+        }
+
+        logger.debug("getUserDetailByUserid result:", response.data.result);
+        return response.data.result;  // {userid, name, unionid, avatar, ...}
+    } catch (error) {
+        logger.error("查询用户详情失败:", error.message, "stack:", error.stack);
+        return null;
+    }
+}
+
 export {
     convertSecondsToISO,
     formatTimeRange,
@@ -203,5 +267,7 @@ export {
     genH5AppLink,
     getInterAccessToken,
     getAccessToken,
-    getUnionIdByUserid
+    getUnionIdByUserid,
+    searchUserByKeyword,
+    getUserDetailByUserid
 };

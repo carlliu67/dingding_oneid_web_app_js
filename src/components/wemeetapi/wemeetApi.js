@@ -262,4 +262,37 @@ async function handleGetUserInfo() {
 }
 
 
-export { handleCreateMeeting, handleGenerateJoinScheme, handleGenerateJumpUrl, handleQueryUserEndedMeetingList, handleQueryUserMeetingList, handleGenerateJoinUrl, handleGetUserInfo }
+// 搜索用户 - 根据用户名搜索，返回匹配的用户列表（仅search模式使用）
+async function searchUser(query, size = 20) {
+    frontendLogger.debug("\n----------[搜索用户 BEGIN]----------")
+    try {
+        const response = await axios.get(`${getOrigin()}${clientConfig.searchUserPath}`, {
+            params: { query, size },
+            withCredentials: true
+        });
+
+        if (!response || !response.data) {
+            frontendLogger.error(`${clientConfig.searchUserPath} response is null`);
+            return null;
+        }
+
+        const data = response.data;
+        if (data.code !== 0) {
+            frontendLogger.error('搜索用户失败', { msg: data.msg });
+            return null;
+        }
+
+        frontendLogger.debug("搜索用户: 成功", { count: data.data?.users?.length || 0 });
+        frontendLogger.debug("----------[搜索用户 END]----------\n")
+        return data.data;  // {hasMore, totalCount, users: [{userid, name}]}
+    } catch (error) {
+        frontendLogger.error(`${clientConfig.searchUserPath} error`, { error });
+        if (error.response) {
+            frontendLogger.error("错误响应数据", { data: error.response.data });
+        }
+        return null;
+    }
+}
+
+
+export { handleCreateMeeting, handleGenerateJoinScheme, handleGenerateJumpUrl, handleQueryUserEndedMeetingList, handleQueryUserMeetingList, handleGenerateJoinUrl, handleGetUserInfo, searchUser }

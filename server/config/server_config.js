@@ -45,6 +45,9 @@ const config = {
         data: {},
     },
 
+    // 搜索用户userId的api path（仅search模式使用）
+    searchUserPath:  "/api/search_user",
+
     // webhook server接口配置，webhookPath不要修改
     webhookPath:  "/api/webhook", //webhook回调的api path
     webhookRateLimit: 1000, // 每秒处理的请求数

@@ -1,15 +1,20 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Modal, Form, Input, DatePicker, TimePicker, Button, Select, Switch } from 'antd';
+import { Modal, Form, Input, DatePicker, TimePicker, Button, Select, Switch, Avatar } from 'antd';
 import dayjs from 'dayjs';
 import dd from '../../../utils/ddSdk.js';
 import './MeetingModal.css'
 import clientConfig from '../../../config/client_config.js';
 import { frontendLogger } from '../../../utils/logger.js';
+import { searchUser } from '../../../components/wemeetapi/wemeetApi.js';
 const { Option } = Select;
 
 const MeetingModal = ({ visible, onCancel, onCreate, userInfo, isFreeAccount }) => {
   const [selectedHosts, setSelectedHosts] = useState([]); // 存储选中的主持人列表，每项包含 {id, name}
   const [selectedInvitees, setSelectedInvitees] = useState([]); // 存储选中的邀请人列表，每项包含 {id, name}
+  // 搜索模式相关状态
+  const [searchResults, setSearchResults] = useState([]); // 搜索结果列表 [{userid, name}]
+  const [searching, setSearching] = useState(false); // 搜索中状态
+  const searchTimerRef = useRef(null); // 搜索防抖计时器
   const [currentDate, setCurrentDate] = useState(dayjs().startOf('day')); // 使用状态变量存储日期
   const [currentTime, setCurrentTime] = useState(() => { // 使用状态变量存储时间，初始计算未来最近的15分钟间隔
     const now = dayjs();
@@ -251,6 +256,34 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo, isFreeAccount }) 
         frontendLogger.error('选择邀请成员失败', { error: err });
       });
     });
+  };
+
+  // 搜索用户（防抖动处理）
+  // 用户在Select中输入关键词时触发，延迟500ms后调用后端搜索接口
+  const handleSearchUsers = (value) => {
+    if (searchTimerRef.current) {
+      clearTimeout(searchTimerRef.current);
+    }
+    if (!value || value.trim().length === 0) {
+      setSearchResults([]);
+      return;
+    }
+    searchTimerRef.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const result = await searchUser(value.trim());
+        if (result && result.users) {
+          setSearchResults(result.users);
+        } else {
+          setSearchResults([]);
+        }
+      } catch (error) {
+        frontendLogger.error('搜索用户失败', { error });
+        setSearchResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 500);
   };
 
 
@@ -574,15 +607,41 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo, isFreeAccount }) 
         )}
         {!isFreeAccount && (
         <Form.Item
-          name="host"
           label="指定主持人"
-          rules={[{ message: '请选择成员' }]}
           style={{ marginBottom: 16 }}
         >
+          {clientConfig.userSelectorMode === 'search' ? (
+            <Select
+              mode="multiple"
+              labelInValue
+              value={selectedHosts.map(h => ({ value: h.id, label: h.name }))}
+              showSearch
+              filterOption={false}
+              onSearch={handleSearchUsers}
+              onChange={(values) => {
+                const hosts = values.map(v => ({ id: v.value, name: v.label || v.value }));
+                setSelectedHosts(hosts);
+              }}
+              placeholder="输入姓名搜索添加主持人"
+              notFoundContent={searching ? '搜索中...' : '输入姓名搜索'}
+              style={{ width: '100%' }}
+            >
+              {searchResults.map(user => (
+                <Option key={user.userid} value={user.userid} label={`${user.name}${user.jobnumber ? ' (' + user.jobnumber + ')' : ''}`}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Avatar size="small" src={user.avatar} >{(user.name || '?')[0]}</Avatar>
+                    <span>{user.name}</span>
+                    {user.jobnumber && <span style={{ color: '#999', fontSize: '12px' }}>工号: {user.jobnumber}</span>}
+                  </div>
+                </Option>
+              ))}
+            </Select>
+          ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', width: '100%' }}>
               <Button 
                 type="primary" 
+ 
                 onClick={() => handleChooseHost()}
                 style={{ 
                   marginBottom: 10, 
@@ -629,14 +688,40 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo, isFreeAccount }) 
               )}
             </div>
           </div>
+          )}
         </Form.Item>
         )}
         <Form.Item
-          name="invitees"
           label="邀请成员"
-          rules={[{ message: '请选择成员' }]}
           style={{ marginBottom: 16 }}
         >
+          {clientConfig.userSelectorMode === 'search' ? (
+            <Select
+              mode="multiple"
+              labelInValue
+              value={selectedInvitees.map(inv => ({ value: inv.id, label: inv.name }))}
+              showSearch
+              filterOption={false}
+              onSearch={handleSearchUsers}
+              onChange={(values) => {
+                const invitees = values.map(v => ({ id: v.value, name: v.label || v.value }));
+                setSelectedInvitees(invitees);
+              }}
+              placeholder="输入姓名搜索添加邀请成员"
+              notFoundContent={searching ? '搜索中...' : '输入姓名搜索'}
+              style={{ width: '100%' }}
+            >
+              {searchResults.map(user => (
+                <Option key={user.userid} value={user.userid} label={`${user.name}${user.jobnumber ? ' (' + user.jobnumber + ')' : ''}`}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Avatar size="small" src={user.avatar}>{(user.name || '?')[0]}</Avatar>
+                    <span>{user.name}</span>
+                    {user.jobnumber && <span style={{ color: '#999', fontSize: '12px' }}>工号: {user.jobnumber}</span>}
+                  </div>
+                </Option>
+              ))}
+            </Select>
+          ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', width: '100%' }}>
               <Button 
@@ -687,6 +772,7 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo, isFreeAccount }) 
               )}
             </div>
           </div>
+          )}
         </Form.Item>
         <Form.Item wrapperCol={{ xs: 24, sm: { span: 16, offset: 6 } }}>
           <div style={{ 
