@@ -268,6 +268,7 @@ export {
     getInterAccessToken,
     getAccessToken,
     getUnionIdByUserid,
+    queryUserIdByUnionId,
     searchUserByKeyword,
     getUserDetailByUserid
 };

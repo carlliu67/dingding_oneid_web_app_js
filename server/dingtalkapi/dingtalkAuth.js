@@ -4,7 +4,7 @@ import crypto from 'crypto';
 import { logger } from '../util/logger.js';
 import serverConfig from '../config/server_config.js';
 import { configAccessControl, okResponse, failResponse, setCookie } from '../server_util.js';
-import { getAccessToken, getInterAccessToken, searchUserByKeyword, getUserDetailByUserid } from './dingtalkUtil.js';
+import { getAccessToken, getInterAccessToken, searchUserByKeyword, getUserDetailByUserid, queryUserIdByUnionId } from './dingtalkUtil.js';
 import { getUserAuthFromRedis, setUserAuthToRedis } from '../db/redis.js';
 import dbAdapter from '../db/db_adapter.js';
 
@@ -311,6 +311,69 @@ async function handleSearchUser(ctx) {
     }
 
     logger.debug("-------------------[搜索用户 END]-----------------------------\n");
+}
+
+// OAuth2网页授权流程：通过URL code换取用户完整信息
+// 适用场景：从钉钉管理后台跳转时，URL携带的code是OAuth2授权码（非免登auth code）
+// 流程：code → userAccessToken → unionId → userid → 用户详情
+async function getUserInfoByOAuth2Code(code) {
+    try {
+        // 第一步：用code换取userAccessToken
+        const tokenRes = await axios.post('https://api.dingtalk.com/v1.0/oauth2/userAccessToken', {
+            clientId: serverConfig.dingtalkClientId,
+            clientSecret: serverConfig.dingtalkClientSecret,
+            code: code,
+            grantType: 'authorization_code'
+        }, {
+            headers: { "Content-Type": "application/json" }
+        });
+
+        if (!tokenRes.data || !tokenRes.data.accessToken) {
+            logger.error("OAuth2换取userAccessToken失败:", tokenRes.data);
+            return null;
+        }
+
+        const userAccessToken = tokenRes.data.accessToken;
+        logger.debug("OAuth2 userAccessToken获取成功");
+
+        // 第二步：用userAccessToken获取用户信息（unionId等）
+        const meRes = await axios.get('https://api.dingtalk.com/v1.0/contact/users/me', {
+            headers: { "x-acs-dingtalk-access-token": userAccessToken }
+        });
+
+        if (!meRes.data || !meRes.data.unionId) {
+            logger.error("OAuth2获取用户信息失败:", meRes.data);
+            return null;
+        }
+
+        const unionId = meRes.data.unionId;
+        logger.debug("OAuth2获取到unionId:", unionId);
+
+        // 第三步：用unionId换取userid
+        const userid = await queryUserIdByUnionId(unionId);
+        if (!userid) {
+            logger.error("根据unionId获取userid失败");
+            return null;
+        }
+
+        logger.debug("OAuth2获取到userid:", userid);
+
+        // 第四步：用userid查询用户完整详情（包含admin字段）
+        const userDetail = await getUserDetailByUserid(userid);
+        if (!userDetail) {
+            logger.error("查询用户详情失败");
+            return null;
+        }
+
+        logger.info("OAuth2流程获取用户信息成功:", userDetail.name);
+        return userDetail;
+    } catch (error) {
+        logger.error("OAuth2流程获取用户信息失败:", error.message, "stack:", error.stack);
+        if (error.response) {
+            logger.error("响应数据:", error.response.data);
+        }
+        return null;
+    }
 }
 
 export {

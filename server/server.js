@@ -20,6 +20,7 @@ const { initRedis } = await import('./db/redis.js');
 const { handleFrontendLogs } = await import('./util/logHandler.js');
 const { initializeAdminUserid } = await import('./util/adminUseridManager.js');
 const { startCleanupScheduler, stopCleanupScheduler } = await import('./db/data_cleanup.js');
+const { handleGetConfigDefinitions, handleSaveConfig } = await import('./admin/configManager.js');
 
 import Koa from 'koa';
 import Router from 'koa-router';
@@ -125,6 +126,10 @@ router.get(serverConfig.queryUserEndedMeetingListPath, handleQueryUserEndedMeeti
 router.get(serverConfig.queryUserMeetingListPath, handleQueryUserMeetingList)
 router.get(serverConfig.getUserInfoPath, handleGetUserInfo)
 router.get(serverConfig.searchUserPath, handleSearchUser)
+
+// 管理页面配置接口
+router.get('/api/admin/config', handleGetConfigDefinitions)
+router.post('/api/admin/config', handleSaveConfig)
 router.get(serverConfig.generateJoinSchemePath, handleGenerateJoinScheme)
 router.get(serverConfig.generateJumpUrlPath, handleGenerateJumpUrl)
 router.get(serverConfig.generateJoinUrlPath, handleGenerateJoinUrl)

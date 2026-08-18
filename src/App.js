@@ -9,6 +9,7 @@ const NotFound = lazy(() => import('./pages/notfound/index.js'));
 const Mobile = lazy(() => import('./pages/mobile/index.js'));
 const Home = lazy(() => import('./pages/home/index.js'));
 const KeepAlive = lazy(() => import('./pages/keepalive/index.js'));
+const Admin = lazy(() => import('./pages/admin/index.js'));
 
 function App() {
   const [showHarmonyGuide, setShowHarmonyGuide] = useState(false);
@@ -72,6 +73,7 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/mobile" element={<Mobile />} />
             <Route path="/api/keep_alive" element={<KeepAlive />} />
+            <Route path="/admin" element={<Admin />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>

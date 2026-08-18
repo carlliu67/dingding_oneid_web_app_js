@@ -187,7 +187,7 @@ export function handleUserAuth(complete) {
     }
 }
 
-function requestUserAccessToken(code, complete) {
+export function requestUserAccessToken(code, complete) {
 
     // 获取user_access_token信息
     frontendLogger.debug("接入方前端[免登处理]第② 步: 去接入方服务端获取user_access_token信息");

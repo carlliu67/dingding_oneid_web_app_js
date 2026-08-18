@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Button } from 'antd';
 import MeetingList from './meeting/index.js';
 import { handleJSAPIAccess, handleUserAuth, configJSAPIAccess, isMobileDevice, isHarmony, isHarmonyCompatMode } from '../../utils/auth_access_util.js';
 import { handleGenerateJoinScheme, handleGenerateJumpUrl, handleGenerateJoinUrl } from '../../components/wemeetapi/wemeetApi.js';
@@ -118,6 +119,15 @@ export default function Home() {
             isLoaded ? (
                 <div className="home">
                     {/* <UserInfo userInfo={userInfo} /> */}
+                    {userInfo && userInfo.admin === true && (
+                        <Button
+                            type="link"
+                            onClick={() => window.location.href = '/admin'}
+                            style={{ position: 'absolute', top: 8, right: 8, padding: '4px 8px', fontSize: '13px', zIndex: 100 }}
+                        >
+                            管理后台
+                        </Button>
+                    )}
                     <MeetingList userInfo={userInfo} />
                     {/* <div style={{ marginTop: '20px', padding: '10px', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
                         <h3>URL 参数：</h3>
