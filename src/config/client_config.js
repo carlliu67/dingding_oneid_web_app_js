@@ -19,13 +19,14 @@ const clientConfig = {
     water_mark_type: parseInt(process.env.REACT_APP_WATER_MARK_TYPE) || 0, // 水印样式，0：单排，1：多排，默认值为0
     audio_watermark: process.env.REACT_APP_AUDIO_WATERMARK !== "false", // 是否开启音频水印，true：开启，false：不开启，默认值为true
 
-    // 人员选择模式：contact(通讯录组件) 或 search(用户名搜索)
-    // contact模式使用钉钉JSAPI的complexChoose组件选择人员
-    // search模式通过后端搜索接口，按用户名搜索添加
-    userSelectorMode: process.env.REACT_APP_USER_SELECTOR_MODE || "contact",
+    // 人员选择模式：full(全量模式) 或 strict(严格模式)
+    // full模式：使用钉钉JSAPI的complexChoose组件选择人员，无范围限制
+    // strict模式：UI与full模式一致，但组织架构选择时限制为用户所在部门及子部门（支持多部门）
+    userSelectorMode: process.env.REACT_APP_USER_SELECTOR_MODE || "full",
 
     // 后端服务API路径，这部分参数不要修改
-    searchUserPath:  "/api/search_user", // 搜索用户userId的api path（仅search模式使用）
+    searchUserPath:  "/api/search_user", // 搜索用户userId的api path
+    getUserScopedDepartmentsPath: "/api/get_user_scoped_departments", // 获取用户部门范围api path（strict模式使用）
     getUserAccessTokenPath:  "/api/get_user_access_token", //免登api path
     getSignParametersPath:  "/api/get_sign_parameters", //鉴权api path;
     generateJoinSchemePath:  "/api/generateJoinScheme", //获取scheme url的api path

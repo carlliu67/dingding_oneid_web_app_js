@@ -260,6 +260,84 @@ async function getUserDetailByUserid(userid) {
     }
 }
 
+// 获取指定部门的下一级子部门ID列表（只返回直属下一级，不递归）
+// 接口：https://oapi.dingtalk.com/topapi/v2/department/listsub
+async function listSubDepartmentIds(parentId) {
+    const accessToken = await getInterAccessToken();
+    if (!accessToken) {
+        logger.error("listSubDepartmentIds失败：无法获取access_token");
+        return [];
+    }
+
+    try {
+        const response = await axios.post('https://oapi.dingtalk.com/topapi/v2/department/listsub?access_token=' + accessToken, {
+            language: "zh_CN",
+            dept_id: parentId,
+        }, { headers: { "Content-Type": "application/json" } });
+
+        if (!response.data || response.data.errcode != 0) {
+            logger.error(`listSubDepartmentIds(parentId=${parentId})失败:`, response.data?.errcode, response.data?.errmsg);
+            return [];
+        }
+
+        const deptIds = (response.data.result || []).map(d => d.dept_id || d.id);
+        logger.debug(`listSubDepartmentIds(parentId=${parentId}) 返回部门数:`, deptIds.length, "详情:", JSON.stringify(response.data.result?.slice(0, 3)));
+        return deptIds;
+    } catch (error) {
+        logger.error(`listSubDepartmentIds(parentId=${parentId})异常:`, error.message);
+        return [];
+    }
+}
+
+// 递归获取指定部门及其所有层级子部门ID列表
+async function getAllSubDepartmentIds(rootDeptId) {
+    const result = new Set();
+    const queue = [rootDeptId];
+    let safetyCounter = 0;
+    const MAX_ITERATIONS = 1000; // 防止异常死循环
+
+    while (queue.length > 0 && safetyCounter < MAX_ITERATIONS) {
+        safetyCounter++;
+        const currentId = queue.shift();
+        result.add(currentId); // 包含当前部门本身
+
+        const subIds = await listSubDepartmentIds(currentId);
+        for (const subId of subIds) {
+            if (!result.has(subId)) {
+                queue.push(subId);
+            }
+        }
+    }
+
+    if (safetyCounter >= MAX_ITERATIONS) {
+        logger.warn("getAllSubDepartmentIds 达到最大迭代次数，可能存在循环部门关系");
+    }
+
+    return Array.from(result);
+}
+
+// 获取企业所有部门ID列表（从根部门deptId=1开始递归）
+async function getAllDepartmentIds() {
+    return await getAllSubDepartmentIds(1);
+}
+
+// 获取指定部门及其所有子部门ID列表（兼容旧调用）
+async function getSubDepartmentIds(deptId) {
+    return await getAllSubDepartmentIds(deptId);
+}
+
+// 获取用户所在的所有部门ID列表
+// 通过 getUserDetailByUserid 获取用户的 dept_id_list
+async function getUserDeptIdList(userid) {
+    const userDetail = await getUserDetailByUserid(userid);
+    if (!userDetail || !userDetail.dept_id_list) {
+        logger.warn("获取用户部门列表失败: 用户详情为空");
+        return [];
+    }
+    logger.debug(`getUserDeptIdList(userid=${userid}) 部门列表:`, userDetail.dept_id_list);
+    return userDetail.dept_id_list;
+}
+
 export {
     convertSecondsToISO,
     formatTimeRange,
@@ -270,5 +348,9 @@ export {
     getUnionIdByUserid,
     queryUserIdByUnionId,
     searchUserByKeyword,
-    getUserDetailByUserid
+    getUserDetailByUserid,
+    getAllDepartmentIds,
+    getSubDepartmentIds,
+    getUserDeptIdList,
+    listSubDepartmentIds
 };

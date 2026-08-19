@@ -1,20 +1,18 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Modal, Form, Input, DatePicker, TimePicker, Button, Select, Switch, Avatar } from 'antd';
+import { Modal, Form, Input, DatePicker, TimePicker, Button, Select, Switch } from 'antd';
 import dayjs from 'dayjs';
 import dd from '../../../utils/ddSdk.js';
 import './MeetingModal.css'
 import clientConfig from '../../../config/client_config.js';
 import { frontendLogger } from '../../../utils/logger.js';
-import { searchUser } from '../../../components/wemeetapi/wemeetApi.js';
+import { getDisabledDepartments } from '../../../utils/deptCache.js';
 const { Option } = Select;
 
 const MeetingModal = ({ visible, onCancel, onCreate, userInfo, isFreeAccount }) => {
   const [selectedHosts, setSelectedHosts] = useState([]); // 存储选中的主持人列表，每项包含 {id, name}
   const [selectedInvitees, setSelectedInvitees] = useState([]); // 存储选中的邀请人列表，每项包含 {id, name}
-  // 搜索模式相关状态
-  const [searchResults, setSearchResults] = useState([]); // 搜索结果列表 [{userid, name}]
-  const [searching, setSearching] = useState(false); // 搜索中状态
-  const searchTimerRef = useRef(null); // 搜索防抖计时器
+  // 严格模式：禁选部门列表（传给 complexChoose 的 disabledDepartments）
+  const [disabledDepartments, setDisabledDepartments] = useState(null); // null=未加载，[]=无限制
   const [currentDate, setCurrentDate] = useState(dayjs().startOf('day')); // 使用状态变量存储日期
   const [currentTime, setCurrentTime] = useState(() => { // 使用状态变量存储时间，初始计算未来最近的15分钟间隔
     const now = dayjs();
@@ -163,47 +161,41 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo, isFreeAccount }) 
   // 处理选择主持人
   const handleChooseHost = async () => {
     dd.ready(() => {
-      dd.complexChoose({
-        // appId: '3588138805',
+      const options = {
         title: '选择主持人',
         corpId: clientConfig.corpId,
-        // deptId: '0987',
         maxUsers: 50,
         multiple: true,
-        // rootPage: `rootPage示例值`,
         limitTips: '选择人数不能超过50个',
         pickedUsers: selectedHosts.map(host => host.id),
-        // disabledUsers: ['userId0', 'userId2'],
-        // requiredUsers: [userInfo.userid],
-        // showLabelPick: true,
         responseUserOnly: true,
-        // pickedDepartments: ['deptId0', 'deptId1'],
-        // showOrgEcological: false,
-        // disabledDepartments: ['deptId0', 'deptId1'],
-        // filterOrgEcological: false,
-        // requiredDepartments: ['deptId0', 'deptId1'],
-        // startWithDepartmentId: '0332',
         success: (res) => {
           frontendLogger.info('选择人员结果', { result: res });
 
           if (res && Array.isArray(res.users) && res.users.length > 0) {
-              // 确认返回的是一个用户对象数组 [{ name, avatar, emplId }, ...]
               const hosts = res.users.map((user) => ({
                 id: user.emplId,
                 name: user.name
               }));
 
               frontendLogger.info('解析到人员数据', { hosts });
-              setSelectedHosts(hosts); // 设置选中的人员数据
+              setSelectedHosts(hosts);
 
           } else {
-            // 如果返回的不是预期的数组结构或数组为空
-            setSelectedHosts([]); // 清空数据
+            setSelectedHosts([]);
           }
         },
         fail: () => { },
         complete: () => { },
-      }).catch((err) => {
+      };
+
+      // strict 模式下传入禁选部门，限制只能选择用户所在部门及子部门
+      if (clientConfig.userSelectorMode === 'strict' && disabledDepartments && disabledDepartments.length > 0) {
+        options.disabledDepartments = disabledDepartments;
+        frontendLogger.debug('strict模式：传入禁选部门', { count: disabledDepartments.length });
+      }
+
+      dd.complexChoose(options).catch((err) => {
         frontendLogger.error('选择主持人失败', { error: err });
       });
     });
@@ -212,78 +204,44 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo, isFreeAccount }) 
   // 处理选择邀请人
   const handleChooseInvitee = async () => {
     dd.ready(() => {
-      dd.complexChoose({
-        // appId: '3588138805',
+      const options = {
         title: '选择邀请成员',
         corpId: clientConfig.corpId,
-        // deptId: '0987',
         maxUsers: 300,
         multiple: true,
-        // rootPage: `rootPage示例值`,
         limitTips: '选择人数不能超过300个',
         pickedUsers: selectedInvitees.map(invitee => invitee.id),
-        // disabledUsers: ['userId0', 'userId2'],
-        // requiredUsers: [userInfo.userid],
-        // showLabelPick: true,
         responseUserOnly: true,
-        // pickedDepartments: ['deptId0', 'deptId1'],
-        // showOrgEcological: false,
-        // disabledDepartments: ['deptId0', 'deptId1'],
-        // filterOrgEcological: false,
-        // requiredDepartments: ['deptId0', 'deptId1'],
-        // startWithDepartmentId: '0332',
         success: (res) => {
           frontendLogger.info('选择邀请成员结果', { result: res });
 
           if (res && Array.isArray(res.users) && res.users.length > 0) {
-              // 确认返回的是一个用户对象数组 [{ name, avatar, emplId }, ...]
               const invitees = res.users.map((user) => ({
                 id: user.emplId,
                 name: user.name
               }));
 
               frontendLogger.info('解析到邀请成员数据', { invitees });
-              setSelectedInvitees(invitees); // 设置选中的人员数据
+              setSelectedInvitees(invitees);
 
           } else {
-            // 如果返回的不是预期的数组结构或数组为空
-            setSelectedInvitees([]); // 清空数据
+            setSelectedInvitees([]);
           }
         },
         fail: () => { },
         complete: () => { },
-      }).catch((err) => {
+      };
+
+      // strict 模式下传入禁选部门，限制只能选择用户所在部门及子部门
+      if (clientConfig.userSelectorMode === 'strict' && disabledDepartments && disabledDepartments.length > 0) {
+        options.disabledDepartments = disabledDepartments;
+        frontendLogger.debug('strict模式：传入禁选部门', { count: disabledDepartments.length });
+      }
+
+      dd.complexChoose(options).catch((err) => {
         frontendLogger.error('选择邀请成员失败', { error: err });
       });
     });
-  };
-
-  // 搜索用户（防抖动处理）
-  // 用户在Select中输入关键词时触发，延迟500ms后调用后端搜索接口
-  const handleSearchUsers = (value) => {
-    if (searchTimerRef.current) {
-      clearTimeout(searchTimerRef.current);
-    }
-    if (!value || value.trim().length === 0) {
-      setSearchResults([]);
-      return;
-    }
-    searchTimerRef.current = setTimeout(async () => {
-      setSearching(true);
-      try {
-        const result = await searchUser(value.trim());
-        if (result && result.users) {
-          setSearchResults(result.users);
-        } else {
-          setSearchResults([]);
-        }
-      } catch (error) {
-        frontendLogger.error('搜索用户失败', { error });
-        setSearchResults([]);
-      } finally {
-        setSearching(false);
-      }
-    }, 500);
   };
 
 
@@ -295,6 +253,17 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo, isFreeAccount }) 
       formRef.current.validateFields(['start_date', 'start_time', 'end_date', 'end_time']);
     }
   }, [currentDate, currentTime, currentEndDate, currentEndTime]);
+
+  // strict 模式下从本地缓存读取禁选部门列表（登录时已预加载，24小时有效）
+  useEffect(() => {
+    if (clientConfig.userSelectorMode === 'strict') {
+      getDisabledDepartments().then(departments => {
+        if (departments) {
+          setDisabledDepartments(departments);
+        }
+      });
+    }
+  }, []);
 
   const handleCreateMeetingSubmit = async (values) => {
     var meetingParams = {};
@@ -610,38 +579,10 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo, isFreeAccount }) 
           label="指定主持人"
           style={{ marginBottom: 16 }}
         >
-          {clientConfig.userSelectorMode === 'search' ? (
-            <Select
-              mode="multiple"
-              labelInValue
-              value={selectedHosts.map(h => ({ value: h.id, label: h.name }))}
-              showSearch
-              filterOption={false}
-              onSearch={handleSearchUsers}
-              onChange={(values) => {
-                const hosts = values.map(v => ({ id: v.value, name: v.label || v.value }));
-                setSelectedHosts(hosts);
-              }}
-              placeholder="输入姓名搜索添加主持人"
-              notFoundContent={searching ? '搜索中...' : '输入姓名搜索'}
-              style={{ width: '100%' }}
-            >
-              {searchResults.map(user => (
-                <Option key={user.userid} value={user.userid} label={`${user.name}${user.jobnumber ? ' (' + user.jobnumber + ')' : ''}`}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Avatar size="small" src={user.avatar} >{(user.name || '?')[0]}</Avatar>
-                    <span>{user.name}</span>
-                    {user.jobnumber && <span style={{ color: '#999', fontSize: '12px' }}>工号: {user.jobnumber}</span>}
-                  </div>
-                </Option>
-              ))}
-            </Select>
-          ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', width: '100%' }}>
-              <Button 
-                type="primary" 
- 
+              <Button
+                type="primary"
                 onClick={() => handleChooseHost()}
                 style={{ 
                   marginBottom: 10, 
@@ -688,44 +629,16 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo, isFreeAccount }) 
               )}
             </div>
           </div>
-          )}
         </Form.Item>
         )}
         <Form.Item
           label="邀请成员"
           style={{ marginBottom: 16 }}
         >
-          {clientConfig.userSelectorMode === 'search' ? (
-            <Select
-              mode="multiple"
-              labelInValue
-              value={selectedInvitees.map(inv => ({ value: inv.id, label: inv.name }))}
-              showSearch
-              filterOption={false}
-              onSearch={handleSearchUsers}
-              onChange={(values) => {
-                const invitees = values.map(v => ({ id: v.value, name: v.label || v.value }));
-                setSelectedInvitees(invitees);
-              }}
-              placeholder="输入姓名搜索添加邀请成员"
-              notFoundContent={searching ? '搜索中...' : '输入姓名搜索'}
-              style={{ width: '100%' }}
-            >
-              {searchResults.map(user => (
-                <Option key={user.userid} value={user.userid} label={`${user.name}${user.jobnumber ? ' (' + user.jobnumber + ')' : ''}`}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Avatar size="small" src={user.avatar}>{(user.name || '?')[0]}</Avatar>
-                    <span>{user.name}</span>
-                    {user.jobnumber && <span style={{ color: '#999', fontSize: '12px' }}>工号: {user.jobnumber}</span>}
-                  </div>
-                </Option>
-              ))}
-            </Select>
-          ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', width: '100%' }}>
-              <Button 
-                type="primary" 
+              <Button
+                type="primary"
                 onClick={() => handleChooseInvitee()}
                 style={{ 
                   marginBottom: 10, 
@@ -772,7 +685,6 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo, isFreeAccount }) 
               )}
             </div>
           </div>
-          )}
         </Form.Item>
         <Form.Item wrapperCol={{ xs: 24, sm: { span: 16, offset: 6 } }}>
           <div style={{ 

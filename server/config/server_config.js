@@ -47,6 +47,8 @@ const config = {
 
     // 搜索用户userId的api path（仅search模式使用）
     searchUserPath:  "/api/search_user",
+    // 获取用户部门范围（严格模式使用，返回允许和禁选的部门列表）
+    getUserScopedDepartmentsPath: "/api/get_user_scoped_departments",
 
     // webhook server接口配置，webhookPath不要修改
     webhookPath:  "/api/webhook", //webhook回调的api path

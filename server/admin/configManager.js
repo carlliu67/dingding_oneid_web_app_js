@@ -66,8 +66,8 @@ const CONFIG_DEFINITIONS = [
         required: false,
         description: '预约/修改会议时设置主持人/参会人的方式',
         options: [
-            { value: 'contact', label: 'contact - 使用钉钉通讯录组件' },
-            { value: 'search', label: 'search - 通过用户名搜索添加' },
+            { value: 'full', label: 'full - 全量模式，无范围限制' },
+            { value: 'strict', label: 'strict - 严格模式，限制为用户所在部门及子部门' },
         ],
         sensitive: false,
     },
@@ -789,7 +789,7 @@ function getDefaultByDefinition(def) {
             const selectDefaults = {
                 'REACT_APP_MODE': 'schedule',
                 'REACT_APP_CREATE_MEETING_BUTTON_VISIBILITY': 'advanced',
-                'REACT_APP_USER_SELECTOR_MODE': 'contact',
+                'REACT_APP_USER_SELECTOR_MODE': 'full',
                 'REACT_APP_ONLY_USER_JOIN_TYPE': '1',
                 'REACT_APP_WATER_MARK_TYPE': '0',
                 'DB_TYPE': 'sqlite',

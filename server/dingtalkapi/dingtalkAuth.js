@@ -4,7 +4,7 @@ import crypto from 'crypto';
 import { logger } from '../util/logger.js';
 import serverConfig from '../config/server_config.js';
 import { configAccessControl, okResponse, failResponse, setCookie } from '../server_util.js';
-import { getAccessToken, getInterAccessToken, searchUserByKeyword, getUserDetailByUserid, queryUserIdByUnionId } from './dingtalkUtil.js';
+import { getAccessToken, getInterAccessToken, searchUserByKeyword, getUserDetailByUserid, queryUserIdByUnionId, getAllDepartmentIds, getSubDepartmentIds, getUserDeptIdList, listSubDepartmentIds } from './dingtalkUtil.js';
 import { getUserAuthFromRedis, setUserAuthToRedis } from '../db/redis.js';
 import dbAdapter from '../db/db_adapter.js';
 
@@ -376,10 +376,62 @@ async function getUserInfoByOAuth2Code(code) {
     }
 }
 
+// 处理获取用户部门范围请求
+// 严格模式（strict）下用于限制 complexChoose 的组织架构选择范围
+// 返回 allowedDeptIds（用户部门+子部门）和 disabledDeptIds（不允许的部门）
+async function handleGetUserScopedDepartments(ctx) {
+    logger.debug("\n-------------------[获取用户部门范围 BEGIN]-----------------------------");
+    configAccessControl(ctx);
+
+    if (!(await isLogin(ctx))) {
+        ctx.body = failResponse("用户未登录，请先登录");
+        return;
+    }
+
+    try {
+        const userid = await getUserid(ctx);
+        if (!userid) {
+            ctx.body = failResponse("无法获取用户ID");
+            return;
+        }
+
+        logger.info(`获取用户部门范围: userid=${userid}`);
+
+        // 第一步：获取用户所在的所有部门
+        const userDeptIds = await getUserDeptIdList(userid);
+        if (userDeptIds.length === 0) {
+            ctx.body = failResponse("用户未归属任何部门");
+            return;
+        }
+        logger.debug(`用户所在部门: ${userDeptIds.join(', ')}`);
+
+        // 第二步：获取根部门(deptId=1)下的所有一级部门
+        const topDeptIds = await listSubDepartmentIds(1);
+        logger.debug(`根部门下的一级部门: ${topDeptIds.join(', ')}`);
+
+        // 第三步：禁选部门 = 所有一级部门 - 用户所在部门
+        // 如果用户所在部门是一级部门，则不禁选自己所在部门；否则禁选所有一级部门
+        const userDeptSet = new Set(userDeptIds.map(id => String(id)));
+        const disabledDeptIds = topDeptIds.filter(id => !userDeptSet.has(String(id))).map(id => String(id));
+        logger.debug(`禁选部门数: ${disabledDeptIds.length}`);
+
+        ctx.body = okResponse({
+            allowedDeptIds: userDeptIds.map(id => String(id)),
+            disabledDeptIds,
+        });
+    } catch (error) {
+        logger.error("获取用户部门范围失败:", error.message, "stack:", error.stack);
+        ctx.body = failResponse("获取用户部门范围失败");
+    }
+
+    logger.debug("-------------------[获取用户部门范围 END]-----------------------------\n");
+}
+
 export {
     getUserAccessToken,
     getSignParameters,
     isLogin,
     getUserid,
-    handleSearchUser
+    handleSearchUser,
+    handleGetUserScopedDepartments
 };
