@@ -144,15 +144,16 @@ export default function Admin() {
     // 保存配置（只保存指定分组的参数）
     async function handleSave(groupName) {
         try {
-            const values = await form.validateFields();
+            // 只校验当前分组的字段，避免其他分组必填项校验失败
+            const groupDefs = groupedDefinitions[groupName] || [];
+            const groupKeys = groupDefs.map(d => d.key);
+            const values = await form.validateFields(groupKeys);
             setSaving(true);
 
-            // 转换值：switch类型转为字符串，只保存指定分组的参数
-            const groupDefs = groupedDefinitions[groupName] || [];
-            const groupKeys = new Set(groupDefs.map(d => d.key));
+            const groupKeysSet = new Set(groupKeys);
             const configs = {};
             for (const def of definitions) {
-                if (!groupKeys.has(def.key)) continue;
+                if (!groupKeysSet.has(def.key)) continue;
                 const value = values[def.key];
                 if (def.type === 'switch') {
                     configs[def.key] = value ? 'true' : 'false';
@@ -183,27 +184,6 @@ export default function Admin() {
                     next.delete(groupName);
                     return next;
                 });
-
-                // 仅在有前端变量时显示重建提示
-                const hasFrontendVars = groupDefs.some(d => d.key.startsWith('REACT_APP_'));
-                if (hasFrontendVars) {
-                    Modal.success({
-                        title: '保存成功',
-                        content: (
-                            <div>
-                                <p>配置已保存到数据库并实时生效。</p>
-                                <p style={{ color: '#fa8c16', fontWeight: 'bold' }}>
-                                    ⚠️ 前端变量（REACT_APP_*）需重新构建镜像才能生效：
-                                </p>
-                                <p style={{ paddingLeft: 20 }}>
-                                    执行 <code>docker compose up -d --build</code>
-                                </p>
-                            </div>
-                        ),
-                        okText: '我知道了',
-                        okButtonProps: { style: { width: 'auto' } }
-                    });
-                }
             } else {
                 message.error(response.data?.msg || '保存失败');
             }
