@@ -20,7 +20,8 @@ const { initRedis } = await import('./db/redis.js');
 const { handleFrontendLogs } = await import('./util/logHandler.js');
 const { initializeAdminUserid } = await import('./util/adminUseridManager.js');
 const { startCleanupScheduler, stopCleanupScheduler } = await import('./db/data_cleanup.js');
-const { handleGetConfigDefinitions, handleSaveConfig } = await import('./admin/configManager.js');
+const { handleGetConfigDefinitions, handleSaveConfig, KEY_MAP } = await import('./admin/configManager.js');
+const { syncEnvToDatabase, loadConfigFromDatabase } = await import('./config/configStore.js');
 
 import Koa from 'koa';
 import Router from 'koa-router';
@@ -34,6 +35,11 @@ import zlib from 'zlib';
 dbAdapter.initDatabase().then(async () => {
   // 初始化ADMIN_USERID
   await initializeAdminUserid();
+  // 同步 .env 配置到数据库（加密存储）
+  await syncEnvToDatabase(serverConfig, KEY_MAP);
+  // 从数据库加载配置到内存（解密并更新 serverConfig）
+  await loadConfigFromDatabase(serverConfig, KEY_MAP);
+  logger.info('系统配置加载完成');
   // 启动数据定时清理调度器（在数据库初始化完成后启动）
   startCleanupScheduler();
 });

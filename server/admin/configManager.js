@@ -1,12 +1,9 @@
-import fs from 'fs';
-import path from 'path';
 import { logger } from '../util/logger.js';
 import { configAccessControl, okResponse, failResponse } from '../server_util.js';
 import { isLogin, getUserid } from '../dingtalkapi/dingtalkAuth.js';
 import { getUserDetailByUserid } from '../dingtalkapi/dingtalkUtil.js';
-
-const projectRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
-const envPath = path.join(projectRoot, '.env');
+import { getAllConfigValues, saveConfigValues } from '../config/configStore.js';
+import serverConfig from '../config/server_config.js';
 
 // 可配置的环境变量定义（按分组组织）
 // type: text(文本), password(密码), switch(布尔开关), number(数字), select(下拉选择)
@@ -72,59 +69,77 @@ const CONFIG_DEFINITIONS = [
         sensitive: false,
     },
 
-    // ===== 会议默认参数配置 =====
+    // ===== 钉钉对接参数（后端）=====
     {
-        group: '会议默认参数配置',
-        key: 'REACT_APP_ONLY_USER_JOIN_TYPE',
-        label: '成员入会限制类型',
-        type: 'select',
-        required: false,
-        description: '1:所有成员可入会；2:仅受邀成员可入会；3:仅企业内部成员可入会',
-        options: [
-            { value: '1', label: '1 - 所有成员可入会' },
-            { value: '2', label: '2 - 仅受邀成员可入会' },
-            { value: '3', label: '3 - 仅企业内部成员可入会' },
-        ],
+        group: '钉钉对接参数（后端）',
+        key: 'DINGTALK_CORP_ID',
+        label: '企业ID (CorpId)',
+        type: 'text',
+        required: true,
+        description: '与前端CORP_ID相同',
         sensitive: false,
     },
     {
-        group: '会议默认参数配置',
-        key: 'REACT_APP_IS_SHOW_WATERMARK_SWITCH',
-        label: '展示水印设置选项',
+        group: '钉钉对接参数（后端）',
+        key: 'DINGTALK_APP_ID',
+        label: '钉钉应用ID',
+        type: 'text',
+        required: true,
+        description: '在钉钉开发者后台获取',
+        sensitive: false,
+    },
+    {
+        group: '钉钉对接参数（后端）',
+        key: 'DINGTALK_AGENT_ID',
+        label: '钉钉应用Agent ID',
+        type: 'text',
+        required: true,
+        description: '在钉钉开发者后台获取',
+        sensitive: false,
+    },
+    {
+        group: '钉钉对接参数（后端）',
+        key: 'DINGTALK_CLIENT_ID',
+        label: '钉钉应用Client ID（后端）',
+        type: 'text',
+        required: true,
+        description: '原AppKey和SuiteKey，与前端相同',
+        sensitive: false,
+    },
+    {
+        group: '钉钉对接参数（后端）',
+        key: 'DINGTALK_CLIENT_SECRET',
+        label: '钉钉应用Client Secret',
+        type: 'password',
+        required: true,
+        description: '原AppSecret和SuiteSecret',
+        sensitive: true,
+    },
+    {
+        group: '钉钉对接参数（后端）',
+        key: 'DINGTALK_ROBOT_CODE',
+        label: '钉钉机器人编码',
+        type: 'text',
+        required: false,
+        description: '在钉钉开发者后台获取',
+        sensitive: false,
+    },
+    {
+        group: '钉钉对接参数（后端）',
+        key: 'DINGTALK_CALENDAR_SWITCH',
+        label: '预约会议时创建钉钉日程',
         type: 'switch',
         required: false,
-        description: '是否展示水印设置选项',
+        description: '预约普通会议时是否创建钉钉日程，对周期会议不生效',
         sensitive: false,
     },
     {
-        group: '会议默认参数配置',
-        key: 'REACT_APP_ALLOW_SCREEN_SHARED_WATERMARK',
-        label: '开启水印',
+        group: '钉钉对接参数（后端）',
+        key: 'DINGTALK_TODO_SWITCH',
+        label: '预约会议时创建钉钉待办',
         type: 'switch',
         required: false,
-        description: '是否开启水印',
-        sensitive: false,
-    },
-    {
-        group: '会议默认参数配置',
-        key: 'REACT_APP_WATER_MARK_TYPE',
-        label: '水印样式',
-        type: 'select',
-        required: false,
-        description: '0:单排；1:多排',
-        options: [
-            { value: '0', label: '0 - 单排' },
-            { value: '1', label: '1 - 多排' },
-        ],
-        sensitive: false,
-    },
-    {
-        group: '会议默认参数配置',
-        key: 'REACT_APP_AUDIO_WATERMARK',
-        label: '开启音频水印',
-        type: 'switch',
-        required: false,
-        description: '是否开启音频水印',
+        description: '预约普通会议时是否创建钉钉待办，对周期会议不生效',
         sensitive: false,
     },
 
@@ -211,77 +226,59 @@ const CONFIG_DEFINITIONS = [
         sensitive: false,
     },
 
-    // ===== 钉钉对接参数（后端）=====
+    // ===== 会议默认参数配置 =====
     {
-        group: '钉钉对接参数（后端）',
-        key: 'DINGTALK_CORP_ID',
-        label: '企业ID (CorpId)',
-        type: 'text',
-        required: true,
-        description: '与前端CORP_ID相同',
-        sensitive: false,
-    },
-    {
-        group: '钉钉对接参数（后端）',
-        key: 'DINGTALK_APP_ID',
-        label: '钉钉应用ID',
-        type: 'text',
-        required: true,
-        description: '在钉钉开发者后台获取',
-        sensitive: false,
-    },
-    {
-        group: '钉钉对接参数（后端）',
-        key: 'DINGTALK_AGENT_ID',
-        label: '钉钉应用Agent ID',
-        type: 'text',
-        required: true,
-        description: '在钉钉开发者后台获取',
-        sensitive: false,
-    },
-    {
-        group: '钉钉对接参数（后端）',
-        key: 'DINGTALK_CLIENT_ID',
-        label: '钉钉应用Client ID（后端）',
-        type: 'text',
-        required: true,
-        description: '原AppKey和SuiteKey，与前端相同',
-        sensitive: false,
-    },
-    {
-        group: '钉钉对接参数（后端）',
-        key: 'DINGTALK_CLIENT_SECRET',
-        label: '钉钉应用Client Secret',
-        type: 'password',
-        required: true,
-        description: '原AppSecret和SuiteSecret',
-        sensitive: true,
-    },
-    {
-        group: '钉钉对接参数（后端）',
-        key: 'DINGTALK_ROBOT_CODE',
-        label: '钉钉机器人编码',
-        type: 'text',
+        group: '会议默认参数配置',
+        key: 'REACT_APP_ONLY_USER_JOIN_TYPE',
+        label: '成员入会限制类型',
+        type: 'select',
         required: false,
-        description: '在钉钉开发者后台获取',
+        description: '1:所有成员可入会；2:仅受邀成员可入会；3:仅企业内部成员可入会',
+        options: [
+            { value: '1', label: '1 - 所有成员可入会' },
+            { value: '2', label: '2 - 仅受邀成员可入会' },
+            { value: '3', label: '3 - 仅企业内部成员可入会' },
+        ],
         sensitive: false,
     },
     {
-        group: '钉钉对接参数（后端）',
-        key: 'DINGTALK_CALENDAR_SWITCH',
-        label: '预约会议时创建钉钉日程',
+        group: '会议默认参数配置',
+        key: 'REACT_APP_IS_SHOW_WATERMARK_SWITCH',
+        label: '展示水印设置选项',
         type: 'switch',
         required: false,
-        description: '预约普通会议时是否创建钉钉日程，对周期会议不生效',
+        description: '是否展示水印设置选项',
         sensitive: false,
     },
     {
-        group: '钉钉对接参数（后端）',
-        key: 'DINGTALK_TODO_SWITCH',
-        label: '预约会议时创建钉钉待办',
+        group: '会议默认参数配置',
+        key: 'REACT_APP_ALLOW_SCREEN_SHARED_WATERMARK',
+        label: '开启水印',
         type: 'switch',
         required: false,
-        description: '预约普通会议时是否创建钉钉待办，对周期会议不生效',
+        description: '是否开启水印',
+        sensitive: false,
+    },
+    {
+        group: '会议默认参数配置',
+        key: 'REACT_APP_WATER_MARK_TYPE',
+        label: '水印样式',
+        type: 'select',
+        required: false,
+        description: '0:单排；1:多排',
+        options: [
+            { value: '0', label: '0 - 单排' },
+            { value: '1', label: '1 - 多排' },
+        ],
+        sensitive: false,
+    },
+    {
+        group: '会议默认参数配置',
+        key: 'REACT_APP_AUDIO_WATERMARK',
+        label: '开启音频水印',
+        type: 'switch',
+        required: false,
+        description: '是否开启音频水印',
         sensitive: false,
     },
 
@@ -394,26 +391,6 @@ const CONFIG_DEFINITIONS = [
         type: 'number',
         required: false,
         description: '超过最后登录时间则清理，默认366天，设为0表示不清理',
-        sensitive: false,
-    },
-
-    // ===== SQLite 并发配置 =====
-    {
-        group: 'SQLite 并发配置',
-        key: 'SQLITE_BUSY_TIMEOUT',
-        label: 'SQLite忙等待超时时间（毫秒）',
-        type: 'number',
-        required: false,
-        description: '解决并发访问问题，默认30000',
-        sensitive: false,
-    },
-    {
-        group: 'SQLite 并发配置',
-        key: 'SQLITE_WAL_MODE',
-        label: '启用WAL模式',
-        type: 'switch',
-        required: false,
-        description: '启用WAL模式以提高并发性能',
         sensitive: false,
     },
 
@@ -531,79 +508,63 @@ const CONFIG_DEFINITIONS = [
     },
 ];
 
-// 读取.env文件内容并解析为键值对
-function parseEnvFile() {
-    try {
-        if (!fs.existsSync(envPath)) {
-            logger.warn('.env文件不存在');
-            return {};
-        }
-        const content = fs.readFileSync(envPath, 'utf-8');
-        const result = {};
-        const lines = content.split('\n');
-        for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed || trimmed.startsWith('#')) continue;
-            const equalIndex = trimmed.indexOf('=');
-            if (equalIndex === -1) continue;
-            const key = trimmed.substring(0, equalIndex).trim();
-            const value = trimmed.substring(equalIndex + 1).trim();
-            result[key] = value;
-        }
-        return result;
-    } catch (error) {
-        logger.error('读取.env文件失败:', error.message);
-        return {};
-    }
-}
-
-// 将键值对写回.env文件，保留注释和分组结构
-function writeEnvFile(values) {
-    try {
-        if (!fs.existsSync(envPath)) {
-            // .env不存在，直接生成
-            let content = '';
-            for (const def of CONFIG_DEFINITIONS) {
-                content += `${def.key}=${values[def.key] || ''}\n`;
-            }
-            fs.writeFileSync(envPath, content, 'utf-8');
-            return true;
-        }
-
-        // 读取原文件内容
-        const originalContent = fs.readFileSync(envPath, 'utf-8');
-        const lines = originalContent.split('\n');
-        const updatedKeys = new Set();
-
-        // 逐行更新已存在的键值
-        const updatedLines = lines.map(line => {
-            const trimmed = line.trim();
-            if (!trimmed || trimmed.startsWith('#')) return line;
-            const equalIndex = trimmed.indexOf('=');
-            if (equalIndex === -1) return line;
-            const key = trimmed.substring(0, equalIndex).trim();
-            if (key in values) {
-                updatedKeys.add(key);
-                return `${key}=${values[key]}`;
-            }
-            return line;
-        });
-
-        // 添加新键（原文件中没有的）
-        for (const def of CONFIG_DEFINITIONS) {
-            if (!updatedKeys.has(def.key) && def.key in values) {
-                updatedLines.push(`${def.key}=${values[def.key]}`);
-            }
-        }
-
-        fs.writeFileSync(envPath, updatedLines.join('\n'), 'utf-8');
-        logger.info('.env文件更新成功');
-        return true;
-    } catch (error) {
-        logger.error('写入.env文件失败:', error.message, 'stack:', error.stack);
-        return false;
-    }
-}
+// 环境变量名 → serverConfig 属性名 映射
+// null 表示前端变量（无对应 serverConfig 属性）
+const KEY_MAP = {
+    // 前端变量
+    'REACT_APP_CORP_ID': null,
+    'REACT_APP_CLIENT_ID': null,
+    'REACT_APP_MODE': null,
+    'REACT_APP_CREATE_MEETING_BUTTON_VISIBILITY': null,
+    'REACT_APP_USER_SELECTOR_MODE': null,
+    'REACT_APP_ONLY_USER_JOIN_TYPE': null,
+    'REACT_APP_IS_SHOW_WATERMARK_SWITCH': null,
+    'REACT_APP_ALLOW_SCREEN_SHARED_WATERMARK': null,
+    'REACT_APP_WATER_MARK_TYPE': null,
+    'REACT_APP_AUDIO_WATERMARK': null,
+    'REACT_APP_ENABLE_FRONTEND_LOG': null,
+    'REACT_APP_LOG_QUEUE_SIZE': null,
+    'REACT_APP_LOG_FLUSH_INTERVAL': null,
+    'REACT_APP_ENABLE_LOG_WORKER': null,
+    'REACT_APP_LOG_WORKER_MAX_RETRY_COUNT': null,
+    'REACT_APP_LOG_WORKER_BATCH_SIZE': null,
+    'REACT_APP_PROD_ENABLE_ERROR_ONLY': null,
+    'REACT_APP_PROD_ENABLE_STACK_TRACE': null,
+    'REACT_APP_PROD_LOG_LEVEL': null,
+    'REACT_APP_DEBUG_SWITCH': null,
+    // 后端变量
+    'WEMEET_APPID': 'wemeetAPPID',
+    'WEMEET_REST_API_SDKID': 'wemeetRestAPISDKID',
+    'WEMEET_REST_API_SECRET_ID': 'wemeetRestAPISecretID',
+    'WEMEET_REST_API_SECRET_KEY': 'wemeetRestAPISecretKey',
+    'WEMEET_WEBHOOK_TOKEN': 'wemeetWebhookToken',
+    'WEMEET_WEBHOOK_AES_KEY': 'wemeetWebhookAESKey',
+    'WEMEET_SSO_URL': 'wemeetSSOURL',
+    'WEMEET_ADMIN_USERID': 'wemeetAdminUserID',
+    'FRONT_END_SERVER_URL': 'frontEndServerUrl',
+    'DINGTALK_CORP_ID': 'dingtalkCorpId',
+    'DINGTALK_APP_ID': 'dingtalkAppId',
+    'DINGTALK_AGENT_ID': 'dingtalkAgentId',
+    'DINGTALK_CLIENT_ID': 'dingtalkClientId',
+    'DINGTALK_CLIENT_SECRET': 'dingtalkClientSecret',
+    'DINGTALK_ROBOT_CODE': 'dingtalkRobotCode',
+    'DINGTALK_CALENDAR_SWITCH': 'dingtalkCalendarSwitch',
+    'DINGTALK_TODO_SWITCH': 'dingtalkTodoSwitch',
+    'REDIS_HOST': 'redisHost',
+    'REDIS_PORT': 'redisPort',
+    'REDIS_PASSWORD': 'redisPassword',
+    'REDIS_DB': 'redisDb',
+    'REDIS_KEY_PREFIX': 'redisKeyPrefix',
+    'REDIS_USER_AUTH_EXPIRE': 'redisUserAuthExpire',
+    'DATA_CLEANUP_ENABLED': 'dataCleanupEnabled',
+    'DATA_CLEANUP_TIME': 'dataCleanupTime',
+    'ID_TOKEN_CLEANUP_ENABLED': 'idTokenCleanupEnabled',
+    'TODO_RETENTION_DAYS': 'todoRetentionDays',
+    'CALENDAR_RETENTION_DAYS': 'calendarRetentionDays',
+    'USERINFO_RETENTION_DAYS': 'userinfoRetentionDays',
+    'LOG_LEVEL': 'logLevel',
+    'API_PORT': 'apiPort',
+};
 
 // 校验当前用户是否为钉钉企业管理员
 async function checkAdmin(ctx) {
@@ -611,18 +572,15 @@ async function checkAdmin(ctx) {
         return { ok: false, reason: '用户未登录' };
     }
 
-    // 优先从session中读取用户信息（getUserAccessToken时已存储）
     let userInfo = ctx.session.userInfo;
     if (!userInfo) {
         return { ok: false, reason: '无法获取用户信息' };
     }
 
-    // 钉钉getuserinfo接口返回 admin 字段标识是否为企业管理员
     if (userInfo.admin === true) {
         return { ok: true, userid: userInfo.userid };
     }
 
-    // 兜底：通过topapi/v2/user/get查询详情，检查admin/role_list
     const detail = await getUserDetailByUserid(userInfo.userid);
     if (detail && detail.admin === true) {
         return { ok: true, userid: userInfo.userid };
@@ -631,7 +589,7 @@ async function checkAdmin(ctx) {
     return { ok: false, reason: '当前用户不是钉钉企业管理员' };
 }
 
-// 获取配置定义列表（前端用于渲染表单）
+// 获取配置定义列表（从数据库读取当前值）
 async function handleGetConfigDefinitions(ctx) {
     configAccessControl(ctx);
 
@@ -641,20 +599,22 @@ async function handleGetConfigDefinitions(ctx) {
         return;
     }
 
-    // 返回配置定义和当前值
-    const envValues = parseEnvFile();
+    // 从数据库读取所有配置值
+    const dbValues = await getAllConfigValues(KEY_MAP);
+
+    // 合并配置定义和数据库值
     const configsWithValues = CONFIG_DEFINITIONS.map(def => ({
         ...def,
-        value: envValues[def.key] !== undefined ? envValues[def.key] : getDefaultByDefinition(def),
+        value: dbValues[def.key] !== undefined ? dbValues[def.key] : getDefaultByDefinition(def),
     }));
 
     ctx.body = okResponse({
         definitions: configsWithValues,
-        requiresRestart: true,  // 提示前端修改后需要重启容器
+        requiresRestart: false,  // 后端变量实时生效；前端变量需重新构建镜像
     });
 }
 
-// 保存配置
+// 保存配置（写入数据库 + 实时更新内存）
 async function handleSaveConfig(ctx) {
     configAccessControl(ctx);
 
@@ -675,27 +635,20 @@ async function handleSaveConfig(ctx) {
         const allowedKeys = new Set(CONFIG_DEFINITIONS.map(d => d.key));
         const filteredConfigs = {};
 
-        // 只允许更新白名单中的键
         for (const key of Object.keys(submittedConfigs)) {
             if (allowedKeys.has(key)) {
                 filteredConfigs[key] = String(submittedConfigs[key]);
             }
         }
 
-        // 合并：先读取已有值，再用提交的值覆盖
-        const existingValues = parseEnvFile();
-        const mergedValues = { ...existingValues, ...filteredConfigs };
+        // 保存到数据库（加密）并实时更新 serverConfig 内存对象
+        await saveConfigValues(serverConfig, KEY_MAP, filteredConfigs);
 
-        const success = writeEnvFile(mergedValues);
-        if (success) {
-            logger.info(`管理员 ${adminCheck.userid} 更新了配置: ${Object.keys(filteredConfigs).join(', ')}`);
-            ctx.body = okResponse({
-                updated: true,
-                message: '配置已保存，需要重启容器才能生效（前端REACT_APP_*变量需重新构建镜像生效）',
-            });
-        } else {
-            ctx.body = failResponse('保存配置失败');
-        }
+        logger.info(`管理员 ${adminCheck.userid} 更新了配置: ${Object.keys(filteredConfigs).join(', ')}`);
+        ctx.body = okResponse({
+            updated: true,
+            message: '配置已保存并实时生效（前端REACT_APP_*变量需重新构建镜像才能生效）',
+        });
     } catch (error) {
         logger.error('保存配置失败:', error.message, 'stack:', error.stack);
         ctx.body = failResponse('保存配置失败');
@@ -706,7 +659,6 @@ async function handleSaveConfig(ctx) {
 function getDefaultByDefinition(def) {
     switch (def.type) {
         case 'switch':
-            // 大部分switch默认为true，除非key在以下列表中
             const falseDefaults = ['REACT_APP_IS_SHOW_WATERMARK_SWITCH', 'REACT_APP_DEBUG_SWITCH', 'REACT_APP_PROD_ENABLE_STACK_TRACE'];
             return falseDefaults.includes(def.key) ? 'false' : 'true';
         case 'number':
@@ -717,7 +669,6 @@ function getDefaultByDefinition(def) {
                 'TODO_RETENTION_DAYS': '366',
                 'CALENDAR_RETENTION_DAYS': '366',
                 'USERINFO_RETENTION_DAYS': '366',
-                'SQLITE_BUSY_TIMEOUT': '30000',
                 'REACT_APP_LOG_QUEUE_SIZE': '100',
                 'REACT_APP_LOG_FLUSH_INTERVAL': '10000',
                 'REACT_APP_LOG_WORKER_MAX_RETRY_COUNT': '3',
@@ -727,6 +678,10 @@ function getDefaultByDefinition(def) {
         case 'select':
             const selectDefaults = {
                 'REACT_APP_MODE': 'schedule',
+                'REACT_APP_CREATE_MEETING_BUTTON_VISIBILITY': 'advanced',
+                'REACT_APP_USER_SELECTOR_MODE': 'full',
+                'REACT_APP_ONLY_USER_JOIN_TYPE': '1',
+                'REACT_APP_WATER_MARK_TYPE': '0',
                 'LOG_LEVEL': 'info',
                 'REACT_APP_PROD_LOG_LEVEL': 'error',
             };
@@ -740,5 +695,6 @@ export {
     handleGetConfigDefinitions,
     handleSaveConfig,
     checkAdmin,
-    CONFIG_DEFINITIONS
+    CONFIG_DEFINITIONS,
+    KEY_MAP
 };

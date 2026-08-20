@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Button, Form, Input, Switch, Select, InputNumber, message, Modal, Spin, Result, Card, Tag, Divider, Typography } from 'antd';
+import { Button, Form, Input, Switch, Select, InputNumber, message, Modal, Spin, Result, Card, Tag, Collapse, Typography } from 'antd';
 import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import { getOrigin, handleUserAuth } from '../../utils/auth_access_util.js';
@@ -93,15 +93,18 @@ export default function Admin() {
         return groups;
     }, [definitions]);
 
-    // 保存配置
-    async function handleSave() {
+    // 保存配置（只保存指定分组的参数）
+    async function handleSave(groupName) {
         try {
             const values = await form.validateFields();
             setSaving(true);
 
-            // 转换值：switch类型转为字符串
+            // 转换值：switch类型转为字符串，只保存指定分组的参数
+            const groupDefs = groupedDefinitions[groupName] || [];
+            const groupKeys = new Set(groupDefs.map(d => d.key));
             const configs = {};
             for (const def of definitions) {
+                if (!groupKeys.has(def.key)) continue;
                 const value = values[def.key];
                 if (def.type === 'switch') {
                     configs[def.key] = value ? 'true' : 'false';
@@ -117,24 +120,26 @@ export default function Admin() {
 
             if (response.data && response.data.code === 0) {
                 message.success(response.data.data.message || '配置保存成功');
-                // 显示重启提示
-                Modal.success({
-                    title: '保存成功',
-                    content: (
-                        <div>
-                            <p>配置已写入.env文件。</p>
-                            <p style={{ color: '#fa8c16', fontWeight: 'bold' }}>
-                                ⚠️ 需要重启容器才能生效：
-                            </p>
-                            <ul style={{ paddingLeft: 20 }}>
-                                <li>后端环境变量：执行 <code>docker compose restart</code> 即可</li>
-                                <li>前端REACT_APP_*变量：需执行 <code>docker compose up -d --build</code> 重新构建镜像</li>
-                            </ul>
-                        </div>
-                    ),
-                    okText: '我知道了',
-                    okButtonProps: { style: { width: 'auto' } }
-                });
+                // 仅在有前端变量时显示重建提示
+                const hasFrontendVars = groupDefs.some(d => d.key.startsWith('REACT_APP_'));
+                if (hasFrontendVars) {
+                    Modal.success({
+                        title: '保存成功',
+                        content: (
+                            <div>
+                                <p>配置已保存到数据库并实时生效。</p>
+                                <p style={{ color: '#fa8c16', fontWeight: 'bold' }}>
+                                    ⚠️ 前端变量（REACT_APP_*）需重新构建镜像才能生效：
+                                </p>
+                                <p style={{ paddingLeft: 20 }}>
+                                    执行 <code>docker compose up -d --build</code>
+                                </p>
+                            </div>
+                        ),
+                        okText: '我知道了',
+                        okButtonProps: { style: { width: 'auto' } }
+                    });
+                }
             } else {
                 message.error(response.data?.msg || '保存失败');
             }
@@ -269,22 +274,12 @@ export default function Admin() {
                     />
                     <Title level={3} style={{ margin: 0 }}>系统配置管理</Title>
                 </div>
-                <Button 
-                    type="primary" 
-                    icon={<SaveOutlined />} 
-                    onClick={handleSave}
-                    loading={saving}
-                >
-                    保存配置
-                </Button>
             </div>
 
-            <Card style={{ marginBottom: 16 }}>
-                <Paragraph type="warning" style={{ margin: 0 }}>
-                    <Text strong>⚠️ 重要提示：</Text>
-                    修改配置后会写入 <code>.env</code> 文件，需要重启容器才能生效。
-                    其中后端变量（<code>DINGTALK_*</code>、<code>WEMEET_*</code>、<code>DB_*</code>、<code>REDIS_*</code> 等）执行 <code>docker compose restart</code> 即可生效；
-                    前端变量（<code>REACT_APP_*</code>）需要执行 <code>docker compose up -d --build</code> 重新构建镜像才能生效。
+            <Card style={{ marginBottom: 16, textAlign: 'left' }}>
+                <Paragraph type="warning" style={{ margin: 0, textAlign: 'left' }}>
+                    <Text strong>⚠️ 提示：</Text>
+                    后端配置参数保存后实时生效（无需重启）。前端变量（<code>REACT_APP_*</code>）保存后需执行 <code>docker compose up -d --build</code> 重新构建镜像才能生效。
                 </Paragraph>
             </Card>
 
@@ -294,28 +289,34 @@ export default function Admin() {
                 style={{ background: '#fff', padding: '24px 24px 24px 48px', borderRadius: '8px' }}
             >
                 {Object.entries(groupedDefinitions).map(([groupName, defs]) => (
-                    <div key={groupName} style={{ marginBottom: 24 }}>
-                        <Divider orientation="left" orientationMargin={0}>
-                            <Text strong style={{ fontSize: '15px' }}>{groupName}</Text>
-                        </Divider>
-                        <div style={{ paddingLeft: 24 }}>
-                            {defs.map(def => renderFormItem(def))}
-                        </div>
-                    </div>
+                    <Collapse
+                        key={groupName}
+                        style={{ marginBottom: 16, background: '#fafafa', border: 'none' }}
+                        items={[{
+                            key: groupName,
+                            label: (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', paddingRight: 8 }}>
+                                    <Text strong style={{ fontSize: '15px' }}>{groupName}</Text>
+                                    <Button
+                                        type="primary"
+                                        size="small"
+                                        icon={<SaveOutlined />}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleSave(groupName);
+                                        }}
+                                        loading={saving}
+                                    >
+                                        保存
+                                    </Button>
+                                </div>
+                            ),
+                            children: defs.map(def => renderFormItem(def)),
+                        }]}
+                    />
                 ))}
             </Form>
 
-            <div style={{ textAlign: 'right', marginTop: 16 }}>
-                <Button 
-                    type="primary" 
-                    icon={<SaveOutlined />} 
-                    onClick={handleSave}
-                    loading={saving}
-                    size="large"
-                >
-                    保存配置
-                </Button>
-            </div>
         </div>
     );
 }
