@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Button, Form, Input, Switch, Select, InputNumber, message, Modal, Spin, Result, Card, Tag, Collapse, Typography } from 'antd';
 import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons';
 import axios from 'axios';
@@ -20,6 +20,8 @@ export default function Admin() {
     const [definitions, setDefinitions] = useState([]);
     const [isAdmin, setIsAdmin] = useState(false);
     const [authLoading, setAuthLoading] = useState(true);  // 免登loading状态
+    const initialGroupValuesRef = useRef({});  // 记录每个分组的初始值，用于检测变更
+    const [changedGroups, setChangedGroups] = useState(new Set());  // 已变更的分组集合
 
     // 免登处理：进入页面先完成用户认证
     useEffect(() => {
@@ -72,6 +74,23 @@ export default function Admin() {
                 }
             }
             form.setFieldsValue(formValues);
+
+            // 记录每个分组的初始值（归一化为字符串），用于后续变更检测
+            const grouped = {};
+            for (const def of data.data.definitions) {
+                if (!grouped[def.group]) grouped[def.group] = [];
+                grouped[def.group].push(def);
+            }
+            const initialSnapshot = {};
+            for (const [groupName, defs] of Object.entries(grouped)) {
+                initialSnapshot[groupName] = {};
+                for (const def of defs) {
+                    const val = formValues[def.key];
+                    initialSnapshot[groupName][def.key] = def.type === 'switch' ? (val ? 'true' : 'false') : String(val ?? '');
+                }
+            }
+            initialGroupValuesRef.current = initialSnapshot;
+            setChangedGroups(new Set());
         } catch (err) {
             frontendLogger.error('获取配置失败', { error: err });
             setError(err.response?.data?.msg || err.message || '获取配置失败');
@@ -79,6 +98,35 @@ export default function Admin() {
         } finally {
             setLoading(false);
         }
+    }
+
+    // 监听表单字段变化，更新 changedGroups
+    function handleFormChange(changedValues, allValues) {
+        const initialSnapshot = initialGroupValuesRef.current;
+        if (!initialSnapshot || Object.keys(initialSnapshot).length === 0) return;
+
+        // 只处理实际变化的字段，确定它属于哪个分组
+        const newChanged = new Set(changedGroups);
+        for (const key of Object.keys(changedValues)) {
+            // 找到该字段所属的分组
+            for (const [groupName, defMap] of Object.entries(initialSnapshot)) {
+                if (key in defMap) {
+                    // 对比当前值和初始值
+                    const originalValue = defMap[key];
+                    const currentValue = allValues[key];
+                    const normalized = typeof currentValue === 'boolean'
+                        ? (currentValue ? 'true' : 'false')
+                        : String(currentValue ?? '');
+                    if (normalized !== originalValue) {
+                        newChanged.add(groupName);
+                    } else {
+                        newChanged.delete(groupName);
+                    }
+                    break;
+                }
+            }
+        }
+        setChangedGroups(newChanged);
     }
 
     // 按分组组织配置项
@@ -120,6 +168,22 @@ export default function Admin() {
 
             if (response.data && response.data.code === 0) {
                 message.success(response.data.data.message || '配置保存成功');
+
+                // 更新初始值快照，清除该分组的变更标记
+                const currentValues = form.getFieldsValue();
+                const groupDefs = groupedDefinitions[groupName] || [];
+                const snapshot = initialGroupValuesRef.current[groupName] || {};
+                for (const def of groupDefs) {
+                    const val = currentValues[def.key];
+                    snapshot[def.key] = def.type === 'switch' ? (val ? 'true' : 'false') : String(val ?? '');
+                }
+                initialGroupValuesRef.current[groupName] = snapshot;
+                setChangedGroups(prev => {
+                    const next = new Set(prev);
+                    next.delete(groupName);
+                    return next;
+                });
+
                 // 仅在有前端变量时显示重建提示
                 const hasFrontendVars = groupDefs.some(d => d.key.startsWith('REACT_APP_'));
                 if (hasFrontendVars) {
@@ -286,6 +350,7 @@ export default function Admin() {
             <Form
                 form={form}
                 layout="vertical"
+                onValuesChange={handleFormChange}
                 style={{ background: '#fff', padding: '24px 24px 24px 48px', borderRadius: '8px' }}
             >
                 {Object.entries(groupedDefinitions).map(([groupName, defs]) => (
@@ -297,18 +362,20 @@ export default function Admin() {
                             label: (
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', paddingRight: 8 }}>
                                     <Text strong style={{ fontSize: '15px' }}>{groupName}</Text>
-                                    <Button
-                                        type="primary"
-                                        size="small"
-                                        icon={<SaveOutlined />}
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleSave(groupName);
-                                        }}
-                                        loading={saving}
-                                    >
-                                        保存
-                                    </Button>
+                                    {changedGroups.has(groupName) && (
+                                        <Button
+                                            type="primary"
+                                            size="small"
+                                            icon={<SaveOutlined />}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleSave(groupName);
+                                            }}
+                                            loading={saving}
+                                        >
+                                            保存
+                                        </Button>
+                                    )}
                                 </div>
                             ),
                             children: defs.map(def => renderFormItem(def)),
