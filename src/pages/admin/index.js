@@ -191,10 +191,10 @@ export default function Admin() {
                         {def.label}
                         {def.sensitive && <Tag color="orange" style={{ marginLeft: 8, fontSize: '11px' }}>敏感</Tag>}
                         {def.required && <span style={{ color: '#ff4d4f', marginLeft: 4 }}>*</span>}
+                        {def.description && <Text type="secondary" style={{ marginLeft: 8, fontSize: '12px', fontWeight: 'normal' }}>（{def.description}）</Text>}
                     </span>
                 }
                 rules={rules}
-                extra={def.description ? <Text type="secondary" style={{ fontSize: '12px' }}>{def.description}</Text> : null}
             >
                 {control}
             </Form.Item>
@@ -291,14 +291,16 @@ export default function Admin() {
             <Form
                 form={form}
                 layout="vertical"
-                style={{ background: '#fff', padding: '24px', borderRadius: '8px' }}
+                style={{ background: '#fff', padding: '24px 24px 24px 48px', borderRadius: '8px' }}
             >
                 {Object.entries(groupedDefinitions).map(([groupName, defs]) => (
                     <div key={groupName} style={{ marginBottom: 24 }}>
                         <Divider orientation="left" orientationMargin={0}>
                             <Text strong style={{ fontSize: '15px' }}>{groupName}</Text>
                         </Divider>
-                        {defs.map(def => renderFormItem(def))}
+                        <div style={{ paddingLeft: 24 }}>
+                            {defs.map(def => renderFormItem(def))}
+                        </div>
                     </div>
                 ))}
             </Form>

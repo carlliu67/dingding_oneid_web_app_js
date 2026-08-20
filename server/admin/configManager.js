@@ -285,66 +285,6 @@ const CONFIG_DEFINITIONS = [
         sensitive: false,
     },
 
-    // ===== 数据库配置 =====
-    {
-        group: '数据库配置',
-        key: 'DB_TYPE',
-        label: '数据库类型',
-        type: 'select',
-        required: true,
-        description: '支持sqlite/mysql',
-        options: [
-            { value: 'sqlite', label: 'sqlite' },
-            { value: 'mysql', label: 'mysql' },
-        ],
-        sensitive: false,
-    },
-    {
-        group: '数据库配置',
-        key: 'DB_HOST',
-        label: 'MySQL数据库主机',
-        type: 'text',
-        required: false,
-        description: 'SQLite时不需要设置',
-        sensitive: false,
-    },
-    {
-        group: '数据库配置',
-        key: 'DB_PORT',
-        label: 'MySQL数据库端口',
-        type: 'number',
-        required: false,
-        description: 'SQLite时不需要设置，默认3306',
-        sensitive: false,
-    },
-    {
-        group: '数据库配置',
-        key: 'DB_USER',
-        label: 'MySQL数据库用户名',
-        type: 'text',
-        required: false,
-        description: 'SQLite时不需要设置',
-        sensitive: false,
-    },
-    {
-        group: '数据库配置',
-        key: 'DB_PASSWORD',
-        label: 'MySQL数据库密码',
-        type: 'password',
-        required: false,
-        description: 'SQLite时不需要设置',
-        sensitive: true,
-    },
-    {
-        group: '数据库配置',
-        key: 'DB_DATABASE',
-        label: 'MySQL数据库名称',
-        type: 'text',
-        required: false,
-        description: 'SQLite时不需要设置',
-        sensitive: false,
-    },
-
     // ===== Redis配置 =====
     {
         group: 'Redis配置',
@@ -771,7 +711,6 @@ function getDefaultByDefinition(def) {
             return falseDefaults.includes(def.key) ? 'false' : 'true';
         case 'number':
             const numberDefaults = {
-                'DB_PORT': '3306',
                 'REDIS_PORT': '6379',
                 'REDIS_DB': '0',
                 'REDIS_USER_AUTH_EXPIRE': '3600',
@@ -788,11 +727,6 @@ function getDefaultByDefinition(def) {
         case 'select':
             const selectDefaults = {
                 'REACT_APP_MODE': 'schedule',
-                'REACT_APP_CREATE_MEETING_BUTTON_VISIBILITY': 'advanced',
-                'REACT_APP_USER_SELECTOR_MODE': 'full',
-                'REACT_APP_ONLY_USER_JOIN_TYPE': '1',
-                'REACT_APP_WATER_MARK_TYPE': '0',
-                'DB_TYPE': 'sqlite',
                 'LOG_LEVEL': 'info',
                 'REACT_APP_PROD_LOG_LEVEL': 'error',
             };
