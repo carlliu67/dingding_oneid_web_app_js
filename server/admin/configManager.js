@@ -8,67 +8,6 @@ import serverConfig from '../config/server_config.js';
 // 可配置的环境变量定义（按分组组织）
 // type: text(文本), password(密码), switch(布尔开关), number(数字), select(下拉选择)
 const CONFIG_DEFINITIONS = [
-    // ===== 钉钉对接参数（前端）=====
-    {
-        group: '钉钉对接参数（前端）',
-        key: 'REACT_APP_CORP_ID',
-        label: '企业ID (CorpId)',
-        type: 'text',
-        required: true,
-        description: '钉钉企业ID，在钉钉开发者后台获取',
-        sensitive: false,
-    },
-    {
-        group: '钉钉对接参数（前端）',
-        key: 'REACT_APP_CLIENT_ID',
-        label: '应用Client ID（前端）',
-        type: 'text',
-        required: true,
-        description: '应用的Client ID（原AppKey和SuiteKey），前端使用',
-        sensitive: false,
-    },
-    {
-        group: '钉钉对接参数（前端）',
-        key: 'REACT_APP_MODE',
-        label: '工作台应用打开模式',
-        type: 'select',
-        required: false,
-        description: 'app: 免登跳转腾讯会议客户端；upcoming: 展示待参加会议页面；schedule: 支持创建会议',
-        options: [
-            { value: 'app', label: 'app - 免登跳转腾讯会议客户端' },
-            { value: 'upcoming', label: 'upcoming - 展示待参加会议页面' },
-            { value: 'schedule', label: 'schedule - 支持创建会议' },
-        ],
-        sensitive: false,
-    },
-    {
-        group: '钉钉对接参数（前端）',
-        key: 'REACT_APP_CREATE_MEETING_BUTTON_VISIBILITY',
-        label: '创建会议按钮展示控制',
-        type: 'select',
-        required: false,
-        description: '控制创建会议按钮的可见范围',
-        options: [
-            { value: 'all', label: 'all - 所有用户可见' },
-            { value: 'advanced', label: 'advanced - 仅高级账号可见' },
-            { value: 'none', label: 'none - 全部不允许展示' },
-        ],
-        sensitive: false,
-    },
-    {
-        group: '钉钉对接参数（前端）',
-        key: 'REACT_APP_USER_SELECTOR_MODE',
-        label: '人员选择模式',
-        type: 'select',
-        required: false,
-        description: '预约/修改会议时设置主持人/参会人的方式',
-        options: [
-            { value: 'full', label: 'full - 全量模式，无范围限制' },
-            { value: 'strict', label: 'strict - 严格模式，限制为用户所在部门及子部门' },
-        ],
-        sensitive: false,
-    },
-
     // ===== 钉钉对接参数（后端）=====
     {
         group: '钉钉对接参数（后端）',
