@@ -4,7 +4,7 @@ import crypto from 'crypto';
 import { logger } from '../util/logger.js';
 import serverConfig from '../config/server_config.js';
 import { configAccessControl, okResponse, failResponse, setCookie } from '../server_util.js';
-import { getAccessToken, getInterAccessToken, searchUserByKeyword, getUserDetailByUserid, queryUserIdByUnionId, getAllDepartmentIds, getSubDepartmentIds, getUserDeptIdList, listSubDepartmentIds } from './dingtalkUtil.js';
+import { getAccessToken, getInterAccessToken, searchUserByKeyword, getUserDetailByUserid, queryUserIdByUnionId, getAllDepartmentIds, getSubDepartmentIds, getUserDeptIdList, listSubDepartmentIds, getAllScopedUsers, getScopedDeptTree } from './dingtalkUtil.js';
 import { getUserAuthFromRedis, setUserAuthToRedis } from '../db/redis.js';
 import dbAdapter from '../db/db_adapter.js';
 
@@ -377,10 +377,10 @@ async function getUserInfoByOAuth2Code(code) {
 }
 
 // 处理获取用户部门范围请求
-// 严格模式（strict）下用于限制 complexChoose 的组织架构选择范围
-// 返回 allowedDeptIds（用户部门+子部门）和 disabledDeptIds（不允许的部门）
-async function handleGetUserScopedDepartments(ctx) {
-    logger.debug("\n-------------------[获取用户部门范围 BEGIN]-----------------------------");
+// 严格模式（strict）下获取用户所在部门及子部门的组织架构树（含成员）
+// 返回 tree: 部门树形结构
+async function handleGetScopedUsers(ctx) {
+    logger.debug("\n-------------------[获取用户范围组织架构 BEGIN]-----------------------------");
     configAccessControl(ctx);
 
     if (!(await isLogin(ctx))) {
@@ -395,7 +395,7 @@ async function handleGetUserScopedDepartments(ctx) {
             return;
         }
 
-        logger.info(`获取用户部门范围: userid=${userid}`);
+        logger.info(`获取用户范围组织架构: userid=${userid}`);
 
         // 第一步：获取用户所在的所有部门
         const userDeptIds = await getUserDeptIdList(userid);
@@ -405,26 +405,16 @@ async function handleGetUserScopedDepartments(ctx) {
         }
         logger.debug(`用户所在部门: ${userDeptIds.join(', ')}`);
 
-        // 第二步：获取根部门(deptId=1)下的所有一级部门
-        const topDeptIds = await listSubDepartmentIds(1);
-        logger.debug(`根部门下的一级部门: ${topDeptIds.join(', ')}`);
+        // 第二步：递归构建部门组织架构树（含成员）
+        const tree = await getScopedDeptTree(userDeptIds);
 
-        // 第三步：禁选部门 = 所有一级部门 - 用户所在部门
-        // 如果用户所在部门是一级部门，则不禁选自己所在部门；否则禁选所有一级部门
-        const userDeptSet = new Set(userDeptIds.map(id => String(id)));
-        const disabledDeptIds = topDeptIds.filter(id => !userDeptSet.has(String(id))).map(id => String(id));
-        logger.debug(`禁选部门数: ${disabledDeptIds.length}`);
-
-        ctx.body = okResponse({
-            allowedDeptIds: userDeptIds.map(id => String(id)),
-            disabledDeptIds,
-        });
+        ctx.body = okResponse({ tree });
     } catch (error) {
-        logger.error("获取用户部门范围失败:", error.message, "stack:", error.stack);
-        ctx.body = failResponse("获取用户部门范围失败");
+        logger.error("获取用户范围组织架构失败:", error.message, "stack:", error.stack);
+        ctx.body = failResponse("获取用户范围组织架构失败");
     }
 
-    logger.debug("-------------------[获取用户部门范围 END]-----------------------------\n");
+    logger.debug("-------------------[获取用户范围组织架构 END]-----------------------------\n");
 }
 
 export {
@@ -433,5 +423,5 @@ export {
     isLogin,
     getUserid,
     handleSearchUser,
-    handleGetUserScopedDepartments
+    handleGetScopedUsers
 };

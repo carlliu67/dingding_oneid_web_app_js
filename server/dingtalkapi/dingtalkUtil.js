@@ -338,6 +338,186 @@ async function getUserDeptIdList(userid) {
     return userDetail.dept_id_list;
 }
 
+// 获取指定部门的详情（名称等）
+// 接口：topapi/v2/department/get
+async function getDeptInfo(deptId) {
+    const accessToken = await getInterAccessToken();
+    if (!accessToken) return null;
+
+    try {
+        const response = await axios.post('https://oapi.dingtalk.com/topapi/v2/department/get?access_token=' + accessToken, {
+            dept_id: deptId,
+        }, { headers: { "Content-Type": "application/json" } });
+
+        if (!response.data || response.data.errcode != 0) {
+            logger.error(`getDeptInfo(deptId=${deptId})失败:`, response.data?.errcode, response.data?.errmsg);
+            return null;
+        }
+
+        const result = response.data.result;
+        return { dept_id: result.dept_id, name: result.name };
+    } catch (error) {
+        logger.error(`getDeptInfo(deptId=${deptId})异常:`, error.message);
+        return null;
+    }
+}
+
+// 递归构建用户所在部门及子部门的组织架构树（含部门下的成员）
+// 返回树形结构：[{ key, title, type:'dept', children: [...], users: [...] }]
+async function getDeptTreeWithUsers(parentDeptId, deptInfoCache) {
+    // 获取当前部门信息
+    let deptInfo = deptInfoCache.get(parentDeptId);
+    if (!deptInfo) {
+        deptInfo = await getDeptInfo(parentDeptId);
+        if (!deptInfo) return null;
+        deptInfoCache.set(parentDeptId, deptInfo);
+    }
+
+    const node = {
+        key: 'dept-' + parentDeptId,
+        deptId: parentDeptId,
+        title: deptInfo.name || '部门' + parentDeptId,
+        type: 'dept',
+        children: [],
+    };
+
+    // 获取该部门下的用户
+    let cursor = 0;
+    let hasMore = true;
+    let pageCount = 0;
+    while (hasMore && pageCount < 50) {
+        pageCount++;
+        const { users, hasMore: more } = await getDeptUserList(parentDeptId, cursor, 100);
+        for (const user of users) {
+            node.children.push({
+                key: 'user-' + user.userid,
+                userid: user.userid,
+                title: user.name || user.userid,
+                type: 'user',
+                avatar: user.avatar || "",
+                job_number: user.job_number || "",
+            });
+        }
+        hasMore = more;
+        cursor += 100;
+    }
+
+    // 递归获取子部门
+    const subDeptIds = await listSubDepartmentIds(parentDeptId);
+    for (const subDeptId of subDeptIds) {
+        const childNode = await getDeptTreeWithUsers(subDeptId, deptInfoCache);
+        if (childNode) {
+            node.children.push(childNode);
+        }
+    }
+
+    return node;
+}
+
+// 构建多个部门的组织架构树（根节点为虚拟节点）
+async function getScopedDeptTree(deptIds) {
+    const deptInfoCache = new Map();
+    const rootChildren = [];
+
+    for (const deptId of deptIds) {
+        const node = await getDeptTreeWithUsers(deptId, deptInfoCache);
+        if (node) {
+            rootChildren.push(node);
+        }
+    }
+
+    // 如果只有一个部门，直接返回该部门作为根节点
+    if (rootChildren.length === 1) {
+        return rootChildren[0];
+    }
+
+    // 多个部门，用虚拟根节点
+    return {
+        key: 'root',
+        title: '我的部门',
+        type: 'dept',
+        children: rootChildren,
+    };
+}
+
+// 获取指定部门的用户列表（分页）
+// 接口：topapi/v2/user/list，每次最多返回100条
+async function getDeptUserList(deptId, cursor = 0, size = 100) {
+    const accessToken = await getInterAccessToken();
+    if (!accessToken) {
+        logger.error("getDeptUserList失败：无法获取access_token");
+        return { users: [], hasMore: false };
+    }
+
+    try {
+        const response = await axios.post('https://oapi.dingtalk.com/topapi/v2/user/list?access_token=' + accessToken, {
+            dept_id: deptId,
+            cursor: cursor,
+            size: size,
+        }, { headers: { "Content-Type": "application/json" } });
+
+        if (!response.data || response.data.errcode != 0) {
+            logger.error(`getDeptUserList(deptId=${deptId})失败:`, response.data?.errcode, response.data?.errmsg);
+            return { users: [], hasMore: false };
+        }
+
+        const result = response.data.result;
+        return {
+            users: result.list || [],
+            hasMore: result.has_more || false,
+        };
+    } catch (error) {
+        logger.error(`getDeptUserList(deptId=${deptId})异常:`, error.message);
+        return { users: [], hasMore: false };
+    }
+}
+
+// 递归获取多个部门及其所有子部门的全部用户
+// deptIds: 初始部门ID列表
+// 返回去重后的用户列表 [{userid, name, avatar, job_number, dept_id_list}, ...]
+async function getAllScopedUsers(deptIds) {
+    // 第一步：递归获取所有部门ID（含子部门）
+    const allDeptIdSet = new Set();
+    for (const deptId of deptIds) {
+        const subDeptIds = await getSubDepartmentIds(deptId);
+        for (const subId of subDeptIds) {
+            allDeptIdSet.add(subId);
+        }
+    }
+    const allDeptIds = Array.from(allDeptIdSet);
+    logger.debug(`getAllScopedUsers: 共 ${allDeptIds.length} 个部门需要查询用户`);
+
+    // 第二步：逐个部门分页获取用户
+    const userMap = new Map(); // userid → user，用于去重
+    for (const deptId of allDeptIds) {
+        let cursor = 0;
+        let hasMore = true;
+        let pageCount = 0;
+        const MAX_PAGES = 50; // 安全限制，防止异常死循环
+
+        while (hasMore && pageCount < MAX_PAGES) {
+            pageCount++;
+            const { users, hasMore: more } = await getDeptUserList(deptId, cursor, 100);
+            for (const user of users) {
+                if (user.userid && !userMap.has(user.userid)) {
+                    userMap.set(user.userid, {
+                        userid: user.userid,
+                        name: user.name || user.userid,
+                        avatar: user.avatar || "",
+                        job_number: user.job_number || "",
+                    });
+                }
+            }
+            hasMore = more;
+            cursor += 100;
+        }
+    }
+
+    const users = Array.from(userMap.values());
+    logger.info(`getAllScopedUsers 完成: ${allDeptIds.length}个部门，共获取 ${users.length} 个用户`);
+    return users;
+}
+
 export {
     convertSecondsToISO,
     formatTimeRange,
@@ -352,5 +532,9 @@ export {
     getAllDepartmentIds,
     getSubDepartmentIds,
     getUserDeptIdList,
-    listSubDepartmentIds
+    listSubDepartmentIds,
+    getDeptUserList,
+    getAllScopedUsers,
+    getDeptInfo,
+    getScopedDeptTree
 };

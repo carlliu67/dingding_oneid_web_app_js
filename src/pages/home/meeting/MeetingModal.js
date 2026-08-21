@@ -1,18 +1,32 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Modal, Form, Input, DatePicker, TimePicker, Button, Select, Switch } from 'antd';
+import { Modal, Form, Input, DatePicker, TimePicker, Button, Select, Switch, Avatar, Tree, Input as AntInput } from 'antd';
 import dayjs from 'dayjs';
 import dd from '../../../utils/ddSdk.js';
 import './MeetingModal.css'
 import clientConfig from '../../../config/client_config.js';
 import { frontendLogger } from '../../../utils/logger.js';
-import { getDisabledDepartments } from '../../../utils/deptCache.js';
+import { getScopedDeptTree } from '../../../utils/deptCache.js';
+import { searchUser } from '../../../components/wemeetapi/wemeetApi.js';
 const { Option } = Select;
+const { Search } = AntInput;
 
 const MeetingModal = ({ visible, onCancel, onCreate, userInfo, isFreeAccount }) => {
   const [selectedHosts, setSelectedHosts] = useState([]); // 存储选中的主持人列表，每项包含 {id, name}
   const [selectedInvitees, setSelectedInvitees] = useState([]); // 存储选中的邀请人列表，每项包含 {id, name}
-  // 严格模式：禁选部门列表（传给 complexChoose 的 disabledDepartments）
-  const [disabledDepartments, setDisabledDepartments] = useState(null); // null=未加载，[]=无限制
+  // strict模式：组织架构树数据 + 搜索关键词
+  const [deptTreeData, setDeptTreeData] = useState(null);
+  const [hostTreeSearch, setHostTreeSearch] = useState('');
+  const [inviteeTreeSearch, setInviteeTreeSearch] = useState('');
+  // strict模式：搜索结果（从后端搜索全企业用户）
+  const [hostSearchResults, setHostSearchResults] = useState(null); // null=未搜索，[]=无结果，[...]=结果
+  const [inviteeSearchResults, setInviteeSearchResults] = useState(null);
+  const [hostSearching, setHostSearching] = useState(false);
+  const [inviteeSearching, setInviteeSearching] = useState(false);
+  const hostSearchTimerRef = useRef(null);
+  const inviteeSearchTimerRef = useRef(null);
+  // strict模式：弹窗可见性
+  const [hostTreeModalVisible, setHostTreeModalVisible] = useState(false);
+  const [inviteeTreeModalVisible, setInviteeTreeModalVisible] = useState(false);
   const [currentDate, setCurrentDate] = useState(dayjs().startOf('day')); // 使用状态变量存储日期
   const [currentTime, setCurrentTime] = useState(() => { // 使用状态变量存储时间，初始计算未来最近的15分钟间隔
     const now = dayjs();
@@ -189,11 +203,8 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo, isFreeAccount }) 
         complete: () => { },
       };
 
-      // strict 模式下传入禁选部门，限制只能选择用户所在部门及子部门
-      if (clientConfig.userSelectorMode === 'strict' && disabledDepartments && disabledDepartments.length > 0) {
-        options.disabledDepartments = disabledDepartments;
-        frontendLogger.debug('strict模式：传入禁选部门', { count: disabledDepartments.length });
-      }
+      // strict 模式由 Select 组件处理，不走 complexChoose
+      if (clientConfig.userSelectorMode === 'strict') return;
 
       dd.complexChoose(options).catch((err) => {
         frontendLogger.error('选择主持人失败', { error: err });
@@ -232,11 +243,8 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo, isFreeAccount }) 
         complete: () => { },
       };
 
-      // strict 模式下传入禁选部门，限制只能选择用户所在部门及子部门
-      if (clientConfig.userSelectorMode === 'strict' && disabledDepartments && disabledDepartments.length > 0) {
-        options.disabledDepartments = disabledDepartments;
-        frontendLogger.debug('strict模式：传入禁选部门', { count: disabledDepartments.length });
-      }
+      // strict 模式由 Select 组件处理，不走 complexChoose
+      if (clientConfig.userSelectorMode === 'strict') return;
 
       dd.complexChoose(options).catch((err) => {
         frontendLogger.error('选择邀请成员失败', { error: err });
@@ -254,16 +262,81 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo, isFreeAccount }) 
     }
   }, [currentDate, currentTime, currentEndDate, currentEndTime]);
 
-  // strict 模式下从本地缓存读取禁选部门列表（登录时已预加载，24小时有效）
+  // strict 模式下从本地缓存读取组织架构树（登录时已预加载，24小时有效）
   useEffect(() => {
     if (clientConfig.userSelectorMode === 'strict') {
-      getDisabledDepartments().then(departments => {
-        if (departments) {
-          setDisabledDepartments(departments);
-        }
+      getScopedDeptTree().then(tree => {
+        if (tree) setDeptTreeData(tree);
       });
     }
   }, []);
+
+  // strict模式：搜索用户（防抖，调用后端接口搜索全企业用户）
+  const handleSearchUsers = (value, isHost) => {
+    const timerRef = isHost ? hostSearchTimerRef : inviteeSearchTimerRef;
+    const setResults = isHost ? setHostSearchResults : setInviteeSearchResults;
+    const setSearching = isHost ? setHostSearching : setInviteeSearching;
+    const setSearch = isHost ? setHostTreeSearch : setInviteeTreeSearch;
+
+    setSearch(value);
+
+    if (timerRef.current) clearTimeout(timerRef.current);
+
+    if (!value || value.trim().length === 0) {
+      setResults(null); // 清空搜索，恢复显示组织架构树
+      return;
+    }
+
+    timerRef.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const result = await searchUser(value.trim());
+        if (result && result.users) {
+          // 转换为 Tree 数据格式
+          const treeNodes = result.users.map(user => ({
+            key: 'user-' + user.userid,
+            userid: user.userid,
+            title: user.name || user.userid,
+            type: 'user',
+            avatar: user.avatar || '',
+            job_number: user.jobnumber || user.job_number || '',
+          }));
+          setResults(treeNodes);
+        } else {
+          setResults([]);
+        }
+      } catch (error) {
+        frontendLogger.error('搜索用户失败', { error });
+        setResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 500);
+  };
+
+  // strict模式：自定义Tree节点渲染（用户节点显示头像+姓名+工号）
+function renderTreeNode(node) {
+    if (node.type === 'user') {
+        return (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Avatar size="small" src={node.avatar}>{(node.title || '?')[0]}</Avatar>
+                <span>{node.title}</span>
+                {node.job_number && <span style={{ color: '#999', fontSize: '12px' }}>工号: {node.job_number}</span>}
+            </span>
+        );
+    }
+    return <span>{node.title}</span>;
+}
+
+// strict模式：获取Tree要展示的数据（有搜索结果时显示搜索结果，否则显示组织架构树）
+  const getTreeData = (isHost) => {
+    const search = isHost ? hostTreeSearch : inviteeTreeSearch;
+    const results = isHost ? hostSearchResults : inviteeSearchResults;
+    if (search && search.trim().length > 0) {
+      return results || [];
+    }
+    return deptTreeData ? [deptTreeData] : [];
+  };
 
   const handleCreateMeetingSubmit = async (values) => {
     var meetingParams = {};
@@ -579,6 +652,51 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo, isFreeAccount }) 
           label="指定主持人"
           style={{ marginBottom: 16 }}
         >
+          {clientConfig.userSelectorMode === 'strict' ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+              <Button type="primary" onClick={() => setHostTreeModalVisible(true)}>选择主持人</Button>
+              {selectedHosts.length > 0 ? (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                  {selectedHosts.map(host => (
+                    <span key={host.id} style={{ background: '#f0f0f0', padding: '2px 8px', borderRadius: 4, fontSize: 13 }}>
+                      {host.name}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <span style={{ color: '#999' }}>暂未选择主持人</span>
+              )}
+              <Modal
+                title="选择主持人"
+                open={hostTreeModalVisible}
+                onOk={() => setHostTreeModalVisible(false)}
+                onCancel={() => setHostTreeModalVisible(false)}
+                width={500}
+                styles={{ body: { maxHeight: '60vh', overflow: 'auto' } }}
+              >
+                <Search placeholder="搜索全企业用户" allowClear loading={hostSearching} onChange={e => handleSearchUsers(e.target.value, true)} style={{ marginBottom: 8 }} />
+                <Tree
+                  checkable
+                  checkedKeys={selectedHosts.map(h => 'user-' + h.id)}
+                  onCheck={(checkedKeys, info) => {
+                    // 只选中用户节点（非部门节点）
+                    const userKeys = checkedKeys.filter(k => k.startsWith('user-'));
+                    const hosts = userKeys.map(k => {
+                      const userid = k.replace('user-', '');
+                      const node = info.checkedNodes?.find(n => n.key === k);
+                      return { id: userid, name: node?.title || userid };
+                    });
+                    setSelectedHosts(hosts);
+                  }}
+                  treeData={getTreeData(true)}
+                  titleRender={renderTreeNode}
+                  fieldNames={{ title: 'title', key: 'key', children: 'children' }}
+                  defaultExpandAll
+                  selectable={false}
+                />
+              </Modal>
+            </div>
+          ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', width: '100%' }}>
               <Button
@@ -629,12 +747,57 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo, isFreeAccount }) 
               )}
             </div>
           </div>
+          )}
         </Form.Item>
         )}
         <Form.Item
           label="邀请成员"
           style={{ marginBottom: 16 }}
         >
+          {clientConfig.userSelectorMode === 'strict' ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+              <Button type="primary" onClick={() => setInviteeTreeModalVisible(true)}>选择邀请成员</Button>
+              {selectedInvitees.length > 0 ? (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                  {selectedInvitees.map(inv => (
+                    <span key={inv.id} style={{ background: '#f0f0f0', padding: '2px 8px', borderRadius: 4, fontSize: 13 }}>
+                      {inv.name}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <span style={{ color: '#999' }}>暂未选择邀请成员</span>
+              )}
+              <Modal
+                title="选择邀请成员"
+                open={inviteeTreeModalVisible}
+                onOk={() => setInviteeTreeModalVisible(false)}
+                onCancel={() => setInviteeTreeModalVisible(false)}
+                width={500}
+                styles={{ body: { maxHeight: '60vh', overflow: 'auto' } }}
+              >
+                <Search placeholder="搜索全企业用户" allowClear loading={inviteeSearching} onChange={e => handleSearchUsers(e.target.value, false)} style={{ marginBottom: 8 }} />
+                <Tree
+                  checkable
+                  checkedKeys={selectedInvitees.map(inv => 'user-' + inv.id)}
+                  onCheck={(checkedKeys, info) => {
+                    const userKeys = checkedKeys.filter(k => k.startsWith('user-'));
+                    const invitees = userKeys.map(k => {
+                      const userid = k.replace('user-', '');
+                      const node = info.checkedNodes?.find(n => n.key === k);
+                      return { id: userid, name: node?.title || userid };
+                    });
+                    setSelectedInvitees(invitees);
+                  }}
+                  treeData={getTreeData(false)}
+                  titleRender={renderTreeNode}
+                  fieldNames={{ title: 'title', key: 'key', children: 'children' }}
+                  defaultExpandAll
+                  selectable={false}
+                />
+              </Modal>
+            </div>
+          ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', width: '100%' }}>
               <Button
@@ -685,6 +848,7 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo, isFreeAccount }) 
               )}
             </div>
           </div>
+          )}
         </Form.Item>
         <Form.Item wrapperCol={{ xs: 24, sm: { span: 16, offset: 6 } }}>
           <div style={{ 

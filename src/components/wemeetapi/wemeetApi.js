@@ -295,10 +295,10 @@ async function searchUser(query, size = 20) {
 }
 
 
-// 获取用户部门范围（strict模式使用）
-// 返回 { allowedDeptIds, disabledDeptIds }，用于 complexChoose 的 disabledDepartments 参数
+// 获取用户范围组织架构树（strict模式使用）
+// 返回 { tree: 部门树形结构 }
 async function getUserScopedDepartments() {
-    frontendLogger.debug("\n----------[获取用户部门范围 BEGIN]----------")
+    frontendLogger.debug("\n----------[获取用户范围组织架构 BEGIN]----------")
     try {
         const response = await axios.get(`${getOrigin()}${clientConfig.getUserScopedDepartmentsPath}`, {
             withCredentials: true
@@ -311,16 +311,13 @@ async function getUserScopedDepartments() {
 
         const data = response.data;
         if (data.code !== 0) {
-            frontendLogger.error('获取用户部门范围失败', { msg: data.msg });
+            frontendLogger.error('获取用户范围组织架构失败', { msg: data.msg });
             return null;
         }
 
-        frontendLogger.debug("获取用户部门范围: 成功", { 
-            allowed: data.data?.allowedDeptIds?.length || 0, 
-            disabled: data.data?.disabledDeptIds?.length || 0 
-        });
-        frontendLogger.debug("----------[获取用户部门范围 END]----------\n")
-        return data.data;  // { allowedDeptIds, disabledDeptIds }
+        frontendLogger.debug("获取用户范围组织架构: 成功");
+        frontendLogger.debug("----------[获取用户范围组织架构 END]----------\n")
+        return data.data;  // { tree: {...} }
     } catch (error) {
         frontendLogger.error(`${clientConfig.getUserScopedDepartmentsPath} error`, { error });
         return null;

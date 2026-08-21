@@ -14,7 +14,7 @@ const { logger } = await import('./util/logger.js');
 const { handleVerification, handleEvent } = await import('./wemeet/webhook.js');
 const { handleCreateMeeting, handleQueryUserEndedMeetingList, handleQueryUserMeetingList, handleGetUserInfo } = await import('./wemeet/wemeetApi.js');
 const { handleGenerateJoinScheme, handleGenerateJumpUrl, handleGenerateJoinUrl } = await import('./wemeet/wemeetUtil.js');
-const { getUserAccessToken, getSignParameters, isLogin, getUserid, handleSearchUser, handleGetUserScopedDepartments } = await import('./dingtalkapi/dingtalkAuth.js');
+const { getUserAccessToken, getSignParameters, isLogin, getUserid, handleSearchUser, handleGetScopedUsers } = await import('./dingtalkapi/dingtalkAuth.js');
 const dbAdapter = (await import('./db/db_adapter.js')).default;
 const { initRedis } = await import('./db/redis.js');
 const { handleFrontendLogs } = await import('./util/logHandler.js');
@@ -132,7 +132,7 @@ router.get(serverConfig.queryUserEndedMeetingListPath, handleQueryUserEndedMeeti
 router.get(serverConfig.queryUserMeetingListPath, handleQueryUserMeetingList)
 router.get(serverConfig.getUserInfoPath, handleGetUserInfo)
 router.get(serverConfig.searchUserPath, handleSearchUser)
-router.get(serverConfig.getUserScopedDepartmentsPath, handleGetUserScopedDepartments)
+router.get(serverConfig.getUserScopedDepartmentsPath, handleGetScopedUsers)
 
 // 管理页面配置接口
 router.get('/api/admin/config', handleGetConfigDefinitions)

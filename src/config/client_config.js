@@ -26,7 +26,7 @@ const clientConfig = {
 
     // 后端服务API路径，这部分参数不要修改
     searchUserPath:  "/api/search_user", // 搜索用户userId的api path
-    getUserScopedDepartmentsPath: "/api/get_user_scoped_departments", // 获取用户部门范围api path（strict模式使用）
+    getUserScopedDepartmentsPath: "/api/get_scoped_users", // 获取用户范围成员api path（strict模式使用）
     getUserAccessTokenPath:  "/api/get_user_access_token", //免登api path
     getSignParametersPath:  "/api/get_sign_parameters", //鉴权api path;
     generateJoinSchemePath:  "/api/generateJoinScheme", //获取scheme url的api path

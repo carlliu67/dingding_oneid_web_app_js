@@ -6,7 +6,7 @@ import { handleGenerateJoinScheme, handleGenerateJumpUrl, handleGenerateJoinUrl 
 import './index.css';
 import clientConfig from '../../config/client_config.js';
 import { frontendLogger } from '../../utils/logger.js';
-import { preloadDisabledDepartments } from '../../utils/deptCache.js';
+import { preloadScopedUsers } from '../../utils/deptCache.js';
 
 export default function Home() {
     const [userInfo, setUserInfo] = useState({});
@@ -32,7 +32,7 @@ export default function Home() {
             frontendLogger.info('用户信息', { userInfo });
             // strict 模式下预加载禁选部门列表并缓存到 localStorage
             if (clientConfig.userSelectorMode === 'strict') {
-                preloadDisabledDepartments();
+                preloadScopedUsers();
             }
             if (params.meetingCode || params.joinUrl) {
                 // 处理 code 参数

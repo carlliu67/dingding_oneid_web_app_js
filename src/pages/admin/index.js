@@ -5,7 +5,7 @@ import axios from 'axios';
 import { getOrigin, handleUserAuth } from '../../utils/auth_access_util.js';
 import { frontendLogger } from '../../utils/logger.js';
 import clientConfig from '../../config/client_config.js';
-import { preloadDisabledDepartments } from '../../utils/deptCache.js';
+import { preloadScopedUsers } from '../../utils/deptCache.js';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -34,7 +34,7 @@ export default function Admin() {
             frontendLogger.info('管理页面用户信息', { userInfo });
             // strict 模式下预加载禁选部门列表并缓存
             if (clientConfig.userSelectorMode === 'strict') {
-                preloadDisabledDepartments();
+                preloadScopedUsers();
             }
             loadConfig();
         });
