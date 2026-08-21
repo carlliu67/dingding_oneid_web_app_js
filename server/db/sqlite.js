@@ -524,6 +524,55 @@ function dbSetOrgDeptUsers(deptId, usersData, updateTime) {
     });
 }
 
+// 列出所有部门用户缓存的 dept_id（用于组织架构刷新后清理已删除部门的孤儿数据）
+function dbListOrgDeptUserIds() {
+    return new Promise((resolve, reject) => {
+        const db = openOrgDatabase();
+        db.all('SELECT dept_id FROM org_dept_users', (err, rows) => {
+            if (err) {
+                logger.error('查询部门用户缓存dept_id列表失败:', err.message);
+                reject(err);
+            } else {
+                resolve((rows || []).map(row => String(row.dept_id)));
+            }
+        });
+    });
+}
+
+// 批量删除指定部门的用户缓存
+function dbDeleteOrgDeptUsersByDeptIds(deptIds) {
+    const ids = (deptIds || []).map(String);
+    if (ids.length === 0) return Promise.resolve(0);
+    return new Promise((resolve, reject) => {
+        const db = openOrgDatabase();
+        const BATCH = 500;
+        let totalDeleted = 0;
+        let failed = false;
+
+        function deleteBatch(index) {
+            if (failed) return;
+            if (index >= ids.length) {
+                logger.debug(`批量删除部门用户缓存完成，共删除 ${totalDeleted} 行`);
+                resolve(totalDeleted);
+                return;
+            }
+            const batch = ids.slice(index, index + BATCH);
+            const placeholders = batch.map(() => '?').join(',');
+            db.run(`DELETE FROM org_dept_users WHERE dept_id IN (${placeholders})`, batch, function (err) {
+                if (err) {
+                    failed = true;
+                    logger.error('批量删除部门用户缓存失败:', err.message);
+                    reject(err);
+                    return;
+                }
+                totalDeleted += this.changes;
+                deleteBatch(index + BATCH);
+            });
+        }
+        deleteBatch(0);
+    });
+}
+
 // 插入userinfo数据
 function dbInsertUserinfo(userid, unionid, name) {
     return new Promise((resolve, reject) => {
@@ -865,6 +914,8 @@ export {
     dbSetOrgDeptTree,
     dbGetOrgDeptUsers,
     dbSetOrgDeptUsers,
+    dbListOrgDeptUserIds,
+    dbDeleteOrgDeptUsersByDeptIds,
     openTodoDatabase,
     dbInsertTodo,
     dbGetTodoByMeetingid,

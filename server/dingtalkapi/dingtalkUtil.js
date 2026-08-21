@@ -258,13 +258,29 @@ async function getUserDetailByUserid(userid) {
     }
 }
 
-// 获取指定部门的下一级子部门ID列表（只返回直属下一级，不递归）
-// 接口：https://oapi.dingtalk.com/topapi/v2/department/listsub
-async function listSubDepartmentIds(parentId) {
+// 通用重试：fn 返回 null/undefined 视为失败，最多重试 retries 次（含首次）
+async function withRetry(fn, retries = 2, retryDelayMs = 300) {
+    let lastResult = null;
+    for (let i = 0; i <= retries; i++) {
+        lastResult = await fn();
+        if (lastResult !== null && lastResult !== undefined) {
+            return lastResult;
+        }
+        if (i < retries) {
+            await new Promise(resolve => setTimeout(resolve, retryDelayMs));
+        }
+    }
+    return lastResult;
+}
+
+// 获取直属子部门列表（含部门名称）
+// listsub 返回值本身包含 name 字段，直接利用可避免构建组织架构树时再逐个调用 department/get 查询部门名
+// 失败（含重试后仍失败）返回 null；无子部门返回空数组——调用方必须区分这两种情况
+async function listSubDepartmentInfo(parentId) {
     const accessToken = await getInterAccessToken();
     if (!accessToken) {
-        logger.error("listSubDepartmentIds失败：无法获取access_token");
-        return [];
+        logger.error("listSubDepartmentInfo失败：无法获取access_token");
+        return null;
     }
 
     try {
@@ -274,17 +290,31 @@ async function listSubDepartmentIds(parentId) {
         }, { headers: { "Content-Type": "application/json" } });
 
         if (!response.data || response.data.errcode != 0) {
-            logger.error(`listSubDepartmentIds(parentId=${parentId})失败:`, response.data?.errcode, response.data?.errmsg);
-            return [];
+            logger.error(`listSubDepartmentInfo(parentId=${parentId})失败:`, response.data?.errcode, response.data?.errmsg);
+            return null;
         }
 
-        const deptIds = (response.data.result || []).map(d => d.dept_id || d.id);
-        logger.debug(`listSubDepartmentIds(parentId=${parentId}) 返回部门数:`, deptIds.length, "详情:", JSON.stringify(response.data.result?.slice(0, 3)));
-        return deptIds;
+        const subDepts = (response.data.result || []).map(d => ({
+            deptId: d.dept_id || d.id,
+            name: d.name || '',
+        }));
+        logger.debug(`listSubDepartmentInfo(parentId=${parentId}) 返回部门数:`, subDepts.length);
+        return subDepts;
     } catch (error) {
-        logger.error(`listSubDepartmentIds(parentId=${parentId})异常:`, error.message);
-        return [];
+        logger.error(`listSubDepartmentInfo(parentId=${parentId})异常:`, error.message);
+        return null;
     }
+}
+
+// 带重试的直属子部门列表查询（供组织架构构建使用）
+async function listSubDepartmentInfoWithRetry(parentId) {
+    return await withRetry(() => listSubDepartmentInfo(parentId));
+}
+
+// 获取直属子部门ID列表（基于 listSubDepartmentInfo，仅提取ID；失败时返回空数组保持旧语义）
+async function listSubDepartmentIds(parentId) {
+    const subDepts = await listSubDepartmentInfo(parentId);
+    return (subDepts || []).map(d => d.deptId);
 }
 
 // 递归获取指定部门及其所有层级子部门ID列表
@@ -385,7 +415,8 @@ async function getDeptTreeWithUsers(parentDeptId, deptInfoCache) {
     let pageCount = 0;
     while (hasMore && pageCount < 50) {
         pageCount++;
-        const { users, hasMore: more } = await getDeptUserList(parentDeptId, cursor, 100);
+        const page = await getDeptUserList(parentDeptId, cursor, 100);
+        const users = page?.users || [];
         for (const user of users) {
             node.children.push({
                 key: 'user-' + user.userid,
@@ -396,7 +427,7 @@ async function getDeptTreeWithUsers(parentDeptId, deptInfoCache) {
                 job_number: user.job_number || "",
             });
         }
-        hasMore = more;
+        hasMore = page?.hasMore || false;
         cursor += 100;
     }
 
@@ -444,7 +475,7 @@ async function getDeptUserList(deptId, cursor = 0, size = 100) {
     const accessToken = await getInterAccessToken();
     if (!accessToken) {
         logger.error("getDeptUserList失败：无法获取access_token");
-        return { users: [], hasMore: false };
+        return null;
     }
 
     try {
@@ -456,7 +487,7 @@ async function getDeptUserList(deptId, cursor = 0, size = 100) {
 
         if (!response.data || response.data.errcode != 0) {
             logger.error(`getDeptUserList(deptId=${deptId})失败:`, response.data?.errcode, response.data?.errmsg);
-            return { users: [], hasMore: false };
+            return null;
         }
 
         const result = response.data.result;
@@ -466,8 +497,14 @@ async function getDeptUserList(deptId, cursor = 0, size = 100) {
         };
     } catch (error) {
         logger.error(`getDeptUserList(deptId=${deptId})异常:`, error.message);
-        return { users: [], hasMore: false };
+        return null;
     }
+}
+
+// 带重试的部门用户列表查询（供组织架构缓存使用）
+// 失败（含重试后仍失败）返回 null；成功返回 {users, hasMore}
+async function getDeptUserListWithRetry(deptId, cursor = 0, size = 100) {
+    return await withRetry(() => getDeptUserList(deptId, cursor, size));
 }
 
 // 递归获取多个部门及其所有子部门的全部用户
@@ -495,7 +532,8 @@ async function getAllScopedUsers(deptIds) {
 
         while (hasMore && pageCount < MAX_PAGES) {
             pageCount++;
-            const { users, hasMore: more } = await getDeptUserList(deptId, cursor, 100);
+            const page = await getDeptUserList(deptId, cursor, 100);
+            const users = page?.users || [];
             for (const user of users) {
                 if (user.userid && !userMap.has(user.userid)) {
                     userMap.set(user.userid, {
@@ -506,7 +544,7 @@ async function getAllScopedUsers(deptIds) {
                     });
                 }
             }
-            hasMore = more;
+            hasMore = page?.hasMore || false;
             cursor += 100;
         }
     }
@@ -532,7 +570,10 @@ export {
     getSubDepartmentIds,
     getUserDeptIdList,
     listSubDepartmentIds,
+    listSubDepartmentInfo,
+    listSubDepartmentInfoWithRetry,
     getDeptUserList,
+    getDeptUserListWithRetry,
     getAllScopedUsers,
     getDeptInfo,
     getScopedDeptTree

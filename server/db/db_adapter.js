@@ -75,6 +75,8 @@ const databaseMethods = [
   'dbSetOrgDeptTree',
   'dbGetOrgDeptUsers',
   'dbSetOrgDeptUsers',
+  'dbListOrgDeptUserIds',
+  'dbDeleteOrgDeptUsersByDeptIds',
   'dbInsertTodo',
   'dbGetTodoByMeetingid',
   'dbDeleteTodoByMeetingid',

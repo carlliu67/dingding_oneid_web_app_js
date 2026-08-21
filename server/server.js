@@ -22,7 +22,7 @@ const { initializeAdminUserid } = await import('./util/adminUseridManager.js');
 const { startCleanupScheduler, stopCleanupScheduler } = await import('./db/data_cleanup.js');
 const { handleGetConfigDefinitions, handleSaveConfig, KEY_MAP } = await import('./admin/configManager.js');
 const { syncEnvToDatabase, loadConfigFromDatabase } = await import('./config/configStore.js');
-const { initOrgCache } = await import('./dingtalkapi/orgCache.js');
+const { initOrgCache, stopOrgCacheScheduler } = await import('./dingtalkapi/orgCache.js');
 
 import Koa from 'koa';
 import Router from 'koa-router';
@@ -245,6 +245,8 @@ process.on('SIGTERM', () => {
     }
     // 停止数据定时清理调度器
     stopCleanupScheduler();
+    // 停止组织架构定时刷新
+    stopOrgCacheScheduler();
     process.exit(0);
 });
 
@@ -257,5 +259,7 @@ process.on('SIGINT', () => {
     }
     // 停止数据定时清理调度器
     stopCleanupScheduler();
+    // 停止组织架构定时刷新
+    stopOrgCacheScheduler();
     process.exit(0);
 });

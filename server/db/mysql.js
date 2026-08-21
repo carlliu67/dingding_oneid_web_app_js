@@ -603,6 +603,47 @@ async function dbSetOrgDeptUsers(deptId, usersData, updateTime) {
   }
 }
 
+// 列出所有部门用户缓存的 dept_id（用于组织架构刷新后清理已删除部门的孤儿数据）
+async function dbListOrgDeptUserIds() {
+  const connection = await getConnection();
+  try {
+    const [rows] = await connection.execute('SELECT dept_id FROM org_dept_users');
+    return rows.map(row => String(row.dept_id));
+  } catch (err) {
+    logger.error('查询部门用户缓存dept_id列表失败:', err.message);
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
+// 批量删除指定部门的用户缓存（分批执行避免单条SQL过长）
+async function dbDeleteOrgDeptUsersByDeptIds(deptIds) {
+  const ids = (deptIds || []).map(String);
+  if (ids.length === 0) return 0;
+  const connection = await getConnection();
+  try {
+    const BATCH = 500;
+    let totalDeleted = 0;
+    for (let i = 0; i < ids.length; i += BATCH) {
+      const batch = ids.slice(i, i + BATCH);
+      const placeholders = batch.map(() => '?').join(',');
+      const [result] = await connection.execute(
+        `DELETE FROM org_dept_users WHERE dept_id IN (${placeholders})`,
+        batch
+      );
+      totalDeleted += result.affectedRows;
+    }
+    logger.debug(`批量删除部门用户缓存完成，共删除 ${totalDeleted} 行`);
+    return totalDeleted;
+  } catch (err) {
+    logger.error('批量删除部门用户缓存失败:', err.message);
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
 // ==================== 数据定时清理函数 ====================
 // 分批删除配置：每批最多删除1000条，单次清理最多执行100批（10万条），避免长时间锁表
 const CLEANUP_BATCH_SIZE = 1000;
@@ -720,6 +761,8 @@ export {
   dbSetOrgDeptTree,
   dbGetOrgDeptUsers,
   dbSetOrgDeptUsers,
+  dbListOrgDeptUserIds,
+  dbDeleteOrgDeptUsersByDeptIds,
   dbInsertTodo,
   dbGetTodoByMeetingid,
   dbDeleteTodoByMeetingid,
