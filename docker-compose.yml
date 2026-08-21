@@ -10,6 +10,8 @@ services:
       - .env
     environment:
       - NODE_ENV=production
+      # 容器时区设为东八区（默认为 UTC，会影响依赖本地时间的逻辑）
+      - TZ=Asia/Shanghai
       # 项目名称，用于生成节点名称
       - COMPOSE_PROJECT_NAME=dingtalk
       # 容器名称，用于标识节点

@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { logger } from '../util/logger.js';
-import { convertSecondsToISO, genH5AppLink, genUrlAppLink, getInterAccessToken } from './dingtalkUtil.js';
+import { convertSecondsToISO, formatTimestampInTimezone, genH5AppLink, genUrlAppLink, getInterAccessToken } from './dingtalkUtil.js';
 import serverConfig from '../config/server_config.js';
 import dbAdapter from '../db/db_adapter.js';
 
@@ -28,7 +28,8 @@ function convertRecurrence(txRule) {
     pattern: {
       type: typeMap[txRule.recurring_type] || "daily",
       interval: txRule.recurring_type === 3 ? 2 : 1, // 每两周特殊处理
-      dayOfMonth: txRule.recurring_type === 4 ? new Date(txRule.meeting_start_time * 1000).getDate() : null
+      // 按东八区取"几号"，避免 UTC 跨日导致日期错位
+      dayOfMonth: txRule.recurring_type === 4 ? parseInt(formatTimestampInTimezone(txRule.meeting_start_time, 'D')) : null
     },
     range: {
       type: "noEnd" // 默认无结束日期
@@ -43,7 +44,8 @@ function convertRecurrence(txRule) {
   // 4. 结束条件处理
   if (txRule.until_type === 0) { // 按日期结束
     dingRecurrence.range.type = "endDate";
-    dingRecurrence.range.endDate = new Date(txRule.until_date * 1000).toISOString();
+    // 按东八区输出日期，避免 UTC 跨日导致结束日期错位
+    dingRecurrence.range.endDate = formatTimestampInTimezone(txRule.until_date, 'YYYY-MM-DD');
   } else if (txRule.until_type === 1) { // 按次数结束
     dingRecurrence.range.type = "numbered";
     dingRecurrence.range.numberOfOccurrences = txRule.until_count;
@@ -74,7 +76,8 @@ function convertRecurrence(txRule) {
     
     // 按月重复（按日期方式）
     if (txRule.customized_recurring_type === 3) {
-      dingRecurrence.pattern.dayOfMonth = new Date(txRule.meeting_start_time * 1000).getDate();
+      // 按东八区取"几号"，避免 UTC 跨日导致日期错位
+      dingRecurrence.pattern.dayOfMonth = parseInt(formatTimestampInTimezone(txRule.meeting_start_time, 'D'));
     }
   }
 

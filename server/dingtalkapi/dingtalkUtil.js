@@ -1,44 +1,42 @@
 import axios from 'axios';
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc.js';
+import timezone from 'dayjs/plugin/timezone.js';
 import serverConfig from '../config/server_config.js';
 import { logger } from '../util/logger.js';
 import dbAdapter from '../db/db_adapter.js';
 const { dbInsertUserinfo, dbGetUserinfoByUserid } = dbAdapter;
 
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+// 服务时区（钉钉日程/消息展示统一使用东八区，避免容器系统时区为 UTC 导致偏差）
+const SERVER_TIMEZONE = 'Asia/Shanghai';
+
+// 将秒级时间戳按服务时区格式化
+function formatTimestampInTimezone(seconds, template) {
+    return dayjs(seconds * 1000).tz(SERVER_TIMEZONE).format(template);
+}
+
 // 定义一个函数用于将秒级时间戳转换为 ISO - 8601 格式
+// 输出东八区本地时间（带 +08:00 偏移），与钉钉日程 timeZone: "Asia/Shanghai" 配合
+// 注意：不能用 toISOString()（输出 UTC 时间），否则日程时间会偏差 8 小时
 function convertSecondsToISO(seconds) {
-    // 将秒级时间戳转换为毫秒级时间戳
-    const milliseconds = seconds * 1000;
-    // 创建 Date 对象
-    const date = new Date(milliseconds);
-    // 使用 toISOString 方法获取 ISO - 8601 格式的字符串
-    return date.toISOString();
+    return formatTimestampInTimezone(seconds, 'YYYY-MM-DDTHH:mm:ssZ');
 }
 
 function formatTimeRange(startTimestamp, endTimestamp) {
-    // 将秒级时间戳转为毫秒（Date 对象需要毫秒）
-    const startDate = new Date(startTimestamp * 1000);
-    const endDate = new Date(endTimestamp * 1000);
-
-    // 辅助函数：补零确保两位数显示
-    const padZero = num => num.toString().padStart(2, '0');
+    const startDate = dayjs(startTimestamp * 1000).tz(SERVER_TIMEZONE);
+    const endDate = dayjs(endTimestamp * 1000).tz(SERVER_TIMEZONE);
 
     // 格式化日期部分 (XXXX年XX月XX日)
-    const formatDate = date => {
-        const year = date.getFullYear();
-        const month = padZero(date.getMonth() + 1); // 月份从0开始需+1
-        const day = padZero(date.getDate());
-        return `${year}年${month}月${day}日`;
-    };
+    const formatDate = date => date.format('YYYY年MM月DD日');
 
     // 格式化时间部分 (XX:XX)
-    const formatTime = date =>
-        `${padZero(date.getHours())}:${padZero(date.getMinutes())}`;
+    const formatTime = date => date.format('HH:mm');
 
     // 判断是否同一天
-    const isSameDay =
-        startDate.getFullYear() === endDate.getFullYear() &&
-        startDate.getMonth() === endDate.getMonth() &&
-        startDate.getDate() === endDate.getDate();
+    const isSameDay = startDate.format('YYYY-MM-DD') === endDate.format('YYYY-MM-DD');
 
     // 组合结果
     if (isSameDay) {
@@ -520,6 +518,7 @@ async function getAllScopedUsers(deptIds) {
 
 export {
     convertSecondsToISO,
+    formatTimestampInTimezone,
     formatTimeRange,
     genUrlAppLink,
     genH5AppLink,
