@@ -325,4 +325,34 @@ async function getUserScopedDepartments() {
 }
 
 
-export { handleCreateMeeting, handleGenerateJoinScheme, handleGenerateJumpUrl, handleQueryUserEndedMeetingList, handleQueryUserMeetingList, handleGenerateJoinUrl, handleGetUserInfo, searchUser, getUserScopedDepartments }
+// 获取指定部门的用户列表（strict模式使用，前端展开部门时调用）
+async function getDeptUsers(deptId) {
+    frontendLogger.debug(`\n----------[获取部门用户 BEGIN deptId=${deptId}]----------`)
+    try {
+        const response = await axios.get(`${getOrigin()}/api/get_dept_users`, {
+            params: { deptId },
+            withCredentials: true
+        });
+
+        if (!response || !response.data) {
+            frontendLogger.error('get_dept_users response is null');
+            return null;
+        }
+
+        const data = response.data;
+        if (data.code !== 0) {
+            frontendLogger.error('获取部门用户失败', { msg: data.msg });
+            return null;
+        }
+
+        frontendLogger.debug("获取部门用户: 成功", { count: data.data?.users?.length || 0 });
+        frontendLogger.debug("----------[获取部门用户 END]----------\n")
+        return data.data.users;
+    } catch (error) {
+        frontendLogger.error('get_dept_users error', { error });
+        return null;
+    }
+}
+
+
+export { handleCreateMeeting, handleGenerateJoinScheme, handleGenerateJumpUrl, handleQueryUserEndedMeetingList, handleQueryUserMeetingList, handleGenerateJoinUrl, handleGetUserInfo, searchUser, getUserScopedDepartments, getDeptUsers }

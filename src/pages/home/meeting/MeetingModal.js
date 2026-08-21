@@ -6,7 +6,7 @@ import './MeetingModal.css'
 import clientConfig from '../../../config/client_config.js';
 import { frontendLogger } from '../../../utils/logger.js';
 import { getScopedDeptTree } from '../../../utils/deptCache.js';
-import { searchUser } from '../../../components/wemeetapi/wemeetApi.js';
+import { searchUser, getDeptUsers } from '../../../components/wemeetapi/wemeetApi.js';
 const { Option } = Select;
 const { Search } = AntInput;
 
@@ -314,7 +314,19 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo, isFreeAccount }) 
     }, 500);
   };
 
-  // strict模式：自定义Tree节点渲染（用户节点显示头像+姓名+工号）
+  // strict模式：更新树的子节点（异步加载用户后）
+function updateTreeChildren(tree, targetKey, newChildren) {
+    if (!tree) return tree;
+    if (tree.key === targetKey) {
+        return { ...tree, children: [...(tree.children || []).filter(c => c.type === 'dept'), ...newChildren] };
+    }
+    if (tree.children) {
+        return { ...tree, children: tree.children.map(c => updateTreeChildren(c, targetKey, newChildren)) };
+    }
+    return tree;
+}
+
+// strict模式：自定义Tree节点渲染（用户节点显示头像+姓名+工号）
 function renderTreeNode(node) {
     if (node.type === 'user') {
         return (
@@ -690,8 +702,16 @@ function renderTreeNode(node) {
                   }}
                   treeData={getTreeData(true)}
                   titleRender={renderTreeNode}
+                  loadData={async (node) => {
+                    if (node.type !== 'dept' || node.children?.length > 0) return;
+                    const deptId = node.deptId;
+                    const users = await getDeptUsers(deptId);
+                    if (users && users.length > 0) {
+                      // 更新树的子节点
+                      setDeptTreeData(prev => updateTreeChildren(prev, node.key, users));
+                    }
+                  }}
                   fieldNames={{ title: 'title', key: 'key', children: 'children' }}
-                  defaultExpandAll
                   selectable={false}
                 />
               </Modal>
@@ -791,8 +811,15 @@ function renderTreeNode(node) {
                   }}
                   treeData={getTreeData(false)}
                   titleRender={renderTreeNode}
+                  loadData={async (node) => {
+                    if (node.type !== 'dept' || node.children?.length > 0) return;
+                    const deptId = node.deptId;
+                    const users = await getDeptUsers(deptId);
+                    if (users && users.length > 0) {
+                      setDeptTreeData(prev => updateTreeChildren(prev, node.key, users));
+                    }
+                  }}
                   fieldNames={{ title: 'title', key: 'key', children: 'children' }}
-                  defaultExpandAll
                   selectable={false}
                 />
               </Modal>

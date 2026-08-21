@@ -10,12 +10,14 @@ const idTokenDBPath = path.join(process.cwd(), 'data', `idtoken.db`);
 const userinfoDBPath = path.join(process.cwd(), 'data', `userinfo.db`);
 const todoDBPath = path.join(process.cwd(), 'data', `todo.db`);
 const calendarDBPath = path.join(process.cwd(), 'data', `calendar.db`);
+const orgDBPath = path.join(process.cwd(), 'data', `org.db`);
 
 // 全局数据库连接
 let idTokenDB = null;
 let userinfoDB = null;
 let todoDB = null;
 let calendarDB = null;
+let orgDB = null;
 
 // SQLite 并发配置
 const SQLITE_BUSY_TIMEOUT = serverConfig.sqliteBusyTimeout || 30000; // 30秒超时
@@ -390,6 +392,138 @@ function dbSetConfig(key, value) {
     });
 }
 
+// ==================== 组织架构缓存（独立 org.db） ====================
+
+// 打开或初始化组织架构缓存数据库
+function openOrgDatabase() {
+    if (!orgDB) {
+        orgDB = new sqlite.Database(orgDBPath, (err) => {
+            if (err) {
+                logger.error('Error opening org database:', err.message);
+                return;
+            }
+            logger.info('Connected to the org database.');
+
+            // 配置数据库以提高并发性能
+            orgDB.configure("busyTimeout", SQLITE_BUSY_TIMEOUT);
+
+            // 启用WAL模式以提高并发性能
+            if (SQLITE_WAL_MODE) {
+                orgDB.run("PRAGMA journal_mode=WAL;", (err) => {
+                    if (err) {
+                        logger.error('Error setting WAL mode for org database:', err.message);
+                    } else {
+                        logger.info('WAL mode enabled for org database.');
+                    }
+                });
+            }
+
+            orgDB.serialize(() => {
+                // 创建组织架构部门树表（单行存储 id=1）
+                orgDB.run(`CREATE TABLE IF NOT EXISTS org_dept_tree (
+                    id INTEGER PRIMARY KEY CHECK (id = 1),
+                    tree_data TEXT NOT NULL,
+                    update_time INTEGER NOT NULL
+                )`, (err) => {
+                    if (err) {
+                        logger.error('Error creating table org_dept_tree:', err.message);
+                    } else {
+                        logger.info('Table "org_dept_tree" created successfully.');
+                    }
+                });
+                // 创建组织架构部门用户表
+                orgDB.run(`CREATE TABLE IF NOT EXISTS org_dept_users (
+                    dept_id TEXT PRIMARY KEY,
+                    users_data TEXT NOT NULL,
+                    update_time INTEGER NOT NULL
+                )`, (err) => {
+                    if (err) {
+                        logger.error('Error creating table org_dept_users:', err.message);
+                    } else {
+                        logger.info('Table "org_dept_users" created successfully.');
+                    }
+                });
+            });
+        });
+    }
+    return orgDB;
+}
+
+// 获取组织架构部门树缓存（单行记录 id=1）
+function dbGetOrgDeptTree() {
+    return new Promise((resolve, reject) => {
+        const db = openOrgDatabase();
+        db.get('SELECT tree_data, update_time FROM org_dept_tree WHERE id = 1', (err, row) => {
+            if (err) {
+                logger.error('查询组织架构树缓存失败:', err.message);
+                reject(err);
+            } else if (row) {
+                resolve({ treeData: row.tree_data, updateTime: Number(row.update_time) });
+            } else {
+                logger.debug('未找到组织架构树缓存');
+                resolve(null);
+            }
+        });
+    });
+}
+
+// 保存组织架构部门树缓存（单行记录 upsert）
+function dbSetOrgDeptTree(treeData, updateTime) {
+    return new Promise((resolve, reject) => {
+        const db = openOrgDatabase();
+        const insert = db.prepare('INSERT OR REPLACE INTO org_dept_tree (id, tree_data, update_time) VALUES (1, ?, ?)');
+        insert.run(treeData, updateTime, (err) => {
+            insert.finalize();
+            if (err) {
+                logger.error('保存组织架构树缓存失败:', err.message);
+                reject(err);
+            } else {
+                logger.debug('保存组织架构树缓存成功');
+                resolve('dbSetOrgDeptTree inserted successfully');
+            }
+        });
+    });
+}
+
+// 获取部门用户列表缓存
+function dbGetOrgDeptUsers(deptId) {
+    if (!deptId) {
+        return Promise.reject(new Error('Error: deptId is required'));
+    }
+    return new Promise((resolve, reject) => {
+        const db = openOrgDatabase();
+        db.get('SELECT users_data, update_time FROM org_dept_users WHERE dept_id = ?', [String(deptId)], (err, row) => {
+            if (err) {
+                logger.error('查询部门用户缓存失败:', err.message);
+                reject(err);
+            } else if (row) {
+                resolve({ usersData: row.users_data, updateTime: Number(row.update_time) });
+            } else {
+                logger.debug('未找到部门用户缓存:', deptId);
+                resolve(null);
+            }
+        });
+    });
+}
+
+// 保存部门用户列表缓存（upsert）
+function dbSetOrgDeptUsers(deptId, usersData, updateTime) {
+    return new Promise((resolve, reject) => {
+        const db = openOrgDatabase();
+        const insert = db.prepare('INSERT OR REPLACE INTO org_dept_users (dept_id, users_data, update_time) VALUES (?, ?, ?)');
+        insert.run(String(deptId), usersData, updateTime, (err) => {
+            insert.finalize();
+            if (err) {
+                logger.error('保存部门用户缓存失败:', err.message);
+                reject(err);
+            } else {
+                logger.debug('保存部门用户缓存成功: deptId=' + deptId);
+                resolve('dbSetOrgDeptUsers inserted successfully');
+            }
+        });
+    });
+}
+
 // 插入userinfo数据
 function dbInsertUserinfo(userid, unionid, name) {
     return new Promise((resolve, reject) => {
@@ -726,6 +860,11 @@ export {
     dbUpdateUserLoginTime,
     dbGetConfig,
     dbSetConfig,
+    openOrgDatabase,
+    dbGetOrgDeptTree,
+    dbSetOrgDeptTree,
+    dbGetOrgDeptUsers,
+    dbSetOrgDeptUsers,
     openTodoDatabase,
     dbInsertTodo,
     dbGetTodoByMeetingid,

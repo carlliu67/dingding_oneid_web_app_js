@@ -101,6 +101,7 @@ dbAdapter.initDatabase = async () => {
       await module.openIdTokenDatabase();
       await module.openTodoDatabase();
       await module.openCalendarDatabase();
+      await module.openOrgDatabase();
       logger.info('SQLite databases initialized successfully');
     }
   } catch (err) {

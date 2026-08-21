@@ -110,14 +110,45 @@ async function createTables() {
     // 为定时清理字段创建索引
     await createIndexIfNotExists(connection, 'idx_calendar_createtimestamp', 'calendar', 'createtimestamp');
 
-    // 创建config表
+    // 创建config表（value 使用 TEXT 以支持较长的配置值）
     await connection.query(`
       CREATE TABLE IF NOT EXISTS config (
         config_key VARCHAR(255) PRIMARY KEY,
-        value VARCHAR(255) NOT NULL
+        value TEXT NOT NULL
       )
     `);
     logger.info('Table "config" created successfully');
+    // 兼容旧表：若 value 列仍是 VARCHAR 则扩展为 TEXT，避免较长配置值写入失败
+    try {
+      const [cols] = await connection.query(`SHOW COLUMNS FROM config LIKE 'value'`);
+      if (cols.length > 0 && String(cols[0].Type).toUpperCase() !== 'TEXT') {
+        await connection.query(`ALTER TABLE config MODIFY COLUMN value TEXT NOT NULL`);
+        logger.info('Column "value" of table "config" modified to TEXT.');
+      }
+    } catch (alterErr) {
+      // 列已是 TEXT 或修改失败时忽略
+      logger.debug('Modify config.value column skipped:', alterErr.message);
+    }
+
+    // 创建组织架构缓存表（部门树，单行存储 id=1）
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS org_dept_tree (
+        id INT PRIMARY KEY DEFAULT 1,
+        tree_data MEDIUMTEXT NOT NULL,
+        update_time BIGINT NOT NULL
+      )
+    `);
+    logger.info('Table "org_dept_tree" created successfully');
+
+    // 创建组织架构缓存表（部门用户列表）
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS org_dept_users (
+        dept_id VARCHAR(64) PRIMARY KEY,
+        users_data MEDIUMTEXT NOT NULL,
+        update_time BIGINT NOT NULL
+      )
+    `);
+    logger.info('Table "org_dept_users" created successfully');
     
   } catch (err) {
     logger.error('Error creating tables:', err.message);
@@ -495,6 +526,83 @@ async function dbSetConfig(key, value) {
   }
 }
 
+// ==================== 组织架构缓存相关方法 ====================
+
+// 获取组织架构部门树缓存（单行记录 id=1）
+async function dbGetOrgDeptTree() {
+  const connection = await getConnection();
+  try {
+    const [rows] = await connection.execute(
+      'SELECT tree_data, update_time FROM org_dept_tree WHERE id = 1'
+    );
+    if (rows.length > 0) {
+      return { treeData: rows[0].tree_data, updateTime: Number(rows[0].update_time) };
+    }
+    return null;
+  } catch (err) {
+    logger.error('查询组织架构树缓存失败:', err.message);
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
+// 保存组织架构部门树缓存（upsert 单行记录）
+async function dbSetOrgDeptTree(treeData, updateTime) {
+  const connection = await getConnection();
+  try {
+    await connection.execute(
+      'INSERT INTO org_dept_tree (id, tree_data, update_time) VALUES (1, ?, ?) ON DUPLICATE KEY UPDATE tree_data = VALUES(tree_data), update_time = VALUES(update_time)',
+      [treeData, updateTime]
+    );
+    logger.debug('保存组织架构树缓存成功');
+    return 'dbSetOrgDeptTree inserted successfully';
+  } catch (err) {
+    logger.error('保存组织架构树缓存失败:', err.message);
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
+// 获取部门用户列表缓存
+async function dbGetOrgDeptUsers(deptId) {
+  const connection = await getConnection();
+  try {
+    const [rows] = await connection.execute(
+      'SELECT users_data, update_time FROM org_dept_users WHERE dept_id = ?',
+      [String(deptId)]
+    );
+    if (rows.length > 0) {
+      return { usersData: rows[0].users_data, updateTime: Number(rows[0].update_time) };
+    }
+    return null;
+  } catch (err) {
+    logger.error('查询部门用户缓存失败:', err.message);
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
+// 保存部门用户列表缓存（upsert）
+async function dbSetOrgDeptUsers(deptId, usersData, updateTime) {
+  const connection = await getConnection();
+  try {
+    await connection.execute(
+      'INSERT INTO org_dept_users (dept_id, users_data, update_time) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE users_data = VALUES(users_data), update_time = VALUES(update_time)',
+      [String(deptId), usersData, updateTime]
+    );
+    logger.debug(`保存部门用户缓存成功: deptId=${deptId}`);
+    return 'dbSetOrgDeptUsers inserted successfully';
+  } catch (err) {
+    logger.error('保存部门用户缓存失败:', err.message);
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
 // ==================== 数据定时清理函数 ====================
 // 分批删除配置：每批最多删除1000条，单次清理最多执行100批（10万条），避免长时间锁表
 const CLEANUP_BATCH_SIZE = 1000;
@@ -608,6 +716,10 @@ export {
   dbUpdateUserLoginTime,
   dbGetConfig,
   dbSetConfig,
+  dbGetOrgDeptTree,
+  dbSetOrgDeptTree,
+  dbGetOrgDeptUsers,
+  dbSetOrgDeptUsers,
   dbInsertTodo,
   dbGetTodoByMeetingid,
   dbDeleteTodoByMeetingid,

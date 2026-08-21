@@ -5,6 +5,7 @@ import { logger } from '../util/logger.js';
 import serverConfig from '../config/server_config.js';
 import { configAccessControl, okResponse, failResponse, setCookie } from '../server_util.js';
 import { getAccessToken, getInterAccessToken, searchUserByKeyword, getUserDetailByUserid, queryUserIdByUnionId, getAllDepartmentIds, getSubDepartmentIds, getUserDeptIdList, listSubDepartmentIds, getAllScopedUsers, getScopedDeptTree } from './dingtalkUtil.js';
+import { getScopedDeptTree as getCachedDeptTree, getDeptUsers } from './orgCache.js';
 import { getUserAuthFromRedis, setUserAuthToRedis } from '../db/redis.js';
 import dbAdapter from '../db/db_adapter.js';
 
@@ -377,8 +378,8 @@ async function getUserInfoByOAuth2Code(code) {
 }
 
 // 处理获取用户部门范围请求
-// 严格模式（strict）下获取用户所在部门及子部门的组织架构树（含成员）
-// 返回 tree: 部门树形结构
+// 严格模式（strict）下获取用户所在部门及子部门的组织架构树（纯部门，不含用户）
+// 用户展开部门时通过 handleGetDeptUsers 异步获取该部门的用户列表
 async function handleGetScopedUsers(ctx) {
     logger.debug("\n-------------------[获取用户范围组织架构 BEGIN]-----------------------------");
     configAccessControl(ctx);
@@ -405,8 +406,8 @@ async function handleGetScopedUsers(ctx) {
         }
         logger.debug(`用户所在部门: ${userDeptIds.join(', ')}`);
 
-        // 第二步：递归构建部门组织架构树（含成员）
-        const tree = await getScopedDeptTree(userDeptIds);
+        // 第二步：从缓存（内存→DB→钉钉）获取组织架构树
+        const tree = await getCachedDeptTree(userDeptIds);
 
         ctx.body = okResponse({ tree });
     } catch (error) {
@@ -417,11 +418,44 @@ async function handleGetScopedUsers(ctx) {
     logger.debug("-------------------[获取用户范围组织架构 END]-----------------------------\n");
 }
 
+// 严格模式（strict）下获取指定部门的用户列表
+// 前端展开部门节点时调用，返回该部门的用户
+async function handleGetDeptUsers(ctx) {
+    logger.debug("\n-------------------[获取部门用户 BEGIN]-----------------------------");
+    configAccessControl(ctx);
+
+    if (!(await isLogin(ctx))) {
+        ctx.body = failResponse("用户未登录，请先登录");
+        return;
+    }
+
+    try {
+        const deptId = ctx.query["deptId"];
+        if (!deptId) {
+            ctx.body = failResponse("缺少deptId参数");
+            return;
+        }
+
+        logger.info(`获取部门用户: deptId=${deptId}`);
+
+        // 从缓存（内存→DB→钉钉）获取部门用户
+        const users = await getDeptUsers(deptId);
+
+        ctx.body = okResponse({ users });
+    } catch (error) {
+        logger.error("获取部门用户失败:", error.message, "stack:", error.stack);
+        ctx.body = failResponse("获取部门用户失败");
+    }
+
+    logger.debug("-------------------[获取部门用户 END]-----------------------------\n");
+}
+
 export {
     getUserAccessToken,
     getSignParameters,
     isLogin,
     getUserid,
     handleSearchUser,
-    handleGetScopedUsers
+    handleGetScopedUsers,
+    handleGetDeptUsers
 };

@@ -14,7 +14,7 @@ const { logger } = await import('./util/logger.js');
 const { handleVerification, handleEvent } = await import('./wemeet/webhook.js');
 const { handleCreateMeeting, handleQueryUserEndedMeetingList, handleQueryUserMeetingList, handleGetUserInfo } = await import('./wemeet/wemeetApi.js');
 const { handleGenerateJoinScheme, handleGenerateJumpUrl, handleGenerateJoinUrl } = await import('./wemeet/wemeetUtil.js');
-const { getUserAccessToken, getSignParameters, isLogin, getUserid, handleSearchUser, handleGetScopedUsers } = await import('./dingtalkapi/dingtalkAuth.js');
+const { getUserAccessToken, getSignParameters, isLogin, getUserid, handleSearchUser, handleGetScopedUsers, handleGetDeptUsers } = await import('./dingtalkapi/dingtalkAuth.js');
 const dbAdapter = (await import('./db/db_adapter.js')).default;
 const { initRedis } = await import('./db/redis.js');
 const { handleFrontendLogs } = await import('./util/logHandler.js');
@@ -22,6 +22,7 @@ const { initializeAdminUserid } = await import('./util/adminUseridManager.js');
 const { startCleanupScheduler, stopCleanupScheduler } = await import('./db/data_cleanup.js');
 const { handleGetConfigDefinitions, handleSaveConfig, KEY_MAP } = await import('./admin/configManager.js');
 const { syncEnvToDatabase, loadConfigFromDatabase } = await import('./config/configStore.js');
+const { initOrgCache } = await import('./dingtalkapi/orgCache.js');
 
 import Koa from 'koa';
 import Router from 'koa-router';
@@ -40,6 +41,8 @@ dbAdapter.initDatabase().then(async () => {
   // 从数据库加载配置到内存（解密并更新 serverConfig）
   await loadConfigFromDatabase(serverConfig, KEY_MAP);
   logger.info('系统配置加载完成');
+  // 从数据库加载组织架构树到内存（启动时不从钉钉获取用户信息）
+  await initOrgCache();
   // 启动数据定时清理调度器（在数据库初始化完成后启动）
   startCleanupScheduler();
 });
@@ -133,6 +136,7 @@ router.get(serverConfig.queryUserMeetingListPath, handleQueryUserMeetingList)
 router.get(serverConfig.getUserInfoPath, handleGetUserInfo)
 router.get(serverConfig.searchUserPath, handleSearchUser)
 router.get(serverConfig.getUserScopedDepartmentsPath, handleGetScopedUsers)
+router.get('/api/get_dept_users', handleGetDeptUsers)
 
 // 管理页面配置接口
 router.get('/api/admin/config', handleGetConfigDefinitions)
