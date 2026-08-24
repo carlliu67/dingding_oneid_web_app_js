@@ -298,6 +298,7 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo, isFreeAccount }) 
             userid: user.userid,
             title: user.name || user.userid,
             type: 'user',
+            isLeaf: true,
             avatar: user.avatar || '',
             job_number: user.jobnumber || user.job_number || '',
           }));
