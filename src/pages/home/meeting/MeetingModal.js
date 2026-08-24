@@ -266,7 +266,7 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo, isFreeAccount }) 
   useEffect(() => {
     if (clientConfig.userSelectorMode === 'strict') {
       getScopedDeptTree().then(tree => {
-        if (tree) setDeptTreeData(tree);
+        if (tree) setDeptTreeData(convertTreeForAntd(tree));
       });
     }
   }, []);
@@ -315,15 +315,57 @@ const MeetingModal = ({ visible, onCancel, onCreate, userInfo, isFreeAccount }) 
   };
 
   // strict模式：更新树的子节点（异步加载用户后）
+// 同时递归 children（虚拟根/已加载用户的节点）与 deptChildren（待加载用户的部门节点）两条路径
 function updateTreeChildren(tree, targetKey, newChildren) {
     if (!tree) return tree;
     if (tree.key === targetKey) {
-        return { ...tree, children: [...(tree.children || []).filter(c => c.type === 'dept'), ...newChildren] };
+        // 部门节点：deptChildren 存子部门，加载用户后 children = 用户 + 子部门（用户在前、分类在后）
+        const deptChildren = tree.deptChildren || [];
+        return { ...tree, children: [...newChildren, ...deptChildren] };
+    }
+    let updated = tree;
+    if (tree.deptChildren) {
+        updated = { ...updated, deptChildren: tree.deptChildren.map(c => updateTreeChildren(c, targetKey, newChildren)) };
     }
     if (tree.children) {
-        return { ...tree, children: tree.children.map(c => updateTreeChildren(c, targetKey, newChildren)) };
+        updated = { ...updated, children: tree.children.map(c => updateTreeChildren(c, targetKey, newChildren)) };
     }
-    return tree;
+    return updated;
+}
+
+// strict模式：标记部门节点已加载过用户（无直属用户的情况，展开后仅显示子部门）
+function markDeptLoaded(tree, targetKey) {
+    if (!tree) return tree;
+    if (tree.key === targetKey) {
+        if (tree.children === undefined) {
+            return { ...tree, children: [...(tree.deptChildren || [])] };
+        }
+        return tree;
+    }
+    let updated = tree;
+    if (tree.deptChildren) {
+        updated = { ...updated, deptChildren: tree.deptChildren.map(c => markDeptLoaded(c, targetKey)) };
+    }
+    if (tree.children) {
+        updated = { ...updated, children: tree.children.map(c => markDeptLoaded(c, targetKey)) };
+    }
+    return updated;
+}
+
+// strict模式：递归转换后端返回的树为 antd Tree 格式
+// antd Tree 规则：children 为非空数组的节点不会再触发 loadData，因此：
+// - 真实部门节点：children 省略（undefined），子部门暂存 deptChildren，展开时触发 loadData 拉取直属用户
+// - 虚拟根节点（多部门容器，无deptId）：children 直接放子部门，无需异步加载
+function convertTreeForAntd(node) {
+    if (!node || node.type !== 'dept') return node;
+    const deptChildren = (node.children || []).map(convertTreeForAntd);
+    const { children, ...rest } = node;
+    if (node.deptId === undefined || node.deptId === null) {
+        // 虚拟根节点：children 非空 → antd 不触发 loadData
+        return { ...rest, isLeaf: false, children: deptChildren };
+    }
+    // 真实部门节点：省略 children 触发 loadData
+    return { ...rest, isLeaf: false, deptChildren };
 }
 
 // strict模式：自定义Tree节点渲染（用户节点显示头像+姓名+工号）
@@ -703,12 +745,18 @@ function renderTreeNode(node) {
                   treeData={getTreeData(true)}
                   titleRender={renderTreeNode}
                   loadData={async (node) => {
-                    if (node.type !== 'dept' || node.children?.length > 0) return;
+                    // 虚拟根节点（无deptId）仅为多部门容器，无需拉取用户
+                    if (node.type !== 'dept' || node.deptId === undefined || node.deptId === null) return;
+                    // 已加载过用户（children中存在用户节点）则不再拉取
+                    if (node.children?.some(c => c.type === 'user')) return;
                     const deptId = node.deptId;
                     const users = await getDeptUsers(deptId);
                     if (users && users.length > 0) {
-                      // 更新树的子节点
+                      // 追加用户到节点children（保留原有子部门）
                       setDeptTreeData(prev => updateTreeChildren(prev, node.key, users));
+                    } else {
+                      // 没用户时也标记为已加载，避免antd反复触发
+                      setDeptTreeData(prev => markDeptLoaded(prev, node.key));
                     }
                   }}
                   fieldNames={{ title: 'title', key: 'key', children: 'children' }}
@@ -812,11 +860,18 @@ function renderTreeNode(node) {
                   treeData={getTreeData(false)}
                   titleRender={renderTreeNode}
                   loadData={async (node) => {
-                    if (node.type !== 'dept' || node.children?.length > 0) return;
+                    // 虚拟根节点（无deptId）仅为多部门容器，无需拉取用户
+                    if (node.type !== 'dept' || node.deptId === undefined || node.deptId === null) return;
+                    // 已加载过用户（children中存在用户节点）则不再拉取
+                    if (node.children?.some(c => c.type === 'user')) return;
                     const deptId = node.deptId;
                     const users = await getDeptUsers(deptId);
                     if (users && users.length > 0) {
+                      // 追加用户到节点children（保留原有子部门）
                       setDeptTreeData(prev => updateTreeChildren(prev, node.key, users));
+                    } else {
+                      // 没用户时也标记为已加载，避免antd反复触发
+                      setDeptTreeData(prev => markDeptLoaded(prev, node.key));
                     }
                   }}
                   fieldNames={{ title: 'title', key: 'key', children: 'children' }}
