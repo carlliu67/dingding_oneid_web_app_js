@@ -751,9 +751,14 @@ function renderTreeNode(node) {
                     if (node.children?.some(c => c.type === 'user')) return;
                     const deptId = node.deptId;
                     const users = await getDeptUsers(deptId);
-                    if (users && users.length > 0) {
+                    // 钉钉 user/list 返回所有 dept_id_list 包含该部门的用户，会与子部门拉取结果重复
+                    // 同时给用户节点补 isLeaf:true，避免 antd 在用户前面显示展开箭头
+                    const uniqueUsers = Array.from(
+                        new Map((users || []).map(u => [u.key, { ...u, isLeaf: true }])).values()
+                    );
+                    if (uniqueUsers.length > 0) {
                       // 追加用户到节点children（保留原有子部门）
-                      setDeptTreeData(prev => updateTreeChildren(prev, node.key, users));
+                      setDeptTreeData(prev => updateTreeChildren(prev, node.key, uniqueUsers));
                     } else {
                       // 没用户时也标记为已加载，避免antd反复触发
                       setDeptTreeData(prev => markDeptLoaded(prev, node.key));
@@ -866,9 +871,14 @@ function renderTreeNode(node) {
                     if (node.children?.some(c => c.type === 'user')) return;
                     const deptId = node.deptId;
                     const users = await getDeptUsers(deptId);
-                    if (users && users.length > 0) {
+                    // 钉钉 user/list 返回所有 dept_id_list 包含该部门的用户，会与子部门拉取结果重复
+                    // 同时给用户节点补 isLeaf:true，避免 antd 在用户前面显示展开箭头
+                    const uniqueUsers = Array.from(
+                        new Map((users || []).map(u => [u.key, { ...u, isLeaf: true }])).values()
+                    );
+                    if (uniqueUsers.length > 0) {
                       // 追加用户到节点children（保留原有子部门）
-                      setDeptTreeData(prev => updateTreeChildren(prev, node.key, users));
+                      setDeptTreeData(prev => updateTreeChildren(prev, node.key, uniqueUsers));
                     } else {
                       // 没用户时也标记为已加载，避免antd反复触发
                       setDeptTreeData(prev => markDeptLoaded(prev, node.key));
