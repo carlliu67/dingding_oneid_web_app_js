@@ -13,7 +13,7 @@ const config = {
 
     // server运行参数配置
     apiPort: process.env.API_PORT || "7000",   //后端指定端口（前后端同端口部署，默认7000）
-    frontEndServerUrl: process.env.FRONT_END_SERVER_URL || "",  //前端server地址
+    frontEndServerUrl: process.env.FRONT_END_SERVER_URL || "",  //前端server地址（钉钉日程"加入会议"链接使用，移动端跳转依赖此方式）
 
     // 腾讯会议对接参数
     wemeetAPPID: process.env.WEMEET_APPID || "",   //腾讯会议应用APPID

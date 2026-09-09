@@ -68,7 +68,7 @@ docker-compose restart
 #### 服务配置
 - `API_PORT`: 后端监听端口（默认7000，可被 `PORT` 环境变量覆盖）
 - `PORT`: 后端实际监听端口（优先级高于 `API_PORT`，Docker 中默认7000）
-- `FRONT_END_SERVER_URL`: 前端服务完整地址（用于后端生成钉钉日程/待办跳转链接，需包含协议+域名+端口，如 `http://your-domain.com:7000`）
+- `FRONT_END_SERVER_URL`: 前端服务完整地址（钉钉日程"加入会议"链接使用，移动端跳转依赖此方式；需包含协议+域名+端口，如 `http://your-domain.com:7000`）
 
 #### 腾讯会议对接参数
 - `WEMEET_APPID`: 腾讯会议应用ID

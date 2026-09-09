@@ -47,6 +47,8 @@ function formatTimeRange(startTimestamp, endTimestamp) {
 }
 
 // 生成打开普通页面的Applink
+// 注意：钉钉日程"加入会议"链接必须使用此方式（配合FRONT_END_SERVER_URL直开H5页面），
+// 不能改用 genH5AppLink（H5应用applink）：移动端从日程点击该链接时无法正常跳转
 function genUrlAppLink(url) {
     //return ` https://applink.feishu.cn/client/web_app/open?appId= ${ appId } &lk_target_url= ${ encodeURIComponent ( targetUrl ) } `
     //return 'https://applink.dingtalk.com/page/h5_app_open?target=panel&appId=' + appId + '&corpId=' + corpId + '&appType=2&path=' + encodeURIComponent(uri)

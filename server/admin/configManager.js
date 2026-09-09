@@ -161,7 +161,7 @@ const CONFIG_DEFINITIONS = [
         label: '前端server地址',
         type: 'text',
         required: true,
-        description: '后端用于回调或通知前端',
+        description: '钉钉日程"加入会议"链接使用，移动端跳转依赖此方式，勿删',
         sensitive: false,
     },
 

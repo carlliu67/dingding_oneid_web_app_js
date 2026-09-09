@@ -157,6 +157,8 @@ async function createMeetingCalendar(creatorUnionId, meetingInfo, attendees) {
         .replace(/\+/g, '-')  // 替换+为-
         .replace(/\//g, '_')  // 替换/为_
         .replace(/=/g, '');   // 移除填充字符=
+    // 注意：日程"加入会议"链接必须使用 genUrlAppLink（通用URL applink + FRONT_END_SERVER_URL 直开页面），
+    // 不能改成待办用的 genH5AppLink（H5应用applink）：移动端从日程点击该链接时无法正常跳转
     const url = genUrlAppLink(serverConfig.frontEndServerUrl + "?meetingCode=" + encodeURIComponent(meetingInfo.meeting_code) + "&joinUrl=" + safeJoinUrl);
     logger.debug("url: ", url);
 
