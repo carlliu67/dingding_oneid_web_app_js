@@ -7,7 +7,7 @@ import { isLogin, getUserid } from '../dingtalkapi/dingtalkAuth.js';
 import { getAdminUserid, updateAdminUserid } from '../util/adminUseridManager.js';
 
 const USER_INFO_KEY = 'user_info';
-const WEMEET_VERSION = 'wemeet-dingtalk-js/v1.2.0'
+const WEMEET_VERSION = 'wemeet-dingtalk-js/v1.2.1'
 
 /**
  * 生成签名函数

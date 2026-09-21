@@ -190,7 +190,7 @@ async function createMeetingCalendar(creatorUnionId, meetingInfo, attendees) {
                 recurrence: dingRecurrence,
                 attendees: calendarAttendees,
                 richTextDescription: {
-                    text: `<a href="${url}">加入会议</a>`
+                    text: `腾讯会议号：${meetingInfo.meeting_code}<br/><a href="${url}">加入会议</a>`
                 }
             }
     } else {
@@ -206,7 +206,7 @@ async function createMeetingCalendar(creatorUnionId, meetingInfo, attendees) {
                 },
                 attendees: calendarAttendees,
                 richTextDescription: {
-                    text: `<a href="${url}">加入会议</a>`
+                    text: `腾讯会议号：${meetingInfo.meeting_code}<br/><a href="${url}">加入会议</a>`
                 }
             }
     }
@@ -284,7 +284,7 @@ async function updateMeetingCalendar(creatorUnionId, meetingInfo, attendees) {
                 recurrence: dingRecurrence,
                 attendees: calendarAttendees,
                 richTextDescription: {
-                    text: `<a href="${url}" target="_blank">加入会议</a>`
+                    text: `腾讯会议号：${meetingInfo.meeting_code}<br/><a href="${url}" target="_blank">加入会议</a>`
                 }
             }
     } else {
@@ -301,7 +301,7 @@ async function updateMeetingCalendar(creatorUnionId, meetingInfo, attendees) {
                 },
                 attendees: calendarAttendees,
                 richTextDescription: {
-                    text: `<a href="${url}" target="_blank">加入会议</a>`
+                    text: `腾讯会议号：${meetingInfo.meeting_code}<br/><a href="${url}" target="_blank">加入会议</a>`
                 }
             }
     }
